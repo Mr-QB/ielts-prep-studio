@@ -1,11 +1,30 @@
+export type TopTab = 'today' | 'reading' | 'listening' | 'learn' | 'review';
+export type LearnSubTab = 'grammar' | 'vocab' | 'writing' | 'speaking';
+export type ReviewSubTab = 'mistakes' | 'weak-areas' | 'progress';
+
 export type AppTab =
   | 'today'
-  | 'listening'
   | 'reading'
+  | 'listening'
+  | 'learn'
+  | 'review'
   | 'grammar'
   | 'vocab'
   | 'writing'
-  | 'speaking';
+  | 'speaking'
+  | 'mistakes'
+  | 'weak-areas'
+  | 'progress';
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  displayName: string;
+  currentBand: number;
+  targetBand: number;
+  dailyStudyMinutes: number;
+  roadmapStartDate?: string;
+}
 
 export type ExamMode = 'simulation' | 'study';
 
@@ -240,7 +259,19 @@ export interface ReadingPracticeSet {
 export type GrammarCategory = 'foundation' | 'core' | 'advanced';
 export type GrammarTier = 'essential' | 'advanced';
 
-export type GrammarProgressStatus = 'not-started' | 'learning' | 'completed' | 'needs-review';
+export type GrammarSubjectCategory =
+  | 'Sentence Basics'
+  | 'Nouns & Determiners'
+  | 'Description'
+  | 'Clauses'
+  | 'Complex Sentences'
+  | 'Logic & Connections'
+  | 'Academic Writing'
+  | 'Advanced — Optional Band 7+';
+
+export type GrammarSkillTag = 'Essential' | 'Writing T1' | 'Writing T2' | 'Speaking' | 'Optional 7+';
+
+export type GrammarProgressStatus = 'not-started' | 'studying' | 'mastered';
 
 export interface GrammarExercise {
   id: string;
@@ -253,11 +284,24 @@ export interface GrammarExercise {
   ieltsContext?: string;
 }
 
+export interface GrammarStandardLesson {
+  whatToRemember: string[];
+  whenToUse: string[];
+  form: string;
+  easyExamples: { sentence: string; note: string }[];
+  ieltsExamples: { sentence: string; context: string }[];
+  commonMistakes: { incorrect: string; corrected: string; why: string }[];
+  miniPractice?: GrammarExercise[];
+  quickReview: { rule: string; explanation: string }[];
+}
+
 export interface GrammarTopic {
   id: string;
   code: string; // e.g. "G01", "G08", "G24"
   category: GrammarCategory;
   tier?: GrammarTier; // essential (Band 4.0-6.5) vs advanced (Optional for Band 7+)
+  subjectCategory?: GrammarSubjectCategory;
+  tags?: GrammarSkillTag[];
   title: string;
   whyItMatters: string;
   formula: string;
@@ -274,12 +318,30 @@ export interface GrammarTopic {
   };
   ieltsApplication: string;
   exercises: GrammarExercise[];
+  standardLesson?: GrammarStandardLesson;
 }
 
 // ==========================================
 // 4. VOCABULARY & SRS TYPES
 // ==========================================
 export type SRSIntervalRating = 1 | 2 | 3 | 4; // 1: Again, 2: Hard, 3: Good, 4: Easy
+
+export type VocabBandLevel = 'core-4.0-5.5' | 'core-5.5-6.5' | 'optional-7+';
+
+export type VocabTopicTheme =
+  | 'Education'
+  | 'Environment'
+  | 'Technology'
+  | 'Work'
+  | 'Health'
+  | 'Transport'
+  | 'Cities'
+  | 'Crime'
+  | 'Media'
+  | 'Society'
+  | 'Science'
+  | 'Culture'
+  | 'Travel';
 
 export interface VocabCard {
   id: string;
@@ -292,6 +354,8 @@ export interface VocabCard {
   exampleVi?: string;
   collocations?: string[];
   category: string;
+  topicTheme?: VocabTopicTheme;
+  bandLevel?: VocabBandLevel;
   source?: string;
   sourceContext?: string;
   // SRS state

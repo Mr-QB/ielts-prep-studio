@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { TodayDashboard } from './components/TodayDashboard';
 import { ListeningView } from './components/ListeningView';
@@ -7,26 +7,89 @@ import { GrammarView } from './components/GrammarView';
 import { VocabSRSView } from './components/VocabSRSView';
 import { WritingNotesView } from './components/WritingNotesView';
 import { SpeakingNotesView } from './components/SpeakingNotesView';
-import { AppTab, ExamMode } from './types';
+import { MistakesNotebookView } from './components/MistakesNotebookView';
+import { WeakAreasView } from './components/WeakAreasView';
+import { LoginView } from './components/LoginView';
+import { UserProfileModal } from './components/UserProfileModal';
+import { AppTab, ExamMode, UserProfile } from './types';
+import { fetchCurrentUser, logoutUser } from './utils/db';
 
 export default function App() {
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [isLoadingAuth, setIsLoadingAuth] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<AppTab>('today');
   const [examMode, setExamMode] = useState<ExamMode>('study');
+  const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
 
+  useEffect(() => {
+    let isMounted = true;
+    fetchCurrentUser().then(currentUser => {
+      if (isMounted) {
+        setUser(currentUser);
+        setIsLoadingAuth(false);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    await logoutUser();
+    setUser(null);
+    setActiveTab('today');
+  };
+
+  // Loading Screen
+  if (isLoadingAuth) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans text-slate-700">
+        <div className="text-center space-y-3">
+          <div className="w-8 h-8 border-2 border-slate-900 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-xs font-mono font-medium text-slate-500 tracking-wider uppercase">
+            Đang khởi động IELTS Prep Studio...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Unauthenticated Screen
+  if (!user) {
+    return (
+      <LoginView
+        onLoginSuccess={loggedInUser => {
+          setUser(loggedInUser);
+          setActiveTab('today');
+        }}
+      />
+    );
+  }
+
+  // Authenticated Application
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-slate-900 selection:text-white">
       {/* Top Application Header */}
       <Navbar
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        examMode={examMode}
-        onExamModeChange={setExamMode}
+        user={user}
+        onLogout={handleLogout}
+        onOpenProfile={() => setShowProfileModal(true)}
+      />
+
+      {/* User Profile & Target Settings Modal */}
+      <UserProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        user={user}
+        onUpdateSuccess={(updatedUser: UserProfile) => setUser(updatedUser)}
       />
 
       {/* Main Viewport */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {activeTab === 'today' && (
-          <TodayDashboard onNavigateTab={setActiveTab} />
+          <TodayDashboard onNavigateTab={setActiveTab} user={user} />
         )}
 
         {activeTab === 'reading' && (
@@ -52,6 +115,18 @@ export default function App() {
         {activeTab === 'speaking' && (
           <SpeakingNotesView />
         )}
+
+        {activeTab === 'mistakes' && (
+          <MistakesNotebookView onNavigateTab={setActiveTab} />
+        )}
+
+        {activeTab === 'weak-areas' && (
+          <WeakAreasView onNavigateTab={setActiveTab} />
+        )}
+
+        {activeTab === 'progress' && (
+          <TodayDashboard onNavigateTab={setActiveTab} user={user} />
+        )}
       </main>
 
       {/* Clean Academic Footer */}
@@ -66,7 +141,9 @@ export default function App() {
           <div className="flex items-center gap-3 text-[11px] text-slate-500">
             <span>Local-First & Offline Ready</span>
             <span>•</span>
-            <span>100% Privacy Friendly</span>
+            <span>User: {user.displayName}</span>
+            <span>•</span>
+            <span>Target Band {user.targetBand.toFixed(1)}</span>
           </div>
         </div>
       </footer>

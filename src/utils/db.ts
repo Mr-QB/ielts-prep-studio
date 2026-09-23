@@ -1,6 +1,7 @@
 /**
- * Local-First IndexedDB Persistence with localStorage Fallback
- * Privacy-friendly, offline-ready storage for IELTS Prep Studio
+ * Hybrid Multi-User Cloudflare D1 & Namespaced Local Storage Data Layer
+ * Primary: Cloudflare D1 via Backend API
+ * Fallback / Cache: IndexedDB & localStorage strictly partitioned by user ID.
  */
 import {
   VocabDeck,
@@ -10,13 +11,30 @@ import {
   WeakAreaStat,
   DailyProtocolRecord,
   DailyTaskItem,
-  VocabCard
+  VocabCard,
+  UserProfile,
+  SRSIntervalRating
 } from '../types';
+import { calculateNextSRS } from './srsEngine';
 
 const DB_NAME = 'ielts_prep_studio_v2';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbPromise: Promise<IDBDatabase> | null = null;
+let currentActiveUser: UserProfile | null = null;
+
+export function getActiveUser(): UserProfile | null {
+  return currentActiveUser;
+}
+
+export function setActiveUser(user: UserProfile | null): void {
+  currentActiveUser = user;
+}
+
+function getUserKey(prefix: string): string {
+  const uid = currentActiveUser?.id || 'anonymous';
+  return `user:${uid}:${prefix}`;
+}
 
 function getDB(): Promise<IDBDatabase> {
   if (typeof window === 'undefined' || !window.indexedDB) {
@@ -29,20 +47,21 @@ function getDB(): Promise<IDBDatabase> {
       request.onsuccess = () => resolve(request.result);
       request.onupgradeneeded = (e) => {
         const db = (e.target as IDBOpenDBRequest).result;
-        if (!db.objectStoreNames.contains('decks')) {
-          db.createObjectStore('decks', { keyPath: 'id' });
+        // Namespaced object stores with compound keys or user partition
+        if (!db.objectStoreNames.contains('user_decks')) {
+          db.createObjectStore('user_decks', { keyPath: 'storeId' });
         }
-        if (!db.objectStoreNames.contains('attempts')) {
-          db.createObjectStore('attempts', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('user_attempts')) {
+          db.createObjectStore('user_attempts', { keyPath: 'storeId' });
         }
-        if (!db.objectStoreNames.contains('grammar_progress')) {
-          db.createObjectStore('grammar_progress', { keyPath: 'topicId' });
+        if (!db.objectStoreNames.contains('user_grammar')) {
+          db.createObjectStore('user_grammar', { keyPath: 'storeId' });
         }
-        if (!db.objectStoreNames.contains('mistakes')) {
-          db.createObjectStore('mistakes', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('user_mistakes')) {
+          db.createObjectStore('user_mistakes', { keyPath: 'storeId' });
         }
-        if (!db.objectStoreNames.contains('daily_protocol')) {
-          db.createObjectStore('daily_protocol', { keyPath: 'date' });
+        if (!db.objectStoreNames.contains('user_protocol')) {
+          db.createObjectStore('user_protocol', { keyPath: 'storeId' });
         }
       };
     });
@@ -50,79 +69,156 @@ function getDB(): Promise<IDBDatabase> {
   return dbPromise;
 }
 
-// Fallback keys for localStorage
-const LS_DECKS_KEY = 'ielts_decks_v2';
-const LS_ATTEMPTS_KEY = 'ielts_attempts_v2';
-const LS_GRAMMAR_KEY = 'ielts_grammar_progress_v2';
-const LS_MISTAKES_KEY = 'ielts_mistakes_v2';
-const LS_PROTOCOL_KEY = 'ielts_protocol_v2';
-const LS_START_DATE_KEY = 'ielts_study_start_date_v2';
+/**
+ * Health & Connection check for Cloudflare D1
+ */
+export async function checkD1Status(): Promise<{ connected: boolean; latencyMs?: number }> {
+  try {
+    const res = await fetch('/api/health', { signal: AbortSignal.timeout(3000) });
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        connected: Boolean(data?.d1?.connected),
+        latencyMs: data?.d1?.latencyMs
+      };
+    }
+  } catch {
+    // Offline or API unreachable
+  }
+  return { connected: false };
+}
 
 // ==========================================
-// 1. DECKS & VOCABULARY STORAGE
+// 0. AUTHENTICATION & PROFILE APIS
 // ==========================================
-export async function loadDecksFromStorage(defaultDecks: VocabDeck[]): Promise<VocabDeck[]> {
+
+export async function fetchCurrentUser(): Promise<UserProfile | null> {
   try {
-    const db = await getDB();
-    return new Promise((resolve) => {
-      const tx = db.transaction('decks', 'readonly');
-      const store = tx.objectStore('decks');
-      const req = store.getAll();
-      req.onsuccess = () => {
-        const results = req.result as VocabDeck[];
-        if (results && results.length > 0) {
-          resolve(results);
-        } else {
-          // Check localStorage migration
-          const ls = localStorage.getItem(LS_DECKS_KEY);
-          if (ls) {
-            try {
-              const parsed = JSON.parse(ls);
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                saveDecksToStorage(parsed);
-                return resolve(parsed);
-              }
-            } catch {
-              // ignore
-            }
-          }
-          saveDecksToStorage(defaultDecks);
-          resolve(defaultDecks);
-        }
-      };
-      req.onerror = () => resolve(defaultDecks);
-    });
-  } catch {
-    try {
-      const ls = localStorage.getItem(LS_DECKS_KEY);
-      if (ls) return JSON.parse(ls);
-    } catch {
-      // fallback
+    const res = await fetch('/api/auth/me', { signal: AbortSignal.timeout(4000) });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.user) {
+        setActiveUser(data.user);
+        return data.user;
+      }
     }
-    return defaultDecks;
+  } catch {
+    // Offline or unauthenticated
+  }
+  setActiveUser(null);
+  return null;
+}
+
+export async function loginUser(
+  email: string,
+  pass: string
+): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass })
+    });
+    const data = await res.json();
+    if (res.ok && data.success && data.user) {
+      setActiveUser(data.user);
+      return { success: true, user: data.user };
+    }
+    return { success: false, error: data.error || 'Login failed' };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Network error during login' };
   }
 }
 
-export async function saveDecksToStorage(decks: VocabDeck[]): Promise<void> {
+export async function logoutUser(): Promise<void> {
   try {
-    localStorage.setItem(LS_DECKS_KEY, JSON.stringify(decks));
+    await fetch('/api/auth/logout', { method: 'POST' });
   } catch {
     // ignore
   }
+  setActiveUser(null);
+}
 
+export async function updateUserProfile(profile: Partial<UserProfile>): Promise<UserProfile | null> {
   try {
-    const db = await getDB();
-    const tx = db.transaction('decks', 'readwrite');
-    const store = tx.objectStore('decks');
-    store.clear();
-    decks.forEach(d => store.put(d));
+    const res = await fetch('/api/auth/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(profile)
+    });
+    const data = await res.json();
+    if (res.ok && data.success && data.user) {
+      setActiveUser(data.user);
+      return data.user;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+// ==========================================
+// 1. DECKS & VOCABULARY STORAGE (USER-ISOLATED)
+// ==========================================
+
+export async function loadDecksFromStorage(defaultDecks: VocabDeck[]): Promise<VocabDeck[]> {
+  const lsKey = getUserKey('decks');
+
+  // 1. Try to fetch from Cloudflare D1 via /api/decks
+  try {
+    const res = await fetch('/api/decks', { signal: AbortSignal.timeout(4000) });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && Array.isArray(data.decks) && data.decks.length > 0) {
+        saveDecksToLocalCache(data.decks);
+        return data.decks;
+      }
+    }
+  } catch {
+    // Offline fallback
+  }
+
+  // 2. Fallback to namespaced localStorage
+  try {
+    const ls = localStorage.getItem(lsKey);
+    if (ls) {
+      const parsed = JSON.parse(ls);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch {
+    // fallback
+  }
+
+  return defaultDecks;
+}
+
+function saveDecksToLocalCache(decks: VocabDeck[]): void {
+  try {
+    const lsKey = getUserKey('decks');
+    localStorage.setItem(lsKey, JSON.stringify(decks));
   } catch {
     // safe fallback
   }
 }
 
+export async function saveDecksToStorage(decks: VocabDeck[]): Promise<void> {
+  saveDecksToLocalCache(decks);
+
+  try {
+    fetch('/api/decks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decks })
+    }).catch(() => {});
+  } catch {
+    // Offline safe
+  }
+}
+
 /**
- * Add a new vocabulary card directly to a deck (e.g. from Reading or Listening)
+ * Add a new user-captured card (Personal)
  */
 export async function addWordToVocabDeck(
   cardData: {
@@ -146,7 +242,6 @@ export async function addWordToVocabDeck(
     const targetDeck = deckId ? decks.find(d => d.id === deckId) || decks[0] : decks[0];
     const cleanWord = cardData.word.trim();
 
-    // Check if card already exists in target deck
     const existing = targetDeck.cards.find(c => c.word.toLowerCase() === cleanWord.toLowerCase());
     if (existing) {
       return { success: false, message: `Từ "${cleanWord}" đã có trong bộ "${targetDeck.name}".` };
@@ -172,51 +267,103 @@ export async function addWordToVocabDeck(
     };
 
     targetDeck.cards.unshift(newCard);
-    await saveDecksToStorage(decks);
+    saveDecksToLocalCache(decks);
+
+    // Sync to /api/vocab/card
+    fetch('/api/vocab/card', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ card: newCard, deckId: targetDeck.id })
+    }).catch(() => {});
+
     return { success: true, message: `Đã thêm "${cleanWord}" vào bộ "${targetDeck.name}".` };
-  } catch (err) {
+  } catch {
     return { success: false, message: 'Lỗi khi lưu thẻ từ vựng.' };
   }
 }
 
+/**
+ * Review a card using SuperMemo SM-2 and sync user_vocab_progress to D1
+ */
+export async function reviewCardSRS(
+  cardId: string,
+  rating: SRSIntervalRating,
+  card: VocabCard
+): Promise<VocabCard> {
+  const next = calculateNextSRS(card, rating);
+  const updatedCard: VocabCard = {
+    ...card,
+    repetition: next.repetition,
+    intervalDays: next.intervalDays,
+    easeFactor: next.easeFactor,
+    dueDate: next.dueDate,
+    lastReviewed: new Date().toISOString(),
+    state: next.state
+  };
+
+  // Sync to Cloudflare D1
+  fetch('/api/vocab/review', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      cardId,
+      easeFactor: next.easeFactor,
+      intervalDays: next.intervalDays,
+      repetitions: next.repetition,
+      nextReview: next.dueDate,
+      learningStatus: next.state
+    })
+  }).catch(() => {});
+
+  return updatedCard;
+}
+
 // ==========================================
-// 2. ATTEMPTS & TEST HISTORY
+// 2. ATTEMPTS & TEST HISTORY (USER-ISOLATED)
 // ==========================================
+
 export async function loadAttemptsFromStorage(): Promise<TestAttempt[]> {
+  const lsKey = getUserKey('attempts');
+
   try {
-    const db = await getDB();
-    return new Promise((resolve) => {
-      const tx = db.transaction('attempts', 'readonly');
-      const store = tx.objectStore('attempts');
-      const req = store.getAll();
-      req.onsuccess = () => resolve(req.result as TestAttempt[] || []);
-      req.onerror = () => resolve([]);
-    });
-  } catch {
-    try {
-      const ls = localStorage.getItem(LS_ATTEMPTS_KEY);
-      return ls ? JSON.parse(ls) : [];
-    } catch {
-      return [];
+    const res = await fetch('/api/attempts', { signal: AbortSignal.timeout(4000) });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && Array.isArray(data.attempts)) {
+        localStorage.setItem(lsKey, JSON.stringify(data.attempts));
+        return data.attempts;
+      }
     }
+  } catch {
+    // fallback to local
+  }
+
+  try {
+    const ls = localStorage.getItem(lsKey);
+    return ls ? JSON.parse(ls) : [];
+  } catch {
+    return [];
   }
 }
 
 export async function recordAttempt(attempt: TestAttempt): Promise<void> {
+  const lsKey = getUserKey('attempts');
   try {
     const attempts = await loadAttemptsFromStorage();
     const updated = [attempt, ...attempts].slice(0, 100);
-    localStorage.setItem(LS_ATTEMPTS_KEY, JSON.stringify(updated));
-
-    const db = await getDB();
-    const tx = db.transaction('attempts', 'readwrite');
-    const store = tx.objectStore('attempts');
-    store.put(attempt);
+    localStorage.setItem(lsKey, JSON.stringify(updated));
   } catch {
     // safe fallback
   }
 
-  // Also automatically record any mistakes to the mistakes store
+  // Sync to Cloudflare D1
+  fetch('/api/attempts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(attempt)
+  }).catch(() => {});
+
+  // Also automatically record any mistakes to the local mistakes store
   if (attempt.mistakeTags && attempt.mistakeTags.length > 0) {
     for (const m of attempt.mistakeTags) {
       await recordDetailedMistake({
@@ -238,41 +385,48 @@ export async function recordAttempt(attempt: TestAttempt): Promise<void> {
 }
 
 // ==========================================
-// 3. MISTAKE TRACKER & WEAK-AREA ANALYTICS
+// 3. MISTAKE TRACKER & WEAK-AREA ANALYTICS (USER-ISOLATED)
 // ==========================================
+
 export async function loadMistakes(): Promise<RecordedMistake[]> {
+  const lsKey = getUserKey('mistakes');
+
   try {
-    const db = await getDB();
-    return new Promise((resolve) => {
-      const tx = db.transaction('mistakes', 'readonly');
-      const store = tx.objectStore('mistakes');
-      const req = store.getAll();
-      req.onsuccess = () => resolve(req.result as RecordedMistake[] || []);
-      req.onerror = () => resolve([]);
-    });
-  } catch {
-    try {
-      const ls = localStorage.getItem(LS_MISTAKES_KEY);
-      return ls ? JSON.parse(ls) : [];
-    } catch {
-      return [];
+    const res = await fetch('/api/mistakes', { signal: AbortSignal.timeout(3000) });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && Array.isArray(data.mistakes)) {
+        localStorage.setItem(lsKey, JSON.stringify(data.mistakes));
+        return data.mistakes;
+      }
     }
+  } catch {
+    // fallback
+  }
+
+  try {
+    const ls = localStorage.getItem(lsKey);
+    return ls ? JSON.parse(ls) : [];
+  } catch {
+    return [];
   }
 }
 
 export async function recordDetailedMistake(mistake: RecordedMistake): Promise<void> {
+  const lsKey = getUserKey('mistakes');
   try {
     const current = await loadMistakes();
     const updated = [mistake, ...current].slice(0, 200);
-    localStorage.setItem(LS_MISTAKES_KEY, JSON.stringify(updated));
-
-    const db = await getDB();
-    const tx = db.transaction('mistakes', 'readwrite');
-    const store = tx.objectStore('mistakes');
-    store.put(mistake);
+    localStorage.setItem(lsKey, JSON.stringify(updated));
   } catch {
     // safe fallback
   }
+
+  fetch('/api/mistakes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(mistake)
+  }).catch(() => {});
 }
 
 export async function getWeakAreaStats(): Promise<WeakAreaStat[]> {
@@ -280,7 +434,6 @@ export async function getWeakAreaStats(): Promise<WeakAreaStat[]> {
   const typeMap: Record<string, { skill: 'reading' | 'listening'; total: number; incorrect: number }> = {};
 
   attempts.forEach(att => {
-    // If attempt has questionTypeStats
     if (att.questionTypeStats) {
       Object.entries(att.questionTypeStats).forEach(([type, stat]) => {
         if (!typeMap[type]) {
@@ -290,7 +443,6 @@ export async function getWeakAreaStats(): Promise<WeakAreaStat[]> {
         typeMap[type].incorrect += (stat.total - stat.correct);
       });
     } else if (att.mistakeTags) {
-      // Estimate from mistake tags
       att.mistakeTags.forEach(m => {
         if (!typeMap[m.type]) {
           typeMap[m.type] = { skill: att.skill, total: 0, incorrect: 0 };
@@ -322,16 +474,31 @@ export async function getWeakAreaStats(): Promise<WeakAreaStat[]> {
     };
   });
 
-  // Sort lowest accuracy first
   return stats.sort((a, b) => a.accuracyRate - b.accuracyRate);
 }
 
 // ==========================================
-// 4. GRAMMAR PROGRESS
+// 4. GRAMMAR PROGRESS (USER-ISOLATED)
 // ==========================================
+
 export async function loadGrammarProgress(): Promise<Record<string, GrammarProgressStatus>> {
+  const lsKey = getUserKey('grammar');
+
   try {
-    const ls = localStorage.getItem(LS_GRAMMAR_KEY);
+    const res = await fetch('/api/grammar', { signal: AbortSignal.timeout(3000) });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.progress) {
+        localStorage.setItem(lsKey, JSON.stringify(data.progress));
+        return data.progress;
+      }
+    }
+  } catch {
+    // fallback
+  }
+
+  try {
+    const ls = localStorage.getItem(lsKey);
     if (ls) return JSON.parse(ls);
   } catch {
     // ignore
@@ -340,22 +507,26 @@ export async function loadGrammarProgress(): Promise<Record<string, GrammarProgr
 }
 
 export async function saveGrammarProgress(topicId: string, status: GrammarProgressStatus): Promise<void> {
+  const lsKey = getUserKey('grammar');
   try {
     const current = await loadGrammarProgress();
     current[topicId] = status;
-    localStorage.setItem(LS_GRAMMAR_KEY, JSON.stringify(current));
-
-    const db = await getDB();
-    const tx = db.transaction('grammar_progress', 'readwrite');
-    tx.objectStore('grammar_progress').put({ topicId, status, lastStudied: new Date().toISOString() });
+    localStorage.setItem(lsKey, JSON.stringify(current));
   } catch {
     // ignore
   }
+
+  fetch('/api/grammar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ topicId, status })
+  }).catch(() => {});
 }
 
 // ==========================================
-// 5. DAILY STUDY PROTOCOL & 180-DAY TRACKER
+// 5. DAILY STUDY PROTOCOL & 180-DAY TRACKER (USER-ISOLATED)
 // ==========================================
+
 export const DEFAULT_DAILY_TASKS: DailyTaskItem[] = [
   {
     id: 'task-vocab',
@@ -412,11 +583,15 @@ export function getTodayDateString(): string {
 }
 
 export function getStudyStartDate(): string {
+  if (currentActiveUser?.roadmapStartDate) {
+    return currentActiveUser.roadmapStartDate;
+  }
+  const lsKey = getUserKey('startDate');
   try {
-    let start = localStorage.getItem(LS_START_DATE_KEY);
+    let start = localStorage.getItem(lsKey);
     if (!start) {
       start = getTodayDateString();
-      localStorage.setItem(LS_START_DATE_KEY, start);
+      localStorage.setItem(lsKey, start);
     }
     return start;
   } catch {
@@ -435,9 +610,25 @@ export function calculateDayNumber(): number {
 export async function loadTodayProtocol(): Promise<DailyProtocolRecord> {
   const todayStr = getTodayDateString();
   const dayNum = calculateDayNumber();
+  const lsKey = getUserKey(`protocol_${todayStr}`);
 
+  // 1. Try to fetch from Cloudflare D1
   try {
-    const ls = localStorage.getItem(`${LS_PROTOCOL_KEY}_${todayStr}`);
+    const res = await fetch(`/api/protocol?date=${todayStr}`, { signal: AbortSignal.timeout(3000) });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.record) {
+        localStorage.setItem(lsKey, JSON.stringify(data.record));
+        return data.record;
+      }
+    }
+  } catch {
+    // fallback
+  }
+
+  // 2. Fallback to namespaced localStorage
+  try {
+    const ls = localStorage.getItem(lsKey);
     if (ls) {
       return JSON.parse(ls);
     }
@@ -445,21 +636,33 @@ export async function loadTodayProtocol(): Promise<DailyProtocolRecord> {
     // ignore
   }
 
+  // Scale tasks duration to match user's daily study minutes if customized
+  const totalMins = currentActiveUser?.dailyStudyMinutes || 180;
+  const scale = totalMins / 180;
+  const scaledTasks = DEFAULT_DAILY_TASKS.map(t => ({
+    ...t,
+    durationMin: Math.max(5, Math.round(t.durationMin * scale))
+  }));
+
   return {
     date: todayStr,
     dayNumber: dayNum,
-    tasks: DEFAULT_DAILY_TASKS,
+    tasks: scaledTasks,
     streakDays: 1
   };
 }
 
 export async function saveTodayProtocol(record: DailyProtocolRecord): Promise<void> {
+  const lsKey = getUserKey(`protocol_${record.date}`);
   try {
-    localStorage.setItem(`${LS_PROTOCOL_KEY}_${record.date}`, JSON.stringify(record));
-    const db = await getDB();
-    const tx = db.transaction('daily_protocol', 'readwrite');
-    tx.objectStore('daily_protocol').put(record);
+    localStorage.setItem(lsKey, JSON.stringify(record));
   } catch {
     // ignore
   }
+
+  fetch('/api/protocol', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(record)
+  }).catch(() => {});
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AppTab, TestAttempt, VocabDeck, GrammarProgressStatus, WeakAreaStat, DailyProtocolRecord } from '../types';
+import { AppTab, TestAttempt, VocabDeck, GrammarProgressStatus, WeakAreaStat, DailyProtocolRecord, UserProfile } from '../types';
 import {
   loadAttemptsFromStorage,
   loadDecksFromStorage,
@@ -17,9 +17,10 @@ import {
 
 interface TodayDashboardProps {
   onNavigateTab: (tab: AppTab) => void;
+  user?: UserProfile;
 }
 
-export const TodayDashboard: React.FC<TodayDashboardProps> = ({ onNavigateTab }) => {
+export const TodayDashboard: React.FC<TodayDashboardProps> = ({ onNavigateTab, user }) => {
   const [attempts, setAttempts] = useState<TestAttempt[]>([]);
   const [decks, setDecks] = useState<VocabDeck[]>([]);
   const [grammarProgress, setGrammarProgress] = useState<Record<string, GrammarProgressStatus>>({});
@@ -45,7 +46,7 @@ export const TodayDashboard: React.FC<TodayDashboardProps> = ({ onNavigateTab })
   const weekAttempts = attempts.filter(a => new Date(a.date) >= oneWeekAgo);
   const weekListeningCount = weekAttempts.filter(a => a.skill === 'listening').length;
   const weekReadingCount = weekAttempts.filter(a => a.skill === 'reading').length;
-  const completedGrammarCount = Object.values(grammarProgress).filter(s => s === 'completed').length;
+  const completedGrammarCount = Object.values(grammarProgress).filter(s => s === 'mastered').length;
 
   // Toggle daily task completed
   const handleToggleTask = (taskId: string) => {
@@ -82,20 +83,20 @@ export const TodayDashboard: React.FC<TodayDashboardProps> = ({ onNavigateTab })
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider font-mono">
-                180-DAY IELTS ACADEMIC PROTOCOL
+                180-DAY IELTS ACADEMIC NOTEBOOK
               </span>
               <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded text-[10px] font-bold font-mono">
-                Mục tiêu: Band 6.5 (6 tháng) → 7.0 (1 năm)
+                Mục tiêu: Band {user ? user.targetBand.toFixed(1) : '6.5'} (Hiện tại: Band {user ? user.currentBand.toFixed(1) : '4.0'})
               </span>
             </div>
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight mt-1 flex items-center gap-2">
-              <span>Ngày {protocol ? protocol.dayNumber : 1} / 180</span>
+              <span>{user ? `Chào ${user.displayName}, Ngày ${protocol ? protocol.dayNumber : 1} / 180` : `Ngày ${protocol ? protocol.dayNumber : 1} / 180`}</span>
               <span className="text-sm font-normal text-slate-500 font-mono">
                 • Hôm nay bạn học gì?
               </span>
             </h1>
             <p className="text-xs text-slate-600 mt-1 max-w-2xl">
-              Lộ trình ~3 giờ/ngày (180 phút) tập trung vào: Reading • Listening • Grammar • Vocabulary (SRS) • Mistake Review.
+              Lộ trình ~{user ? user.dailyStudyMinutes : 180} phút/ngày tập trung vào: Reading • Listening • Grammar • Vocabulary (SRS) • Sổ Lỗi Sai.
             </p>
           </div>
 

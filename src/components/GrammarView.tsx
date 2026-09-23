@@ -42,13 +42,13 @@ export const GrammarView: React.FC = () => {
   const handleCheckExercise = (exId: string) => {
     setExerciseChecked(prev => ({ ...prev, [exId]: true }));
     if (!progressMap[currentTopic.id] || progressMap[currentTopic.id] === 'not-started') {
-      handleUpdateStatus(currentTopic.id, 'learning');
+      handleUpdateStatus(currentTopic.id, 'studying');
     }
   };
 
   // Stats
-  const completedCount = Object.values(progressMap).filter(s => s === 'completed').length;
-  const learningCount = Object.values(progressMap).filter(s => s === 'learning').length;
+  const completedCount = Object.values(progressMap).filter(s => s === 'mastered').length;
+  const learningCount = Object.values(progressMap).filter(s => s === 'studying').length;
 
   return (
     <div className="space-y-6 pb-16">
@@ -164,9 +164,9 @@ export const GrammarView: React.FC = () => {
                       7+
                     </span>
                   )}
-                  {status === 'completed' ? (
+                  {status === 'mastered' ? (
                     <CheckCircle2 className={`w-3.5 h-3.5 ${isSelected ? 'text-emerald-300' : 'text-emerald-600'}`} />
-                  ) : status === 'learning' ? (
+                  ) : status === 'studying' ? (
                     <Clock className={`w-3.5 h-3.5 ${isSelected ? 'text-amber-300' : 'text-amber-500'}`} />
                   ) : (
                     <Circle className={`w-3 h-3 ${isSelected ? 'text-slate-500' : 'text-slate-300'}`} />
@@ -204,7 +204,7 @@ export const GrammarView: React.FC = () => {
 
               {/* Status Toggle Button */}
               <div className="flex items-center gap-1">
-                {(['not-started', 'learning', 'completed'] as GrammarProgressStatus[]).map(st => (
+                {(['not-started', 'studying', 'mastered'] as GrammarProgressStatus[]).map(st => (
                   <button
                     key={st}
                     type="button"
@@ -215,7 +215,7 @@ export const GrammarView: React.FC = () => {
                         : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                     }`}
                   >
-                    {st === 'not-started' ? 'Chưa học' : st === 'learning' ? 'Đang học' : 'Đã xong ✓'}
+                    {st === 'not-started' ? 'Chưa học' : st === 'studying' ? 'Đang học' : 'Đã nắm vững ✓'}
                   </button>
                 ))}
               </div>
