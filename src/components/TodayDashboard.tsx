@@ -62,11 +62,11 @@ export const TodayDashboard: React.FC<TodayDashboardProps> = ({ onNavigateTab, u
   const completedMinutes = protocol ? protocol.tasks.filter(t => t.completed).reduce((acc, t) => acc + t.durationMin, 0) : 0;
   const progressPercent = Math.min(100, Math.round((completedMinutes / totalPlannedMinutes) * 100));
 
-  // Determine top weak area with meaningful sample size (>= 3 attempts) or default
+  // Determine top weak area with meaningful sample size (>= 3 attempts) without fake fallbacks
   const validWeakAreas = weakAreas.filter(w => w.totalQuestions >= 3);
   const topWeak = validWeakAreas.length > 0
-    ? validWeakAreas.sort((a, b) => a.accuracyRate - b.accuracyRate)[0]
-    : { questionType: 'Matching Headings', accuracyRate: 52, skill: 'reading' as const };
+    ? [...validWeakAreas].sort((a, b) => a.accuracyRate - b.accuracyRate)[0]
+    : null;
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-16">
@@ -109,48 +109,78 @@ export const TodayDashboard: React.FC<TodayDashboardProps> = ({ onNavigateTab, u
         <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs flex flex-col justify-between">
           <div>
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-              Tiếp theo (Trọng tâm yếu)
+              {topWeak ? 'Tiếp theo (Trọng tâm yếu)' : 'Phân tích điểm yếu'}
             </span>
-            <h2 className="text-lg font-bold text-slate-900 mt-1">
-              {topWeak.questionType}
-            </h2>
-            <p className="text-sm text-slate-600 mt-1">
-              Độ chính xác hiện tại: <span className="font-mono font-bold text-rose-700">{topWeak.accuracyRate}%</span>. Bạn cần rèn luyện phản xạ nhận diện từ khóa và cách làm.
-            </p>
+            {topWeak ? (
+              <>
+                <h2 className="text-lg font-bold text-slate-900 mt-1">
+                  {topWeak.questionType}
+                </h2>
+                <p className="text-sm text-slate-600 mt-1">
+                  Độ chính xác hiện tại: <span className="font-mono font-bold text-rose-700">{topWeak.accuracyRate}%</span>. Bạn cần rèn luyện phản xạ nhận diện từ khóa và cách làm.
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="text-base font-bold text-slate-900 mt-1">
+                  Chưa đủ dữ liệu bài thi
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Làm tối thiểu một bài kiểm tra hoặc bài tập thực hành (ít nhất 3 câu) để hệ thống tự động chẩn đoán điểm yếu cần cải thiện của bạn.
+                </p>
+              </>
+            )}
           </div>
 
           <div className="pt-4 mt-2">
             <button
               type="button"
-              onClick={() => onNavigateTab(topWeak.skill === 'reading' ? 'reading' : 'listening')}
+              onClick={() => onNavigateTab(topWeak ? (topWeak.skill === 'reading' ? 'reading' : 'listening') : 'reading')}
               className="w-full sm:w-auto px-4 py-2 bg-slate-900 text-white text-sm font-semibold rounded hover:bg-slate-800 cursor-pointer transition-colors"
             >
-              Luyện 10 câu ngay
+              {topWeak ? 'Luyện 10 câu ngay' : 'Làm bài chẩn đoán'}
             </button>
           </div>
         </div>
 
-        {/* Vocab Due Card */}
+        {/* Vocab Due Card (Accurate count, never fake 10) */}
         <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs flex flex-col justify-between">
           <div>
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-              Từ vựng cần ôn
+              Từ vựng hôm nay
             </span>
-            <h2 className="text-lg font-bold text-slate-900 mt-1">
-              <span className="font-mono text-2xl font-bold text-amber-700">{dueCardsCount > 0 ? dueCardsCount : 10}</span> từ vựng
-            </h2>
-            <p className="text-sm text-slate-600 mt-1">
-              Các từ học thuật Core đã đến hạn ôn tập lặp lại ngắt quãng để ghi nhớ vào trí nhớ dài hạn.
-            </p>
+            {dueCardsCount > 0 ? (
+              <>
+                <h2 className="text-lg font-bold text-slate-900 mt-1">
+                  <span className="font-mono text-2xl font-bold text-amber-700">{dueCardsCount}</span> từ vựng cần ôn
+                </h2>
+                <p className="text-sm text-slate-600 mt-1">
+                  Các từ học thuật Core đã đến hạn ôn tập chủ động để củng cố vào trí nhớ dài hạn.
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="text-lg font-bold text-slate-900 mt-1">
+                  <span className="font-mono text-2xl font-bold text-emerald-700">0</span> từ đến hạn
+                </h2>
+                <p className="text-sm text-slate-600 mt-1">
+                  Tuyệt vời! Bạn không có từ vựng nào bị quá hạn hôm nay. Hãy học thêm từ mới để mở rộng vốn từ.
+                </p>
+              </>
+            )}
           </div>
 
           <div className="pt-4 mt-2">
             <button
               type="button"
               onClick={() => onNavigateTab('vocab')}
-              className="w-full sm:w-auto px-4 py-2 bg-amber-700 text-white text-sm font-semibold rounded hover:bg-amber-800 cursor-pointer transition-colors"
+              className={`w-full sm:w-auto px-4 py-2 text-white text-sm font-semibold rounded cursor-pointer transition-colors ${
+                dueCardsCount > 0
+                  ? 'bg-amber-700 hover:bg-amber-800'
+                  : 'bg-emerald-700 hover:bg-emerald-800'
+              }`}
             >
-              Ôn ngay bây giờ
+              {dueCardsCount > 0 ? `Bắt đầu ôn (${dueCardsCount} từ)` : 'Học 5 từ mới'}
             </button>
           </div>
         </div>
@@ -247,7 +277,7 @@ export const TodayDashboard: React.FC<TodayDashboardProps> = ({ onNavigateTab, u
             <ul className="space-y-2 text-sm text-slate-700">
               <li className="flex items-start gap-2">
                 <span className="font-mono text-xs font-bold text-slate-500 w-12 shrink-0">15 min</span>
-                <span>Học cách làm dạng bài <strong className="text-slate-900">{topWeak.questionType}</strong> (Xem bẫy & paraphrase)</span>
+                <span>Học cách làm dạng bài <strong className="text-slate-900">{topWeak?.questionType || 'dạng bài trọng tâm'}</strong> (Xem bẫy & paraphrase)</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="font-mono text-xs font-bold text-slate-500 w-12 shrink-0">20 min</span>

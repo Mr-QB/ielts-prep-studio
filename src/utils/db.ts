@@ -13,7 +13,9 @@ import {
   DailyTaskItem,
   VocabCard,
   UserProfile,
-  SRSIntervalRating
+  SRSIntervalRating,
+  VocabReviewLog,
+  VocabLookupResult
 } from '../types';
 import { calculateNextSRS } from './srsEngine';
 
@@ -217,22 +219,34 @@ export async function saveDecksToStorage(decks: VocabDeck[]): Promise<void> {
   }
 }
 
+export interface AddWordCardData {
+  word: string;
+  definitionVi: string;
+  definitionEn?: string;
+  example?: string;
+  collocations?: string[];
+  paraphrases?: string[];
+  category?: string;
+  sourceContext?: string;
+  source?: string;
+  sourceType?: 'reading' | 'listening' | 'manual' | 'starter';
+  sourceId?: string;
+  phonetic?: string;
+  partOfSpeech?: string;
+  audio?: string;
+  audioSource?: 'dictionary' | 'tts';
+  lemma?: string;
+  priority?: number;
+  updateExisting?: boolean;
+}
+
 /**
  * Add a new user-captured card (Personal)
  */
 export async function addWordToVocabDeck(
-  cardData: {
-    word: string;
-    definitionVi: string;
-    definitionEn?: string;
-    example?: string;
-    collocations?: string[];
-    category?: string;
-    sourceContext?: string;
-    source?: string;
-  },
+  cardData: AddWordCardData,
   deckId?: string
-): Promise<{ success: boolean; message: string }> {
+): Promise<{ success: boolean; message: string; isDuplicate?: boolean; existingCard?: VocabCard }> {
   try {
     const decks = await loadDecksFromStorage([]);
     if (!decks || decks.length === 0) {
@@ -242,23 +256,71 @@ export async function addWordToVocabDeck(
     const targetDeck = deckId ? decks.find(d => d.id === deckId) || decks[0] : decks[0];
     const cleanWord = cardData.word.trim();
 
-    const existing = targetDeck.cards.find(c => c.word.toLowerCase() === cleanWord.toLowerCase());
-    if (existing) {
-      return { success: false, message: `Từ "${cleanWord}" đã có trong bộ "${targetDeck.name}".` };
+    // Check duplicate in all decks
+    let existingCard: VocabCard | undefined;
+    let existingDeck: VocabDeck | undefined;
+    for (const d of decks) {
+      const match = d.cards.find(c => c.word.toLowerCase() === cleanWord.toLowerCase());
+      if (match) {
+        existingCard = match;
+        existingDeck = d;
+        break;
+      }
+    }
+
+    if (existingCard && !cardData.updateExisting) {
+      return {
+        success: false,
+        isDuplicate: true,
+        existingCard,
+        message: `Từ "${cleanWord}" đã có trong bộ "${existingDeck?.name || 'Từ vựng'}".`
+      };
+    }
+
+    if (existingCard && cardData.updateExisting) {
+      // Append context or update definition
+      if (cardData.sourceContext && !existingCard.sourceContext?.includes(cardData.sourceContext)) {
+        existingCard.sourceContext = existingCard.sourceContext
+          ? `${existingCard.sourceContext}\n• ${cardData.sourceContext}`
+          : cardData.sourceContext;
+      }
+      if (cardData.definitionVi) {
+        existingCard.definitionVi = cardData.definitionVi;
+      }
+      if (cardData.definitionEn) {
+        existingCard.definitionEn = cardData.definitionEn;
+      }
+      saveDecksToLocalCache(decks);
+
+      // Sync update to backend
+      fetch('/api/vocab/card', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ card: existingCard, deckId: existingDeck?.id || targetDeck.id, updateExisting: true })
+      }).catch(() => {});
+
+      return { success: true, message: `Đã cập nhật ngữ cảnh cho từ "${cleanWord}".` };
     }
 
     const newCard: VocabCard = {
       id: `vocab-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       word: cleanWord,
-      phonetic: '',
-      partOfSpeech: 'academic',
+      phonetic: cardData.phonetic || '',
+      partOfSpeech: cardData.partOfSpeech || 'academic',
       definitionVi: cardData.definitionVi,
       definitionEn: cardData.definitionEn || cardData.definitionVi,
       example: cardData.example || cardData.sourceContext || '',
       collocations: cardData.collocations || [],
-      category: cardData.category || 'Reading/Listening Capture',
+      paraphrases: cardData.paraphrases || [],
+      category: cardData.category || 'Personal Vocabulary',
       source: cardData.source || 'IELTS Context Practice',
+      sourceType: cardData.sourceType || 'manual',
+      sourceId: cardData.sourceId,
       sourceContext: cardData.sourceContext || cardData.example || '',
+      audio: cardData.audio,
+      audioSource: cardData.audioSource || 'tts',
+      lemma: cardData.lemma || cleanWord.toLowerCase(),
+      priority: cardData.priority ?? (cardData.sourceType === 'reading' || cardData.sourceType === 'listening' ? 10 : 1),
       repetition: 0,
       intervalDays: 1,
       easeFactor: 2.5,
@@ -282,6 +344,89 @@ export async function addWordToVocabDeck(
   }
 }
 
+export const saveCustomCard = addWordToVocabDeck;
+
+/**
+ * Check if word already exists in D1 or local cache
+ */
+export async function checkDuplicateWordApi(word: string): Promise<{ exists: boolean; card?: any }> {
+  const cleanWord = word.trim().toLowerCase();
+  try {
+    const res = await fetch(`/api/vocab/check-duplicate?word=${encodeURIComponent(cleanWord)}`, {
+      signal: AbortSignal.timeout(3000)
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {}
+
+  // Fallback check against local cache
+  try {
+    const decks = await loadDecksFromStorage([]);
+    for (const d of decks) {
+      const match = d.cards.find(c => c.word.toLowerCase() === cleanWord);
+      if (match) return { exists: true, card: match };
+    }
+  } catch {}
+
+  return { exists: false };
+}
+
+/**
+ * Vocab lookup with dictionary definitions, IPA, context relevance and Vietnamese suggestions
+ */
+export async function lookupVocabularyApi(word: string, context?: string): Promise<VocabLookupResult> {
+  const cleanWord = word.trim();
+  try {
+    const url = `/api/vocab/lookup?word=${encodeURIComponent(cleanWord)}${context ? `&context=${encodeURIComponent(context)}` : ''}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(3500) });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success) {
+        return data;
+      }
+    }
+  } catch {}
+
+  // Fallback for offline / disconnected
+  return {
+    word: cleanWord,
+    lemma: cleanWord.toLowerCase(),
+    phonetic: `/${cleanWord}/`,
+    partOfSpeech: 'vocabulary',
+    audioSource: 'tts',
+    senses: [
+      {
+        definitionEn: `IELTS target vocabulary item: ${cleanWord}`,
+        viSuggestion: `Nghĩa của từ "${cleanWord}"`
+      }
+    ]
+  };
+}
+
+/**
+ * Record a single active retrieval log item (local fallback + sync to D1)
+ */
+export async function logVocabReviewAction(log: VocabReviewLog): Promise<void> {
+  // 1. Local storage cache
+  try {
+    const key = getUserKey('vocab_review_logs');
+    const existing: VocabReviewLog[] = JSON.parse(localStorage.getItem(key) || '[]');
+    existing.unshift(log);
+    if (existing.length > 500) existing.length = 500;
+    localStorage.setItem(key, JSON.stringify(existing));
+  } catch {}
+
+  // 2. Sync to Cloudflare D1
+  try {
+    fetch('/api/vocab/review-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(log)
+    }).catch(() => {});
+  } catch {}
+}
+
 /**
  * Review a card using SuperMemo SM-2 and sync user_vocab_progress to D1
  */
@@ -298,7 +443,11 @@ export async function reviewCardSRS(
     easeFactor: next.easeFactor,
     dueDate: next.dueDate,
     lastReviewed: new Date().toISOString(),
-    state: next.state
+    state: next.state,
+    difficulty: next.difficulty,
+    stability: next.stability,
+    retrievability: next.retrievability,
+    masteryState: next.masteryState
   };
 
   // Sync to Cloudflare D1

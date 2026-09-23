@@ -149,6 +149,21 @@ export interface ListeningSection {
   sourceNotice?: string;
 }
 
+export interface ListeningMicroDrill {
+  id: string;
+  skillType: string;
+  title: string;
+  context: string;
+  audioText: string;
+  audioUrl?: string;
+  audioSourceLabel?: 'Real Recording' | 'TTS Practice';
+  prompt: string;
+  correctAnswer: string;
+  acceptableAnswers?: string[];
+  explanation: string;
+  trapExplanation?: string;
+}
+
 export interface ListeningFullTest {
   id: string;
   title: string;
@@ -161,6 +176,7 @@ export interface ListeningFullTest {
   createdFrom: CreatedFrom;
   copyrightStatus: string;
   description: string;
+  microDrills?: ListeningMicroDrill[];
 }
 
 // ==========================================
@@ -257,6 +273,18 @@ export interface ReadingPracticeSet {
   copyrightStatus: string;
 }
 
+export interface ReadingFoundationSet {
+  id: string;
+  title: string;
+  targetBand: '3.5-4.5';
+  targetSkill: string;
+  wordCount: number;
+  topic: string;
+  passage: { label?: string; text: string }[];
+  questions: ReadingQuestion[];
+  sourceNotice?: string;
+}
+
 // ==========================================
 // 3. GRAMMAR TYPES
 // ==========================================
@@ -347,6 +375,58 @@ export type VocabTopicTheme =
   | 'Culture'
   | 'Travel';
 
+export type VocabReviewMode =
+  | 'recall' // Mode A: Reveal meaning and self-rate
+  | 'typing_vi_en' // Mode B: VN -> EN typing in sentence
+  | 'cloze' // Mode C: EN Cloze from reading/listening context
+  | 'audio_spelling' // Mode D: Audio / IPA -> type English spelling
+  | 'collocation' // Mode E: Discrimination / Natural collocation MCQ
+  | 'paraphrase_context'; // Mode F: Best synonym in sentence context
+
+export type VocabErrorType =
+  | 'NONE'
+  | 'SPELLING_ERROR'
+  | 'MORPHOLOGY_ERROR'
+  | 'RECALL_FAILURE'
+  | 'COLLOCATION_ERROR'
+  | 'MEANING_CONFUSION';
+
+export interface VocabReviewLog {
+  id: string;
+  userId: string;
+  cardId: string;
+  reviewMode: VocabReviewMode;
+  promptType?: string;
+  correct: boolean;
+  rating?: SRSIntervalRating;
+  responseTimeMs: number;
+  hintUsed?: boolean;
+  typedAnswer?: string;
+  errorType: VocabErrorType;
+  createdAt: number;
+}
+
+export interface VocabLookupSense {
+  definitionEn: string;
+  partOfSpeech?: string;
+  examples?: string[];
+  synonyms?: string[];
+  antonyms?: string[];
+  viSuggestion?: string;
+  relevanceScore?: number;
+}
+
+export interface VocabLookupResult {
+  word: string;
+  lemma: string;
+  phonetic: string;
+  audio?: string;
+  audioSource?: 'dictionary' | 'tts';
+  partOfSpeech: string;
+  senses: VocabLookupSense[];
+  collocations?: string[];
+}
+
 export interface VocabCard {
   id: string;
   word: string;
@@ -357,11 +437,24 @@ export interface VocabCard {
   example: string;
   exampleVi?: string;
   collocations?: string[];
+  paraphrases?: string[];
   category: string;
   topicTheme?: VocabTopicTheme;
   bandLevel?: VocabBandLevel;
   source?: string;
+  sourceType?: 'reading' | 'listening' | 'manual' | 'starter';
+  sourceId?: string;
   sourceContext?: string;
+  lemma?: string;
+  audio?: string;
+  audioSource?: 'dictionary' | 'tts';
+  wordFamily?: { word: string; pos: string }[];
+  priority?: number; // Higher for personal reading/listening saved words
+  // FSRS optional metadata
+  difficulty?: number; // 0.0 - 1.0 (FSRS D)
+  stability?: number; // Days (FSRS S)
+  retrievability?: number; // 0.0 - 1.0 (FSRS R)
+  masteryState?: 'new' | 'learning' | 'recalling' | 'stable' | 'weak_again';
   // SRS state
   repetition: number;
   intervalDays: number;
@@ -514,6 +607,8 @@ export interface ReadingStrategyLesson {
   group: ReadingQuestionGroup;
   title: string;
   subtitle: string;
+  officialFormat?: string;
+  recommendedStrategy?: string[];
   rememberIn30Sec: string[];
   steps: string[];
   keywordsParaphrase: { question: string; passage: string; note: string }[];
@@ -527,6 +622,7 @@ export interface ReadingStrategyLesson {
       prompt: string;
       options?: string[];
       correctAnswer: string;
+      acceptableAnswers?: string[];
       explanation: string;
     }[];
   };
@@ -553,7 +649,9 @@ export interface ListeningStrategyLesson {
     prompt: string;
     options?: string[];
     correctAnswer: string;
+    acceptableAnswers?: string[];
     explanation: string;
+    audioType?: 'real' | 'tts';
   }[];
 }
 
@@ -563,13 +661,26 @@ export interface ParaphraseItem {
   meaningVi: string;
   category: 'trend' | 'importance' | 'cause-effect' | 'opinion' | 'comparison' | 'problem-solution' | 'general';
   topic?: string;
-  synonyms: { word: string; nuance?: string; example?: string }[];
+  synonyms: {
+    word: string;
+    nuance?: string;
+    example?: string;
+    register?: string;
+    collocation?: string;
+    usageNote?: string;
+  }[];
+  discriminationExercise?: {
+    sentence: string;
+    options: string[];
+    correctAnswer: string;
+    explanation: string;
+  };
 }
 
 export interface SpeakingStoryItem {
   id: string;
   title: string;
-  category: 'person' | 'place' | 'project' | 'challenge' | 'achievement' | 'good-news' | 'object' | 'trip' | 'skill' | 'event';
+  category: 'person' | 'place' | 'project' | 'challenge' | 'achievement' | 'good-news' | 'object' | 'trip' | 'skill' | 'event' | 'decision' | 'activity';
   tagline: string;
   applicableCueCards: string[];
   shortVersion: string;

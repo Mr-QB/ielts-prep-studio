@@ -1,4 +1,4 @@
-import { SRSIntervalRating, VocabCard, ParsePreviewResult } from '../types';
+import { SRSIntervalRating, VocabCard, ParsePreviewResult, VocabReviewMode, VocabErrorType } from '../types';
 
 /**
  * Calculates next SuperMemo SM-2 interval parameters.
@@ -60,6 +60,22 @@ export function calculateNextSRS(card: VocabCard, rating: SRSIntervalRating): Vo
     state = 'review';
   }
 
+  // Conservative FSRS metrics mapped from active review
+  const difficulty = Number(Math.max(0.1, Math.min(1.0, (3.0 - easeFactor) / 1.7)).toFixed(2));
+  const stability = Number(Math.max(0.1, intervalDays).toFixed(2));
+  const retrievability = 1.0;
+
+  let masteryState: VocabCard['masteryState'] = 'learning';
+  if (rating === 1) {
+    masteryState = 'weak_again';
+  } else if (intervalDays >= 21) {
+    masteryState = 'stable';
+  } else if (repetition >= 2) {
+    masteryState = 'recalling';
+  } else {
+    masteryState = 'learning';
+  }
+
   return {
     ...card,
     repetition,
@@ -67,7 +83,11 @@ export function calculateNextSRS(card: VocabCard, rating: SRSIntervalRating): Vo
     easeFactor: Number(easeFactor.toFixed(2)),
     dueDate,
     lastReviewed: now.toISOString(),
-    state
+    state,
+    difficulty,
+    stability,
+    retrievability,
+    masteryState
   };
 }
 
@@ -243,3 +263,258 @@ export function playPronunciation(text: string, voiceAccent: 'en-GB' | 'en-US' =
 
   window.speechSynthesis.speak(utterance);
 }
+
+// ==========================================
+// ACTIVE RETRIEVAL ENGINE & ERROR CLASSIFICATION
+// ==========================================
+
+/**
+ * Optimal Damerau-Levenshtein distance (insertions, deletions, substitutions, transpositions)
+ */
+export function damerauLevenshteinDistance(source: string, target: string): number {
+  const s = source.toLowerCase().trim();
+  const t = target.toLowerCase().trim();
+  if (s === t) return 0;
+  if (!s.length) return t.length;
+  if (!t.length) return s.length;
+
+  const d: number[][] = [];
+  for (let i = 0; i <= s.length; i++) {
+    d[i] = [i];
+  }
+  for (let j = 0; j <= t.length; j++) {
+    d[0][j] = j;
+  }
+
+  for (let i = 1; i <= s.length; i++) {
+    for (let j = 1; j <= t.length; j++) {
+      const cost = s[i - 1] === t[j - 1] ? 0 : 1;
+      d[i][j] = Math.min(
+        d[i - 1][j] + 1, // deletion
+        d[i][j - 1] + 1, // insertion
+        d[i - 1][j - 1] + cost // substitution
+      );
+      // transposition check
+      if (i > 1 && j > 1 && s[i - 1] === t[j - 2] && s[i - 2] === t[j - 1]) {
+        d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+      }
+    }
+  }
+
+  return d[s.length][t.length];
+}
+
+function getCommonPrefixLength(a: string, b: string): number {
+  let len = 0;
+  const max = Math.min(a.length, b.length);
+  while (len < max && a[len] === b[len]) {
+    len++;
+  }
+  return len;
+}
+
+export interface VocabErrorClassification {
+  errorType: VocabErrorType;
+  isCorrect: boolean;
+  messageVi: string;
+  diffHighlight?: {
+    user: string;
+    expected: string;
+  };
+}
+
+/**
+ * Strict error classification:
+ * - Distinguishes between near-miss spelling vs. complete recall failure vs morphology.
+ * - IELTS requires accurate spelling, so typos are never silently marked correct,
+ *   but are flagged as SPELLING_ERROR with high pedagogical encouragement.
+ */
+export function classifyVocabError(
+  userInput: string,
+  targetWord: string,
+  targetLemma?: string
+): VocabErrorClassification {
+  const user = userInput.trim().toLowerCase();
+  const target = targetWord.trim().toLowerCase();
+  const lemma = (targetLemma || '').trim().toLowerCase();
+
+  // Exactly correct
+  if (user === target) {
+    return {
+      errorType: 'NONE',
+      isCorrect: true,
+      messageVi: 'Chính xác!'
+    };
+  }
+
+  // Blank or whitespace only
+  if (!user) {
+    return {
+      errorType: 'RECALL_FAILURE',
+      isCorrect: false,
+      messageVi: 'Chưa nhớ từ / Bỏ trống',
+      diffHighlight: { user: '(bỏ trống)', expected: target }
+    };
+  }
+
+  // Calculate common prefix and distance
+  const commonPrefix = getCommonPrefixLength(user, target);
+  const dist = damerauLevenshteinDistance(user, target);
+
+  // Morphology error: shared root (>= 4 chars) but differing grammatical suffix (e.g. significance vs significant)
+  const isMorphologySuffix =
+    (user.endsWith('ce') && target.endsWith('t')) ||
+    (user.endsWith('t') && target.endsWith('ce')) ||
+    (user.endsWith('ance') && target.endsWith('ant')) ||
+    (user.endsWith('ant') && target.endsWith('ance')) ||
+    (user.endsWith('ence') && target.endsWith('ent')) ||
+    (user.endsWith('ent') && target.endsWith('ence')) ||
+    (user.endsWith('tion') || target.endsWith('tion')) ||
+    (user.endsWith('sion') || target.endsWith('sion')) ||
+    (user.endsWith('ly') || target.endsWith('ly')) ||
+    (user.endsWith('al') || target.endsWith('al')) ||
+    (user.endsWith('ity') || target.endsWith('ity')) ||
+    (user.endsWith('ing') || target.endsWith('ing')) ||
+    (user.endsWith('ed') || target.endsWith('ed'));
+
+  if (commonPrefix >= 5 && isMorphologySuffix) {
+    return {
+      errorType: 'MORPHOLOGY_ERROR',
+      isCorrect: false,
+      messageVi: 'Đúng gốc từ nhưng sai từ loại / hậu tố ngữ pháp',
+      diffHighlight: { user, expected: target }
+    };
+  }
+
+  // Spelling error: distance <= 2 for words >= 6 chars, or distance === 1 for words >= 4 chars
+  const isSpelling = (target.length >= 6 && dist <= 2) || (target.length >= 4 && dist === 1);
+  if (isSpelling) {
+    return {
+      errorType: 'SPELLING_ERROR',
+      isCorrect: false,
+      messageVi: `Gần đúng — Lỗi chính tả (Sai khác ${dist} ký tự)`,
+      diffHighlight: { user, expected: target }
+    };
+  }
+
+  // General morphology fallback if lemma matches
+  if (lemma && (user.startsWith(lemma) || target.startsWith(lemma)) && commonPrefix >= 4) {
+    return {
+      errorType: 'MORPHOLOGY_ERROR',
+      isCorrect: false,
+      messageVi: 'Đúng gốc từ nhưng sai từ loại / hậu tố ngữ pháp',
+      diffHighlight: { user, expected: target }
+    };
+  }
+
+  // Complete recall failure
+  return {
+    errorType: 'RECALL_FAILURE',
+    isCorrect: false,
+    messageVi: 'Chưa nhớ từ / Quên nghĩa',
+    diffHighlight: { user, expected: target }
+  };
+}
+
+/**
+ * Intelligent exercise mode selector based on card maturity & IELTS progression:
+ * - New: ~40% Recall, ~30% VN->EN Typing, ~20% Cloze, ~10% Collocation
+ * - Learning: ~15% Recall, ~45% VN->EN Typing, ~25% Cloze, ~15% Collocation/Audio
+ * - Mature: ~10% Recall, ~40% VN->EN Typing, ~25% Paraphrase/Cloze, ~15% Collocation, ~10% Audio
+ */
+export function selectVocabReviewMode(card: VocabCard, lastMode?: VocabReviewMode): VocabReviewMode {
+  const isNew = card.repetition === 0 || card.state === 'new';
+  const isMature = card.repetition >= 3 || card.intervalDays >= 7 || card.state === 'mastered';
+
+  const hasCollocations = Boolean(card.collocations && card.collocations.length > 0);
+  const hasClozeSentence = Boolean(
+    (card.sourceContext && card.sourceContext.toLowerCase().includes(card.word.toLowerCase())) ||
+    (card.example && card.example.toLowerCase().includes(card.word.toLowerCase()))
+  );
+  const hasParaphrases = Boolean(card.paraphrases && card.paraphrases.length > 0);
+
+  const roll = Math.random();
+
+  let candidate: VocabReviewMode;
+  if (isNew) {
+    if (roll < 0.40) candidate = 'recall';
+    else if (roll < 0.70) candidate = 'typing_vi_en';
+    else if (roll < 0.90 && hasClozeSentence) candidate = 'cloze';
+    else if (hasCollocations) candidate = 'collocation';
+    else candidate = 'typing_vi_en';
+  } else if (!isMature) {
+    if (roll < 0.15) candidate = 'recall';
+    else if (roll < 0.60) candidate = 'typing_vi_en';
+    else if (roll < 0.85 && hasClozeSentence) candidate = 'cloze';
+    else if (hasCollocations) candidate = 'collocation';
+    else candidate = 'audio_spelling';
+  } else {
+    // Mature word: heavily active retrieval
+    if (roll < 0.10) candidate = 'recall';
+    else if (roll < 0.50) candidate = 'typing_vi_en';
+    else if (roll < 0.75 && hasParaphrases) candidate = 'paraphrase_context';
+    else if (roll < 0.75 && hasClozeSentence) candidate = 'cloze';
+    else if (roll < 0.90 && hasCollocations) candidate = 'collocation';
+    else candidate = 'audio_spelling';
+  }
+
+  // Avoid identical mode back-to-back if possible
+  if (candidate === lastMode) {
+    if (candidate !== 'typing_vi_en') return 'typing_vi_en';
+    return hasClozeSentence ? 'cloze' : 'recall';
+  }
+
+  return candidate;
+}
+
+export interface SessionReviewItem {
+  queueId: string;
+  card: VocabCard;
+  mode: VocabReviewMode;
+  isRetry?: boolean;
+  retryCount?: number;
+  recovered?: boolean;
+}
+
+/**
+ * Builds the initial mixed review session queue from due cards
+ */
+export function buildSessionReviewQueue(cards: VocabCard[]): SessionReviewItem[] {
+  return cards.map((card, idx) => ({
+    queueId: `queue-${card.id}-${idx}-${Date.now()}`,
+    card,
+    mode: selectVocabReviewMode(card),
+    isRetry: false,
+    retryCount: 0
+  }));
+}
+
+/**
+ * Reinserts a card back into the current session queue after 3–7 other cards.
+ * If near the end of session, appends near the tail.
+ */
+export function reinsertCardIntoSessionQueue(
+  queue: SessionReviewItem[],
+  currentIndex: number,
+  card: VocabCard,
+  preferredMode?: VocabReviewMode
+): SessionReviewItem[] {
+  const newQueue = [...queue];
+  const offset = Math.floor(Math.random() * 4) + 3; // 3 to 6 cards later
+  const targetIndex = Math.min(newQueue.length, currentIndex + offset);
+
+  // If wrong in recall/cloze/audio, next retry is usually typing_vi_en for active recall
+  const nextMode = preferredMode || 'typing_vi_en';
+
+  const retryItem: SessionReviewItem = {
+    queueId: `retry-${card.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    card,
+    mode: nextMode,
+    isRetry: true,
+    retryCount: 1
+  };
+
+  newQueue.splice(targetIndex, 0, retryItem);
+  return newQueue;
+}
+

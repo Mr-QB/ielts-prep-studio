@@ -4,12 +4,14 @@
  */
 import { LISTENING_FULL_TESTS, LISTENING_SECTIONS, LISTENING_SOURCES } from '../src/data/listeningData';
 import { LISTENING_PRACTICE_SECTIONS } from '../src/data/listeningPracticeData';
-import { READING_FULL_TESTS, READING_PASSAGES, READING_SOURCES } from '../src/data/readingData';
+import { LISTENING_STRATEGY_LESSONS } from '../src/data/listeningStrategyData';
+import { READING_FULL_TESTS, READING_PASSAGES, READING_SOURCES, READING_FOUNDATION_SETS } from '../src/data/readingData';
 import { READING_PRACTICE_SETS } from '../src/data/readingPracticeData';
+import { READING_STRATEGY_LESSONS } from '../src/data/readingStrategyData';
 import { GRAMMAR_TOPICS } from '../src/data/grammarData';
-import { INITIAL_VOCAB_DECKS } from '../src/data/vocabData';
+import { INITIAL_VOCAB_DECKS, PARAPHRASE_BANK } from '../src/data/vocabData';
 import { WRITING_TASK1_NOTES, WRITING_TASK2_NOTES } from '../src/data/writingData';
-import { SPEAKING_PARTS_DATA, SPEAKING_GENERAL_TIPS } from '../src/data/speakingData';
+import { SPEAKING_PARTS_DATA, SPEAKING_GENERAL_TIPS, MY_STORY_BANK } from '../src/data/speakingData';
 
 console.log('=== IELTS PREP STUDIO - COMPREHENSIVE DATA VALIDATION ===\n');
 
@@ -98,6 +100,63 @@ READING_PRACTICE_SETS.forEach(ps => {
 });
 console.log(`   [OK] Reading Practice Sets: ${READING_PRACTICE_SETS.length} question types verified.`);
 
+// Validate Reading Strategy Lessons (14 types)
+console.log('\n--- 1b. Validating Reading Strategy Lessons (14 Types) ---');
+if (READING_STRATEGY_LESSONS.length !== 14) {
+  errors.push(`[ReadingStrategy] Expected 14 strategy lessons, got: ${READING_STRATEGY_LESSONS.length}.`);
+}
+READING_STRATEGY_LESSONS.forEach(sl => {
+  checkUniqueId(sl.type, `ReadingStrategyLesson:${sl.type}`);
+  if (!sl.officialFormat || sl.officialFormat.length === 0) {
+    errors.push(`[ReadingStrategy:${sl.type}] Missing officialFormat.`);
+  }
+  if (!sl.recommendedStrategy || sl.recommendedStrategy.length === 0) {
+    errors.push(`[ReadingStrategy:${sl.type}] Missing recommendedStrategy.`);
+  }
+  if (!sl.commonTraps || sl.commonTraps.length === 0) {
+    errors.push(`[ReadingStrategy:${sl.type}] Missing commonTraps.`);
+  }
+  if (!sl.miniPractice || sl.miniPractice.questions.length === 0) {
+    errors.push(`[ReadingStrategy:${sl.type}] Missing miniPractice questions.`);
+  }
+  // Content audit checks
+  if (sl.type === 'matching-information') {
+    const text = JSON.stringify(sl);
+    if (text.includes('sẽ có 1 đoạn chứa 2 đáp án') || text.includes('will contain two answers')) {
+      errors.push(`[ReadingStrategy:matching-information] Incorrect rule claim: must state 'MAY', not 'WILL'.`);
+    }
+  }
+  if (sl.type === 'matching-headings') {
+    const text = JSON.stringify(sl);
+    if (text.includes('luôn luôn làm đầu tiên') || text.includes('always do headings first')) {
+      errors.push(`[ReadingStrategy:matching-headings] Inflexible claim: headings first should be presented as recommended strategy to test.`);
+    }
+  }
+});
+console.log(`   [OK] Reading Strategy Lessons: 14 question types verified with pedagogical integrity.`);
+
+// Validate Foundation Mini-Sets
+console.log('\n--- 1c. Validating Reading Foundation Sets ---');
+if (READING_FOUNDATION_SETS.length !== 3) {
+  errors.push(`[ReadingFoundation] Expected 3 foundation mini sets, found: ${READING_FOUNDATION_SETS.length}.`);
+}
+READING_FOUNDATION_SETS.forEach(fs => {
+  checkUniqueId(fs.id, `ReadingFoundationSet:${fs.title}`);
+  if (fs.wordCount < 200 || fs.wordCount > 450) {
+    warnings.push(`[ReadingFoundation:${fs.id}] Word count ${fs.wordCount} outside recommended 200-400 band.`);
+  }
+  if (fs.questions.length < 5 || fs.questions.length > 8) {
+    errors.push(`[ReadingFoundation:${fs.id}] Question count must be 5-8, got: ${fs.questions.length}.`);
+  }
+  fs.questions.forEach(q => {
+    checkUniqueId(q.id, `ReadingFoundationQ:${q.id}`);
+    if (!q.correctAnswer) {
+      errors.push(`[ReadingFoundationQ:${q.id}] Missing correctAnswer.`);
+    }
+  });
+});
+console.log(`   [OK] Reading Foundation Mini Sets: 3 sets (200-400 words, 5-8 questions) verified.`);
+
 // ==========================================
 // 2. VALIDATE LISTENING FULL TESTS & DRILLS
 // ==========================================
@@ -148,6 +207,25 @@ LISTENING_FULL_TESTS.forEach(ft => {
   }
 });
 
+// Validate Listening Strategy Lessons (16 types)
+console.log('\n--- 2b. Validating Listening Strategy Lessons (16 Lessons) ---');
+if (LISTENING_STRATEGY_LESSONS.length !== 16) {
+  errors.push(`[ListeningStrategy] Expected 16 strategy lessons, found: ${LISTENING_STRATEGY_LESSONS.length}.`);
+}
+LISTENING_STRATEGY_LESSONS.forEach(lsl => {
+  checkUniqueId(lsl.id, `ListeningStrategyLesson:${lsl.id}`);
+  if (!lsl.practiceDrills || lsl.practiceDrills.length < 3) {
+    errors.push(`[ListeningStrategy:${lsl.id}] Must have at least 3 practice drills, found: ${lsl.practiceDrills?.length || 0}.`);
+  }
+  lsl.practiceDrills.forEach(d => {
+    checkUniqueId(d.id, `ListeningDrill:${d.id}`);
+    if (!d.correctAnswer || !d.explanation || !d.audioSnippet) {
+      errors.push(`[ListeningDrill:${d.id}] Missing core drill fields.`);
+    }
+  });
+});
+console.log(`   [OK] Listening Strategy Lessons: 16 lessons with interactive micro-drills verified.`);
+
 // ==========================================
 // 3. VALIDATE GRAMMAR CURRICULUM
 // ==========================================
@@ -179,6 +257,11 @@ WRITING_TASK1_NOTES.forEach(t1 => {
   if (t1.structure.length !== 4) {
     errors.push(`[WritingTask1:${t1.id}] Structure must have 4 sections, found: ${t1.structure.length}.`);
   }
+  t1.checklist.forEach(item => {
+    if (!item.startsWith('[REQUIREMENT]') && !item.startsWith('[RECOMMENDED]') && !item.startsWith('[OPTIONAL]')) {
+      errors.push(`[WritingTask1:${t1.id}] Checklist item untagged: "${item}".`);
+    }
+  });
 });
 
 if (WRITING_TASK2_NOTES.length !== 5) {
@@ -186,8 +269,13 @@ if (WRITING_TASK2_NOTES.length !== 5) {
 }
 WRITING_TASK2_NOTES.forEach(t2 => {
   checkUniqueId(t2.id, `WritingTask2:${t2.title}`);
+  t2.checklist.forEach(item => {
+    if (!item.startsWith('[REQUIREMENT]') && !item.startsWith('[RECOMMENDED]') && !item.startsWith('[OPTIONAL]')) {
+      errors.push(`[WritingTask2:${t2.id}] Checklist item untagged: "${item}".`);
+    }
+  });
 });
-console.log(`   [OK] Writing Notes: 7 Task 1 types and 5 Task 2 types verified.`);
+console.log(`   [OK] Writing Notes: 7 Task 1 types and 5 Task 2 types with [REQUIREMENT]/[RECOMMENDED]/[OPTIONAL] tags verified.`);
 
 if (SPEAKING_PARTS_DATA.length !== 3) {
   errors.push(`[Speaking] Expected 3 parts, found: ${SPEAKING_PARTS_DATA.length}.`);
@@ -199,10 +287,29 @@ SPEAKING_PARTS_DATA.forEach(sp => {
 });
 console.log(`   [OK] Speaking Notes: Parts 1, 2, 3 frameworks verified.`);
 
+// Validate Speaking Story Bank (12 stories)
+console.log('\n--- 4b. Validating Speaking Story Bank (12 Universal Stories) ---');
+if (MY_STORY_BANK.length !== 12) {
+  errors.push(`[SpeakingStoryBank] Expected 12 universal stories, found: ${MY_STORY_BANK.length}.`);
+}
+MY_STORY_BANK.forEach(story => {
+  checkUniqueId(story.id, `SpeakingStory:${story.id}`);
+  if (!story.shortVersion || !story.extendedVersion) {
+    errors.push(`[SpeakingStory:${story.id}] Missing short or extended version.`);
+  }
+  if (!story.usefulVocab || story.usefulVocab.length < 3) {
+    errors.push(`[SpeakingStory:${story.id}] Must have at least 3 useful vocab items.`);
+  }
+  if (!story.applicableCueCards || story.applicableCueCards.length < 2) {
+    errors.push(`[SpeakingStory:${story.id}] Must cover at least 2 cue card topics.`);
+  }
+});
+console.log(`   [OK] Speaking Story Bank: 12 versatile stories verified.`);
+
 // ==========================================
-// 5. VALIDATE VOCABULARY DECKS
+// 5. VALIDATE VOCABULARY DECKS & PARAPHRASE BANK
 // ==========================================
-console.log('\n--- 5. Validating Starter Vocabulary Decks ---');
+console.log('\n--- 5. Validating Starter Vocabulary Decks & Paraphrases ---');
 INITIAL_VOCAB_DECKS.forEach(deck => {
   checkUniqueId(deck.id, `VocabDeck:${deck.name}`);
   deck.cards.forEach(c => {
@@ -213,6 +320,22 @@ INITIAL_VOCAB_DECKS.forEach(deck => {
   });
 });
 console.log(`   [OK] Vocabulary: ${INITIAL_VOCAB_DECKS.length} starter decks verified.`);
+
+if (PARAPHRASE_BANK.length < 10) {
+  errors.push(`[ParaphraseBank] Expected at least 10 high-utility paraphrase entries, found: ${PARAPHRASE_BANK.length}.`);
+}
+PARAPHRASE_BANK.forEach(pe => {
+  if (!pe.word || !pe.synonyms || pe.synonyms.length === 0) {
+    errors.push(`[ParaphraseBank] Invalid entry for ${pe.word}.`);
+  }
+  if (pe.discriminationExercise) {
+    const de = pe.discriminationExercise;
+    if (!de.sentence || !de.options || de.options.length < 2 || !de.correctAnswer || !de.explanation) {
+      errors.push(`[ParaphraseBank:${pe.word}] Incomplete discrimination exercise.`);
+    }
+  }
+});
+console.log(`   [OK] Paraphrase Bank: ${PARAPHRASE_BANK.length} entries with discrimination exercises verified.`);
 
 // ==========================================
 // FINAL SUMMARY

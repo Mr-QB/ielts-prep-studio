@@ -19,6 +19,44 @@ export const WritingNotesView: React.FC = () => {
     setTimeout(() => setCopiedPromptId(null), 2000);
   };
 
+  const renderChecklistItem = (item: string, idx: number) => {
+    let badge = null;
+    let cleanText = item;
+
+    if (item.startsWith('[REQUIREMENT]')) {
+      badge = (
+        <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-rose-100 text-rose-800 border border-rose-200 uppercase shrink-0">
+          Bắt buộc (IELTS Rule)
+        </span>
+      );
+      cleanText = item.replace('[REQUIREMENT]', '').trim();
+    } else if (item.startsWith('[RECOMMENDED]')) {
+      badge = (
+        <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-blue-100 text-blue-800 border border-blue-200 uppercase shrink-0">
+          Khuyến nghị (Strategy)
+        </span>
+      );
+      cleanText = item.replace('[RECOMMENDED]', '').trim();
+    } else if (item.startsWith('[OPTIONAL]')) {
+      badge = (
+        <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-slate-100 text-slate-700 border border-slate-200 uppercase shrink-0">
+          Tùy chọn (Target)
+        </span>
+      );
+      cleanText = item.replace('[OPTIONAL]', '').trim();
+    }
+
+    return (
+      <li key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-md flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex items-start gap-2.5">
+          <span className="font-mono text-emerald-600 font-bold text-sm shrink-0">✓</span>
+          <span className="text-slate-800 text-xs leading-relaxed">{cleanText}</span>
+        </div>
+        {badge}
+      </li>
+    );
+  };
+
   return (
     <div className="space-y-6 pb-20 max-w-6xl mx-auto">
       {/* Top Header & 3 Primary Sub-tabs */}
@@ -230,12 +268,7 @@ export const WritingNotesView: React.FC = () => {
                 Checklist trước khi nộp bài Task 1
               </h3>
               <ul className="space-y-2 text-xs text-slate-700">
-                {currentTask1.checklist.map((item, idx) => (
-                  <li key={idx} className="p-2 bg-slate-50 border border-slate-100 rounded flex items-center gap-2">
-                    <span className="font-mono text-emerald-600 font-bold">✓</span>
-                    <span>{item}</span>
-                  </li>
-                ))}
+                {currentTask1.checklist.map((item, idx) => renderChecklistItem(item, idx))}
               </ul>
             </div>
           )}
@@ -359,12 +392,7 @@ export const WritingNotesView: React.FC = () => {
                 Checklist kiểm tra Task 2 trước khi nộp
               </h3>
               <ul className="space-y-2 text-xs text-slate-700">
-                {currentTask2.checklist.map((item, idx) => (
-                  <li key={idx} className="p-2 bg-slate-50 border border-slate-100 rounded flex items-center gap-2">
-                    <span className="font-mono text-emerald-600 font-bold">✓</span>
-                    <span>{item}</span>
-                  </li>
-                ))}
+                {currentTask2.checklist.map((item, idx) => renderChecklistItem(item, idx))}
               </ul>
             </div>
           )}

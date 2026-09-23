@@ -1,12 +1,14 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { LISTENING_FULL_TESTS, LISTENING_SECTIONS } from '../src/data/listeningData';
-import { READING_FULL_TESTS, READING_PASSAGES } from '../src/data/readingData';
+import { LISTENING_STRATEGY_LESSONS } from '../src/data/listeningStrategyData';
+import { READING_FULL_TESTS, READING_PASSAGES, READING_FOUNDATION_SETS } from '../src/data/readingData';
 import { READING_PRACTICE_SETS } from '../src/data/readingPracticeData';
+import { READING_STRATEGY_LESSONS } from '../src/data/readingStrategyData';
 import { GRAMMAR_TOPICS } from '../src/data/grammarData';
 import { INITIAL_VOCAB_DECKS } from '../src/data/vocabData';
 import { WRITING_TASK1_NOTES, WRITING_TASK2_NOTES } from '../src/data/writingData';
-import { SPEAKING_PARTS_DATA } from '../src/data/speakingData';
+import { SPEAKING_PARTS_DATA, MY_STORY_BANK } from '../src/data/speakingData';
 import { calculateReadingBand, calculateListeningBand } from '../src/utils/ieltsScoring';
 
 describe('Data Integrity & Curriculum Test Suite', () => {
@@ -129,4 +131,87 @@ describe('Data Integrity & Curriculum Test Suite', () => {
     assert.strictEqual(calculateListeningBand(23), 6.0);
     assert.strictEqual(calculateListeningBand(16), 5.0);
   });
+
+  it('verifies 12 reusable stories in Speaking Story Bank with B1-B2 core language', () => {
+    assert.strictEqual(MY_STORY_BANK.length, 12);
+    MY_STORY_BANK.forEach((story: any) => {
+      assert(story.id && story.id.length > 0);
+      assert(story.title && story.title.length > 0);
+      assert(story.shortVersion && story.shortVersion.length > 0);
+      assert(story.extendedVersion && story.extendedVersion.length > 100);
+      assert(story.usefulVocab && story.usefulVocab.length >= 3);
+      assert(story.feelingsVocab && story.feelingsVocab.length >= 2);
+      assert(story.applicableCueCards && story.applicableCueCards.length >= 3);
+    });
+  });
+
+  it('verifies 16 comprehensive Listening Strategy lessons with micro-drills', () => {
+    assert.strictEqual(LISTENING_STRATEGY_LESSONS.length, 16);
+    LISTENING_STRATEGY_LESSONS.forEach((lesson: any) => {
+      assert(lesson.id && lesson.id.length > 0);
+      assert(lesson.title && lesson.title.length > 0);
+      assert(lesson.explanation && lesson.explanation.length > 50);
+      assert(lesson.practiceDrills && lesson.practiceDrills.length >= 2);
+      lesson.practiceDrills.forEach((drill: any) => {
+        assert(drill.audioSnippet && drill.audioSnippet.length > 0);
+        assert(drill.prompt && drill.prompt.length > 0);
+        assert(drill.correctAnswer && drill.correctAnswer.length > 0);
+        assert(drill.explanation && drill.explanation.length > 0);
+      });
+    });
+  });
+
+  it('verifies 14 Reading Strategy lessons with official format, recommended strategy and traps', () => {
+    assert.strictEqual(READING_STRATEGY_LESSONS.length, 14);
+    const seenTypes = new Set(READING_STRATEGY_LESSONS.map((l: any) => l.type));
+    assert.strictEqual(seenTypes.size, 14);
+
+    READING_STRATEGY_LESSONS.forEach((lesson: any) => {
+      assert(lesson.officialFormat && lesson.officialFormat.length > 30);
+      assert(lesson.recommendedStrategy && lesson.recommendedStrategy.length >= 2);
+      assert(lesson.commonTraps && lesson.commonTraps.length >= 1);
+      assert(lesson.miniPractice && lesson.miniPractice.questions.length >= 1);
+    });
+
+    // Verify Matching Information rule correction: MAY be used more than once, NOT that it WILL contain 2 answers
+    const miLesson = READING_STRATEGY_LESSONS.find((l: any) => l.type === 'matching-information');
+    assert(miLesson && miLesson.officialFormat);
+    assert(miLesson.officialFormat.includes('CÓ THỂ được dùng'));
+    assert(miLesson.officialFormat.includes('KHÔNG có nghĩa là chắc chắn'));
+
+    // Verify Matching Headings advice: recommendation to test, not absolute rule
+    const mhLesson = READING_STRATEGY_LESSONS.find((l: any) => l.type === 'matching-headings');
+    assert(mhLesson && mhLesson.recommendedStrategy);
+    assert(mhLesson.recommendedStrategy[0].includes('tự kiểm chứng'));
+  });
+
+  it('verifies 3 Reading Foundation Mini-Sets for band ~4.0 learners', () => {
+    assert.strictEqual(READING_FOUNDATION_SETS.length, 3);
+    READING_FOUNDATION_SETS.forEach((fSet: any) => {
+      assert(fSet.wordCount >= 200 && fSet.wordCount <= 400);
+      assert(fSet.questions.length >= 5 && fSet.questions.length <= 8);
+      assert(fSet.sourceNotice.includes('Foundation Mini-Set'));
+      fSet.questions.forEach((q: any) => {
+        assert(q.correctAnswer && q.correctAnswer.length > 0);
+        assert(q.explanation && q.explanation.length > 0);
+      });
+    });
+  });
+
+  it('verifies Writing checklists clearly tag [REQUIREMENT], [RECOMMENDED], [OPTIONAL]', () => {
+    WRITING_TASK1_NOTES.forEach(t1 => {
+      const hasReq = t1.checklist.some(c => c.startsWith('[REQUIREMENT]'));
+      const hasRec = t1.checklist.some(c => c.startsWith('[RECOMMENDED]'));
+      assert(hasReq, `Task 1 ${t1.id} missing [REQUIREMENT]`);
+      assert(hasRec, `Task 1 ${t1.id} missing [RECOMMENDED]`);
+    });
+
+    WRITING_TASK2_NOTES.forEach(t2 => {
+      const hasReq = t2.checklist.some(c => c.startsWith('[REQUIREMENT]'));
+      const hasRec = t2.checklist.some(c => c.startsWith('[RECOMMENDED]'));
+      assert(hasReq, `Task 2 ${t2.id} missing [REQUIREMENT]`);
+      assert(hasRec, `Task 2 ${t2.id} missing [RECOMMENDED]`);
+    });
+  });
 });
+

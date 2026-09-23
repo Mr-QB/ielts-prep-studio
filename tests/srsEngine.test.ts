@@ -1,6 +1,16 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { calculateNextSRS, previewNextInterval, parseVocabText, analyzeVocabImport } from '../src/utils/srsEngine';
+import {
+  calculateNextSRS,
+  previewNextInterval,
+  parseVocabText,
+  analyzeVocabImport,
+  damerauLevenshteinDistance,
+  classifyVocabError,
+  selectVocabReviewMode,
+  buildSessionReviewQueue,
+  reinsertCardIntoSessionQueue
+} from '../src/utils/srsEngine';
 import { VocabCard } from '../src/types';
 
 const mockNewCard: VocabCard = {
@@ -118,3 +128,87 @@ unprecedented - chưa từng có
     assert(result.existingDuplicateWords.includes('unprecedented'));
   });
 });
+
+describe('Active Retrieval Engine & Typo Tolerance', () => {
+  it('correctly calculates Damerau-Levenshtein distance including transpositions', () => {
+    assert.strictEqual(damerauLevenshteinDistance('environment', 'environment'), 0);
+    // 1 omission (missing 'n')
+    assert.strictEqual(damerauLevenshteinDistance('enviroment', 'environment'), 1);
+    // 1 transposition (teh -> the)
+    assert.strictEqual(damerauLevenshteinDistance('teh', 'the'), 1);
+    // 1 substitution
+    assert.strictEqual(damerauLevenshteinDistance('cat', 'bat'), 1);
+  });
+
+  it('classifies spelling errors vs recall failures vs morphology', () => {
+    // Exact match
+    const exact = classifyVocabError('significant', 'significant');
+    assert.strictEqual(exact.errorType, 'NONE');
+    assert.strictEqual(exact.isCorrect, true);
+
+    // Spelling error (enviroment -> environment)
+    const typo = classifyVocabError('enviroment', 'environment');
+    assert.strictEqual(typo.errorType, 'SPELLING_ERROR');
+    assert.strictEqual(typo.isCorrect, false);
+    assert(typo.messageVi.includes('chính tả'));
+
+    // Morphology error (significance -> significant)
+    const morph = classifyVocabError('significance', 'significant', 'significant');
+    assert.strictEqual(morph.errorType, 'MORPHOLOGY_ERROR');
+    assert.strictEqual(morph.isCorrect, false);
+
+    // Recall failure (completely different word)
+    const fail = classifyVocabError('education', 'environment');
+    assert.strictEqual(fail.errorType, 'RECALL_FAILURE');
+    assert.strictEqual(fail.isCorrect, false);
+
+    // Blank submission
+    const blank = classifyVocabError('', 'environment');
+    assert.strictEqual(blank.errorType, 'RECALL_FAILURE');
+  });
+
+  it('builds session queue and reinserts failed card 3–7 items later', () => {
+    const cards: VocabCard[] = [
+      { ...mockNewCard, id: 'c1', word: 'mitigate' },
+      { ...mockNewCard, id: 'c2', word: 'significant' },
+      { ...mockNewCard, id: 'c3', word: 'environment' },
+      { ...mockNewCard, id: 'c4', word: 'education' },
+      { ...mockNewCard, id: 'c5', word: 'benefit' },
+      { ...mockNewCard, id: 'c6', word: 'solution' },
+      { ...mockNewCard, id: 'c7', word: 'challenge' },
+      { ...mockNewCard, id: 'c8', word: 'decrease' }
+    ];
+
+    const queue = buildSessionReviewQueue(cards);
+    assert.strictEqual(queue.length, 8);
+
+    // If user fails card 0 ('mitigate') at currentIndex 0
+    const reinsertedQueue = reinsertCardIntoSessionQueue(queue, 0, cards[0], 'typing_vi_en');
+    assert.strictEqual(reinsertedQueue.length, 9);
+    // Verify mitigate appears again further down the queue
+    const retryIndices = reinsertedQueue
+      .map((item, idx) => (item.card.word === 'mitigate' ? idx : -1))
+      .filter(idx => idx !== -1);
+    assert.strictEqual(retryIndices.length, 2);
+    assert.strictEqual(retryIndices[0], 0);
+    assert(retryIndices[1] >= 3, `Expected retry index >= 3, got ${retryIndices[1]}`);
+  });
+
+  it('selects appropriate review modes based on card maturity', () => {
+    const newCard: VocabCard = { ...mockNewCard, repetition: 0, state: 'new' };
+    const matureCard: VocabCard = {
+      ...mockNewCard,
+      repetition: 4,
+      intervalDays: 28,
+      state: 'mastered',
+      collocations: ['rapid proliferation']
+    };
+
+    const mode1 = selectVocabReviewMode(newCard);
+    assert(['recall', 'typing_vi_en', 'cloze', 'collocation'].includes(mode1));
+
+    const mode2 = selectVocabReviewMode(matureCard);
+    assert(['recall', 'typing_vi_en', 'cloze', 'collocation', 'audio_spelling', 'paraphrase_context'].includes(mode2));
+  });
+});
+

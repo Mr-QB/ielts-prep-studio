@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { READING_FULL_TESTS, READING_PASSAGES } from '../data/readingData';
+import { READING_FULL_TESTS, READING_PASSAGES, READING_FOUNDATION_SETS } from '../data/readingData';
 import { READING_PRACTICE_SETS } from '../data/readingPracticeData';
 import { READING_QUESTION_GROUPS, READING_STRATEGY_LESSONS } from '../data/readingStrategyData';
 import { ReadingQuestionType, ReadingQuestion, TestAttempt, ReadingQuestionGroup } from '../types';
 import { recordAttempt, addWordToVocabDeck } from '../utils/db';
 import { calculateReadingBand, formatTime } from '../utils/ieltsScoring';
+import { WordCapturePopover } from './WordCapturePopover';
 
 interface ReadingViewProps {
   examMode?: 'study' | 'simulation';
@@ -28,8 +29,14 @@ const QUESTION_TYPE_LABELS: Record<ReadingQuestionType, { label: string; group: 
 };
 
 export const ReadingView: React.FC<ReadingViewProps> = () => {
-  // 3 Primary Modes
-  const [activeTab, setActiveTab] = useState<'by-type' | 'by-passage' | 'full-test'>('by-type');
+  // 4 Primary Modes
+  const [activeTab, setActiveTab] = useState<'by-type' | 'foundation' | 'by-passage' | 'full-test'>('by-type');
+
+  // FOUNDATION SETS STATE
+  const [selectedFoundationId, setSelectedFoundationId] = useState<string>(READING_FOUNDATION_SETS[0].id);
+  const [foundationAnswers, setFoundationAnswers] = useState<Record<string, string>>({});
+  const [foundationSubmitted, setFoundationSubmitted] = useState<boolean>(false);
+  const activeFoundationSet = READING_FOUNDATION_SETS.find(f => f.id === selectedFoundationId) || READING_FOUNDATION_SETS[0];
 
   // MODE 1: BY TYPE STATES
   const [selectedGroup, setSelectedGroup] = useState<ReadingQuestionGroup>('statements');
@@ -244,7 +251,7 @@ export const ReadingView: React.FC<ReadingViewProps> = () => {
             </p>
           </div>
 
-          {/* Primary 3 Tabs */}
+          {/* Primary 4 Tabs */}
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs shrink-0 self-start sm:self-auto">
             <button
               type="button"
@@ -255,7 +262,18 @@ export const ReadingView: React.FC<ReadingViewProps> = () => {
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              1. Học theo dạng bài
+              1. 14 Dạng bài
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('foundation')}
+              className={`px-3 py-1.5 rounded text-xs font-medium cursor-pointer transition-colors ${
+                activeTab === 'foundation'
+                  ? 'bg-white text-slate-900 font-semibold shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              2. Nền tảng 4.0 (Mini Sets)
             </button>
             <button
               type="button"
@@ -266,7 +284,7 @@ export const ReadingView: React.FC<ReadingViewProps> = () => {
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              2. Luyện Passage
+              3. Luyện Passage
             </button>
             <button
               type="button"
@@ -277,7 +295,7 @@ export const ReadingView: React.FC<ReadingViewProps> = () => {
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              3. Thi thử chuẩn (40 câu)
+              4. Mock Test (40 câu)
             </button>
           </div>
         </div>
@@ -379,6 +397,35 @@ export const ReadingView: React.FC<ReadingViewProps> = () => {
                   {currentStrategyLesson.subtitle}
                 </p>
               </div>
+
+              {/* OFFICIAL FORMAT */}
+              {currentStrategyLesson.officialFormat && (
+                <div className="p-4 bg-slate-900 text-white rounded-lg text-xs space-y-1.5 shadow-xs">
+                  <div className="font-bold uppercase tracking-wider text-amber-400 font-mono text-[11px] flex items-center gap-1.5">
+                    <span>📋</span>
+                    <span>OFFICIAL FORMAT (Quy Định & Định Dạng Chính Thức IELTS)</span>
+                  </div>
+                  <p className="text-slate-200 leading-relaxed font-sans text-xs">{currentStrategyLesson.officialFormat}</p>
+                </div>
+              )}
+
+              {/* RECOMMENDED STRATEGY */}
+              {currentStrategyLesson.recommendedStrategy && currentStrategyLesson.recommendedStrategy.length > 0 && (
+                <div className="p-4 bg-blue-50/80 border border-blue-200 rounded-lg text-xs space-y-2">
+                  <div className="font-bold text-blue-900 uppercase tracking-wider font-mono text-[11px] flex items-center gap-1.5">
+                    <span>💡</span>
+                    <span>RECOMMENDED STRATEGY (Chiến Lược Gợi Ý — Thử nghiệm xem phù hợp bản thân)</span>
+                  </div>
+                  <ul className="space-y-1.5 text-slate-800">
+                    {currentStrategyLesson.recommendedStrategy.map((rec, rIdx) => (
+                      <li key={rIdx} className="flex items-start gap-2">
+                        <span className="text-blue-600 font-bold shrink-0">•</span>
+                        <span className="leading-relaxed">{rec}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {/* 1. Cần nhớ trong 30s */}
               <div className="space-y-2">
@@ -737,6 +784,172 @@ export const ReadingView: React.FC<ReadingViewProps> = () => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 2. BỘ ĐỀ NỀN TẢNG BAND 4.0 (FOUNDATION MINI-SETS)                          */}
+      {/* ========================================================================= */}
+      {activeTab === 'foundation' && (
+        <div className="space-y-6">
+          {/* Foundation Set Selector */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            {READING_FOUNDATION_SETS.map((fSet, idx) => (
+              <button
+                key={fSet.id}
+                type="button"
+                onClick={() => {
+                  setSelectedFoundationId(fSet.id);
+                  setFoundationAnswers({});
+                  setFoundationSubmitted(false);
+                }}
+                className={`px-3 py-2 rounded text-xs text-left shrink-0 border cursor-pointer ${
+                  selectedFoundationId === fSet.id
+                    ? 'bg-slate-900 text-white border-slate-900 font-semibold'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <div>Mini Set {idx + 1}: {fSet.title.split(': ')[1] || fSet.title}</div>
+                <div className="text-[11px] opacity-75">{fSet.topic} • {fSet.wordCount} words • {fSet.questions.length} câu</div>
+              </button>
+            ))}
+          </div>
+
+          {/* Foundation Notice Banner */}
+          <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-lg text-xs flex items-start gap-2.5">
+            <span className="text-base shrink-0">🎯</span>
+            <div>
+              <div className="font-bold text-amber-950">
+                {activeFoundationSet.sourceNotice} — Kỹ năng mục tiêu: {activeFoundationSet.targetSkill}
+              </div>
+              <p className="text-amber-900/90 mt-0.5 leading-relaxed">
+                Được biên soạn ngắn gọn ({activeFoundationSet.wordCount} từ) giúp học viên band ~4.0 làm quen với kỹ năng định vị từ khóa và đọc hiểu có trọng tâm mà không bị ngợp. Bôi đen bất kỳ từ mới nào trong bài đọc để tra cứu và lưu từ tức thì.
+              </p>
+            </div>
+          </div>
+
+          {/* 2-Column Study Workspace */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left: Foundation Passage */}
+            <div className="lg:col-span-7 bg-white border border-slate-200 rounded-lg p-6 space-y-4">
+              <div>
+                <div className="text-xs font-mono text-slate-500 uppercase tracking-wider">
+                  Target Band: {activeFoundationSet.targetBand} • {activeFoundationSet.wordCount} words
+                </div>
+                <h2 className="text-xl font-bold text-slate-900 mt-1">
+                  {activeFoundationSet.title}
+                </h2>
+              </div>
+
+              <div className="space-y-4 pt-2 border-t border-slate-100 font-serif leading-relaxed text-slate-900 text-sm">
+                {activeFoundationSet.passage.map((para, pIdx) => (
+                  <div key={pIdx} className="space-y-1">
+                    {para.label && (
+                      <span className="font-sans font-bold text-xs text-slate-500 font-mono block">
+                        {para.label}
+                      </span>
+                    )}
+                    <p className="text-justify leading-7">{para.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: Interactive Questions */}
+            <div className="lg:col-span-5 bg-white border border-slate-200 rounded-lg p-6 space-y-5">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 className="text-sm font-bold text-slate-900 uppercase font-mono tracking-wider">
+                  Câu hỏi luyện tập ({activeFoundationSet.questions.length} câu)
+                </h3>
+                {foundationSubmitted && (
+                  <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    Đã nộp bài
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                {activeFoundationSet.questions.map((q, idx) => {
+                  const userVal = (foundationAnswers[q.id] || '').trim();
+                  const isCorrect = userVal.toLowerCase() === q.correctAnswer.toLowerCase() ||
+                    (q.acceptableAnswers || []).some(a => a.toLowerCase() === userVal.toLowerCase());
+
+                  return (
+                    <div key={q.id} className="p-3.5 bg-slate-50 border border-slate-200 rounded text-xs space-y-2.5">
+                      <div className="font-semibold text-slate-900 text-xs leading-relaxed">
+                        Câu {idx + 1}. {q.prompt}
+                      </div>
+
+                      {/* Options */}
+                      {q.options && q.options.length > 0 ? (
+                        <div className="space-y-1.5">
+                          {q.options.map(opt => (
+                            <label key={opt} className="flex items-center gap-2 cursor-pointer text-slate-800">
+                              <input
+                                type="radio"
+                                name={q.id}
+                                value={opt}
+                                checked={userVal === opt || (opt.includes('. ') && userVal === opt[0])}
+                                onChange={(e) => setFoundationAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+                                disabled={foundationSubmitted}
+                                className="text-slate-900"
+                              />
+                              <span>{opt}</span>
+                            </label>
+                          ))}
+                        </div>
+                      ) : (
+                        <input
+                          type="text"
+                          value={userVal}
+                          onChange={(e) => setFoundationAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+                          placeholder="Điền từ cần điền..."
+                          disabled={foundationSubmitted}
+                          className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded text-slate-900 text-xs font-sans"
+                        />
+                      )}
+
+                      {/* Feedback after submit */}
+                      {foundationSubmitted && (
+                        <div className={`p-2.5 rounded border text-xs space-y-1 ${
+                          isCorrect ? 'bg-emerald-50 border-emerald-200 text-emerald-950' : 'bg-rose-50 border-rose-200 text-rose-950'
+                        }`}>
+                          <div className="font-bold flex items-center justify-between">
+                            <span>{isCorrect ? '✓ Chính xác!' : `✗ Chưa đúng. Đáp án: ${q.correctAnswer}`}</span>
+                            {q.paragraphReference && (
+                              <span className="font-mono text-[10px] opacity-75">{q.paragraphReference}</span>
+                            )}
+                          </div>
+                          <p className="text-[11px] leading-relaxed opacity-90">{q.explanation}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {!foundationSubmitted ? (
+                <button
+                  type="button"
+                  onClick={() => setFoundationSubmitted(true)}
+                  className="w-full py-2.5 bg-slate-900 text-white rounded text-xs font-bold hover:bg-slate-800 cursor-pointer"
+                >
+                  Kiểm tra đáp án & Dẫn chứng
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFoundationAnswers({});
+                    setFoundationSubmitted(false);
+                  }}
+                  className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded text-xs font-semibold cursor-pointer border border-slate-300"
+                >
+                  Làm lại bài này
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -1130,6 +1343,9 @@ export const ReadingView: React.FC<ReadingViewProps> = () => {
           )}
         </div>
       )}
+
+      {/* Floating Word Capture from Reading Passages */}
+      <WordCapturePopover sourceLabel="Reading Practice" sourceType="reading" />
     </div>
   );
 };

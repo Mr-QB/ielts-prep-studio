@@ -97,12 +97,13 @@ export const WRITING_TASK1_NOTES: WritingTask1Note[] = [
       }
     ],
     checklist: [
-      'Đã paraphrase đề bài trong Introduction chưa? (không chép lại 100% từ ngữ đề bài)',
-      'Đoạn Overview có đặt ngay sau Intro và nêu đủ 2 điểm nổi bật nhất không?',
-      'Có đầy đủ số liệu chứng minh (kèm đơn vị %, triệu tấn, dollar...) trong 2 đoạn Body?',
-      'Có sử dụng ít nhất 2 cấu trúc so sánh (higher than, while, whereas, by contrast)?',
-      'Độ dài tối thiểu 150 từ (lý tưởng 160–180 từ)?',
-      'Thời gian hoàn thành dưới 20 phút?'
+      '[REQUIREMENT] Viết tối thiểu 150 từ (Quy định chính thức; dưới 150 từ sẽ bị trừ điểm Task Achievement)',
+      '[REQUIREMENT] Báo cáo trung thực số liệu trên biểu đồ, tuyệt đối không tự suy đoán nguyên nhân hoặc đưa ý kiến cá nhân',
+      '[REQUIREMENT] Trình bày bài theo các đoạn văn hoàn chỉnh (Introduction, Overview, 2 Body), không dùng gạch đầu dòng',
+      '[RECOMMENDED] Dành khoảng 20 phút cho Task 1 để dành 40 phút cho Task 2',
+      '[RECOMMENDED] Đoạn Overview (1–2 câu) nêu rõ xu hướng tổng thể tăng/giảm và đối tượng cao/thấp nhất',
+      '[RECOMMENDED] Gom nhóm các đường có xu hướng tương đồng và chọn lọc mốc đầu, mốc đỉnh và mốc cuối',
+      '[OPTIONAL] Nhắm tới độ dài mục tiêu 160–180 từ để phát triển số liệu thoải mái mà không bị muộn giờ'
     ]
   },
   {
@@ -180,10 +181,11 @@ export const WRITING_TASK1_NOTES: WritingTask1Note[] = [
       }
     ],
     checklist: [
-      'Xác định rõ biểu đồ là tĩnh (static - 1 năm) hay động (dynamic - nhiều năm)?',
-      'Đoạn Overview có chỉ ra rõ cực đại / cực tiểu không?',
-      'Các câu trong Body có từ nối so sánh (in comparison with, compared to, while)?',
-      'Không dùng từ "increase/decrease" cho biểu đồ không có mốc thời gian chuyển động.'
+      '[REQUIREMENT] Viết tối thiểu 150 từ theo đúng thể thức báo cáo IELTS Academic',
+      '[REQUIREMENT] Xác định đúng đơn vị đo lường trên trục tung (triệu USD, %, tấn...)',
+      '[RECOMMENDED] Xác định rõ biểu đồ tĩnh (1 năm - chỉ dùng từ ngữ so sánh hơn/kém) hay động (nhiều năm - dùng từ chỉ xu hướng tăng/giảm)',
+      '[RECOMMENDED] Đoạn Overview chỉ ra rõ đối tượng lớn nhất / nhỏ nhất hoặc khoảng cách chênh lệch nổi bật',
+      '[OPTIONAL] Nhắm tới độ dài mục tiêu 160–180 từ'
     ]
   },
   {
@@ -248,8 +250,11 @@ export const WRITING_TASK1_NOTES: WritingTask1Note[] = [
       }
     ],
     checklist: [
-      'Đã sử dụng linh hoạt các cụm từ: accounted for, constituted, comprised, represented?',
-      'Đã quy đổi % sang cụm từ tương đương (ví dụ 48% -> nearly half, 74% -> almost three-quarters)?'
+      '[REQUIREMENT] Viết tối thiểu 150 từ, không chép nguyên văn câu chữ của đề bài',
+      '[REQUIREMENT] Luôn dùng đơn vị % hoặc phân số tỷ lệ chính xác (trừ khi đề ghi rõ số lượng tuyệt đối)',
+      '[RECOMMENDED] Sử dụng linh hoạt các động từ cơ cấu: accounted for, constituted, comprised, represented',
+      '[RECOMMENDED] Quy đổi % sang phân số tự nhiên (ví dụ 48% -> nearly half, 74% -> almost three-quarters)',
+      '[OPTIONAL] Nhắm tới độ dài mục tiêu 160–180 từ'
     ]
   },
   {
@@ -309,8 +314,10 @@ export const WRITING_TASK1_NOTES: WritingTask1Note[] = [
       }
     ],
     checklist: [
-      'Đã lọc bỏ các con số phụ không quan trọng chưa?',
-      'Có gom được ít nhất 2 đối tượng vào cùng 1 câu so sánh không?'
+      '[REQUIREMENT] Viết tối thiểu 150 từ, hoàn thành trong khoảng 20 phút',
+      '[RECOMMENDED] Chọn lọc số liệu trọng yếu (cao nhất, thấp nhất, đột biến), tuyệt đối không liệt kê máy móc mọi con số',
+      '[RECOMMENDED] Gom ít nhất 2 đối tượng vào cùng 1 câu so sánh thay vì viết các câu đơn rời rạc',
+      '[OPTIONAL] Nhắm tới độ dài 160–180 từ'
     ]
   },
   {
@@ -388,9 +395,11 @@ export const WRITING_TASK1_NOTES: WritingTask1Note[] = [
       }
     ],
     checklist: [
-      'Đoạn Overview có nêu rõ tổng số bước, bước bắt đầu và bước kết thúc chưa?',
-      'Đã dùng thể bị động (passive voice) cho hầu hết các câu trong quy trình sản xuất chưa?',
-      'Đã sử dụng đa dạng các từ nối thời gian (subsequently, once, after being V-ed)?'
+      '[REQUIREMENT] Báo cáo đầy đủ mọi bước xuất hiện trên sơ đồ, không được bỏ sót bất kỳ giai đoạn nào',
+      '[REQUIREMENT] Viết tối thiểu 150 từ',
+      '[RECOMMENDED] Đoạn Overview nêu rõ tổng số bước, bước bắt đầu và sản phẩm hoàn thiện cuối cùng',
+      '[RECOMMENDED] Sử dụng thể bị động (passive voice) cho quy trình sản xuất nhân tạo',
+      '[RECOMMENDED] Sử dụng đa dạng các từ nối trình tự thời gian (initially, subsequently, once, finally)'
     ]
   },
   {
@@ -463,9 +472,10 @@ export const WRITING_TASK1_NOTES: WritingTask1Note[] = [
       }
     ],
     checklist: [
-      'Đã dùng các từ chỉ phương hướng (North, South, East, West) thay vì left/right?',
-      'Đã dùng các động từ biến đổi (demolished, transformed, replaced by)?',
-      'Đoạn Overview có tóm tắt sự chuyển biến lớn nhất (modernized, commercialized)?'
+      '[REQUIREMENT] Viết tối thiểu 150 từ theo thể thức khách quan',
+      '[RECOMMENDED] Sử dụng 4 hướng địa lý (North, South, East, West) thay vì vị trí thị giác (left, right, top, bottom)',
+      '[RECOMMENDED] Sử dụng đa dạng các động từ biến đổi đô thị (demolished, erected, converted into, remained untouched)',
+      '[RECOMMENDED] Đoạn Overview tóm tắt sự chuyển biến bao quát nhất (modernized, commercialized, residential expansion)'
     ]
   },
   {
@@ -525,8 +535,10 @@ export const WRITING_TASK1_NOTES: WritingTask1Note[] = [
       }
     ],
     checklist: [
-      'Overview đã bao quát cả 2 biểu đồ chưa?',
-      'Body 1 dành riêng cho biểu đồ 1, Body 2 dành riêng cho biểu đồ 2?'
+      '[REQUIREMENT] Viết tối thiểu 150 từ, đảm bảo mô tả cả 2 biểu đồ',
+      '[RECOMMENDED] Đoạn Overview phải tóm tắt đặc điểm nổi bật của CẢ 2 biểu đồ (mỗi biểu đồ 1 câu)',
+      '[RECOMMENDED] Chia rõ bố cục: Body 1 mô tả biểu đồ thứ nhất, Body 2 mô tả biểu đồ thứ hai và liên hệ tương quan',
+      '[OPTIONAL] Nhắm tới độ dài 160–180 từ'
     ]
   }
 ];
@@ -607,10 +619,13 @@ export const WRITING_TASK2_NOTES: WritingTask2Note[] = [
       }
     ],
     checklist: [
-      'Introduction đã có câu Thesis Statement thể hiện rõ quan điểm của mình chưa?',
-      'Mỗi đoạn Body có đủ cấu trúc PEEL (Point - Explain - Example - Link)?',
-      'Độ dài tối thiểu 250 từ (lý tưởng 260–290 từ)?',
-      'Đã đọc lại kiểm tra lỗi chia động từ số ít/số nhiều và mạo từ (a/an/the)?'
+      '[REQUIREMENT] Viết tối thiểu 250 từ (Quy định bắt buộc; dưới 250 từ bị phạt điểm Task Response)',
+      '[REQUIREMENT] Khẳng định lập trường rõ ràng (Clear Position) xuyên suốt bài từ mở bài đến kết bài',
+      '[REQUIREMENT] Trình bày bài theo cấu trúc đoạn văn học thuật (Introduction, 2 Thân bài, Conclusion)',
+      '[RECOMMENDED] Dành khoảng 40 phút cho Task 2',
+      '[RECOMMENDED] Mỗi đoạn Body áp dụng công thức P-E-E-L (Point → Explanation → Example → Link)',
+      '[RECOMMENDED] Dành 3–5 phút cuối giờ rà soát lỗi chia động từ, mạo từ (a/an/the) và chính tả',
+      '[OPTIONAL] Nhắm tới độ dài mục tiêu 260–290 từ để lập luận sâu sắc'
     ]
   },
   {
@@ -672,8 +687,12 @@ export const WRITING_TASK2_NOTES: WritingTask2Note[] = [
       }
     ],
     checklist: [
-      'Đã thảo luận công bằng cả 2 mặt View 1 và View 2 chưa?',
-      'Ý kiến cá nhân đã được nêu rõ ràng ở cả Introduction, Body 2 và Conclusion?'
+      '[REQUIREMENT] Viết tối thiểu 250 từ',
+      '[REQUIREMENT] Thảo luận đầy đủ cả 2 quan điểm (View 1 & View 2) được nêu trong đề bài',
+      '[REQUIREMENT] Thể hiện rõ quan điểm cá nhân (Give your opinion) theo đúng yêu cầu đề bài',
+      '[RECOMMENDED] Dành 1 đoạn Body cho View 1, 1 đoạn Body cho View 2 (kèm phân tích vì sao bạn đồng tình hơn)',
+      '[RECOMMENDED] Dành khoảng 40 phút cho Task 2',
+      '[OPTIONAL] Nhắm tới độ dài mục tiêu 260–290 từ'
     ]
   },
   {
@@ -734,8 +753,11 @@ export const WRITING_TASK2_NOTES: WritingTask2Note[] = [
       }
     ],
     checklist: [
-      'Đã trả lời dứt khoát cái nào "outweigh" cái nào chưa?',
-      'Body 2 (phần mạnh hơn) có được phân tích sâu sắc hơn Body 1?'
+      '[REQUIREMENT] Viết tối thiểu 250 từ',
+      '[REQUIREMENT] Trả lời dứt khoát câu hỏi "Do the advantages outweigh the disadvantages?" ngay từ mở bài và kết bài',
+      '[RECOMMENDED] Phân tích cả ưu điểm và nhược điểm, nhưng dành chiều sâu lập luận lớn hơn cho phần bạn cho là vượt trội',
+      '[RECOMMENDED] Sử dụng các cấu trúc cân đo (The benefits decisively outweigh the drawbacks)',
+      '[OPTIONAL] Nhắm tới độ dài mục tiêu 260–290 từ'
     ]
   },
   {
@@ -766,7 +788,7 @@ export const WRITING_TASK2_NOTES: WritingTask2Note[] = [
         purpose: 'Đề xuất 2 giải pháp tương ứng giải quyết triệt để các nguyên nhân trên (Solutions)',
         formula: 'To mitigate this adversity, concerted actions are essential. Firstly, [Giải pháp 1]. Secondly, [Giải pháp 2].',
         sentenceFrames: [
-          'To counteract this crisis, a multi-faceted approach is indispensable. Firstly, governments must designate and strictly enforce protected natural reserves, imposing severe legal penalties on illegal loggers and poachers. Secondly, global awareness campaigns should be intensified to suppress consumer demand for exotic animal commodities.'
+          'To solve this problem, effective measures must be taken. Firstly, governments should establish protected natural reserves and enforce strict laws against illegal hunting. Secondly, educational campaigns can help raise public awareness about protecting endangered species.'
         ]
       },
       {
@@ -774,7 +796,7 @@ export const WRITING_TASK2_NOTES: WritingTask2Note[] = [
         purpose: 'Tóm lược nguyên nhân và khẳng định tính cấp thiết của giải pháp',
         formula: 'In conclusion, wildlife depletion is largely attributable to [nguyên nhân], and it is imperative that [giải pháp] be executed promptly.',
         sentenceFrames: [
-          'In conclusion, biodiversity loss is primarily catalyzed by human encroachment and poaching. Only through stringent regulatory enforcement and international cooperation can this perilous trajectory be halted.'
+          'In conclusion, biodiversity loss is caused mainly by habitat destruction and illegal hunting. Strong government policies and public cooperation are essential to protect wildlife for future generations.'
         ]
       }
     ],
@@ -804,8 +826,11 @@ export const WRITING_TASK2_NOTES: WritingTask2Note[] = [
       }
     ],
     checklist: [
-      'Giải pháp ở Body 2 có giải quyết trực tiếp các vấn đề ở Body 1 không?',
-      'Các giải pháp có tính khả thi và mang tính học thuật (không dùng từ khẩu ngữ)?'
+      '[REQUIREMENT] Viết tối thiểu 250 từ, trả lời cả 2 vế (Nguyên nhân/Vấn đề và Giải pháp)',
+      '[REQUIREMENT] Bố cục đoạn văn rõ ràng, không dùng gạch đầu dòng',
+      '[RECOMMENDED] Các giải pháp ở Body 2 phải giải quyết trực tiếp và tương ứng với các nguyên nhân nêu ở Body 1',
+      '[RECOMMENDED] Đề xuất giải pháp mang tính khả thi, thực tế cho chính phủ hoặc cộng đồng',
+      '[OPTIONAL] Nhắm tới độ dài mục tiêu 260–290 từ'
     ]
   },
   {
@@ -866,8 +891,11 @@ export const WRITING_TASK2_NOTES: WritingTask2Note[] = [
       }
     ],
     checklist: [
-      'Body 1 đã trả lời đầy đủ câu hỏi thứ nhất chưa?',
-      'Body 2 đã trả lời dứt khoát câu hỏi thứ hai chưa?'
+      '[REQUIREMENT] Viết tối thiểu 250 từ',
+      '[REQUIREMENT] Trả lời thỏa đáng và đầy đủ cả 2 câu hỏi riêng biệt trong đề bài',
+      '[RECOMMENDED] Chia đều bố cục: Body 1 trả lời câu hỏi 1, Body 2 trả lời câu hỏi 2',
+      '[RECOMMENDED] Trả lời trực tiếp cả 2 câu hỏi ngay trong câu Thesis Statement ở mở bài',
+      '[OPTIONAL] Nhắm tới độ dài mục tiêu 260–290 từ'
     ]
   }
 ];

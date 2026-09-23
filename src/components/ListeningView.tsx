@@ -6,6 +6,7 @@ import { ListeningQuestion, ListeningSection, MistakeTagType, TestAttempt } from
 import { AudioPlayer } from './AudioPlayer';
 import { recordAttempt, addWordToVocabDeck } from '../utils/db';
 import { calculateListeningBand, formatTime } from '../utils/ieltsScoring';
+import { WordCapturePopover } from './WordCapturePopover';
 
 interface ListeningViewProps {
   examMode?: 'study' | 'simulation';
@@ -76,6 +77,15 @@ export const ListeningView: React.FC<ListeningViewProps> = () => {
 
   const handleCheckDrill = (drillId: string) => {
     setDrillChecked(prev => ({ ...prev, [drillId]: true }));
+  };
+
+  const playTtsSnippet = (text: string) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-GB';
+    utterance.rate = 0.95;
+    window.speechSynthesis.speak(utterance);
   };
 
   // Handlers for Section Practice
@@ -338,6 +348,19 @@ export const ListeningView: React.FC<ListeningViewProps> = () => {
                   Ví dụ minh họa tình huống bẫy
                 </h3>
                 <div className="p-4 bg-slate-50 border border-slate-200 rounded text-xs space-y-3">
+                  <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                      Audio: TTS Practice
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => playTtsSnippet(activeStrategyLesson.audioExample!.audioText)}
+                      className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium bg-blue-50 text-blue-800 border border-blue-200 hover:bg-blue-100 cursor-pointer"
+                    >
+                      <span>🔊</span>
+                      <span>Nghe minh họa (TTS Practice)</span>
+                    </button>
+                  </div>
                   <div className="p-3 bg-white border border-slate-200 rounded font-serif italic text-slate-900 text-sm">
                     {activeStrategyLesson.audioExample.audioText}
                   </div>
@@ -377,6 +400,19 @@ export const ListeningView: React.FC<ListeningViewProps> = () => {
 
                     return (
                       <div key={drill.id} className="p-4 bg-slate-50 border border-slate-200 rounded text-xs space-y-3">
+                        <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                            Audio: TTS Practice
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => playTtsSnippet(drill.audioSnippet)}
+                            className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium bg-blue-50 text-blue-800 border border-blue-200 hover:bg-blue-100 cursor-pointer"
+                          >
+                            <span>🔊</span>
+                            <span>Nghe đoạn trích (TTS Practice)</span>
+                          </button>
+                        </div>
                         <div className="p-3 bg-white border border-slate-200 rounded font-serif italic text-slate-900 text-sm">
                           "{drill.audioSnippet}"
                         </div>
@@ -924,6 +960,9 @@ export const ListeningView: React.FC<ListeningViewProps> = () => {
           )}
         </div>
       )}
+
+      {/* Floating Word Capture from Listening Transcripts */}
+      <WordCapturePopover sourceLabel="Listening Practice" sourceType="listening" />
     </div>
   );
 };

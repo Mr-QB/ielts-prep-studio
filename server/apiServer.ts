@@ -26,8 +26,10 @@ import type {
   TestAttempt,
   RecordedMistake,
   GrammarProgressStatus,
-  DailyProtocolRecord
+  DailyProtocolRecord,
+  VocabReviewLog
 } from '../src/types';
+import { lookupVocabularyWord } from './vocabLookup';
 
 // Load .env if present
 const envPath = path.resolve('.env');
@@ -320,6 +322,23 @@ async function handleApiRoutes(req: http.IncomingMessage, res: http.ServerRespon
     return true;
   }
 
+  // Vocab Lookup API (Dictionary + Context + Vietnamese Suggestion) - open utility
+  if (pathname === '/api/vocab/lookup' && method === 'GET') {
+    try {
+      const word = url.searchParams.get('word') || '';
+      const context = url.searchParams.get('context') || '';
+      if (!word) {
+        sendJson(res, 400, { error: 'Word parameter is required' });
+        return true;
+      }
+      const result = await lookupVocabularyWord(word, context);
+      sendJson(res, 200, { success: true, ...result });
+    } catch (err: any) {
+      sendJson(res, 500, { success: false, error: err.message });
+    }
+    return true;
+  }
+
   // -------------------------------------------------------------
   // ALL REMAINING ROUTES REQUIRE AUTHENTICATION
   // -------------------------------------------------------------
@@ -487,12 +506,121 @@ async function handleApiRoutes(req: http.IncomingMessage, res: http.ServerRespon
     }
   }
 
-  // 4. Add single user-captured card (Personal)
+  // 5. Vocab Duplicate Check API
+  if (pathname === '/api/vocab/check-duplicate' && method === 'GET') {
+    try {
+      const word = (url.searchParams.get('word') || '').trim().toLowerCase();
+      if (!word) {
+        sendJson(res, 400, { error: 'Word parameter is required' });
+        return true;
+      }
+      const existing = await d1.query<any>(
+        `SELECT c.*, p.next_review, p.learning_status, p.repetitions, p.interval_days
+         FROM vocab_cards c
+         LEFT JOIN user_vocab_progress p ON (p.card_id = c.id AND p.user_id = ?)
+         WHERE (c.owner_user_id IS NULL OR c.owner_user_id = ?)
+           AND LOWER(c.word) = ?
+         LIMIT 1;`,
+        [userId, userId, word]
+      );
+      if (existing.length > 0) {
+        const item = existing[0];
+        sendJson(res, 200, {
+          exists: true,
+          card: {
+            id: item.id,
+            deckId: item.deck_id,
+            word: item.word,
+            definitionVi: item.definition_vi,
+            definitionEn: item.definition_en,
+            example: item.example,
+            sourceContext: item.source_context,
+            nextReview: item.next_review,
+            state: item.learning_status || 'new',
+            repetition: item.repetitions || 0,
+            intervalDays: item.interval_days || 1
+          }
+        });
+      } else {
+        sendJson(res, 200, { exists: false });
+      }
+    } catch (err: any) {
+      sendJson(res, 500, { success: false, error: err.message });
+    }
+    return true;
+  }
+
+  // 6. Vocabulary Review Log API (Detailed audit trail & analytics)
+  if (pathname === '/api/vocab/review-log' && method === 'POST') {
+    try {
+      const body = await parseBody<VocabReviewLog>(req);
+      const logId = body.id || `log-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      await d1.execute(
+        `INSERT INTO vocab_review_log (
+           id, user_id, card_id, review_mode, prompt_type, correct, rating,
+           response_time_ms, hint_used, typed_answer, error_type, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        [
+          logId,
+          userId,
+          body.cardId,
+          body.reviewMode || 'recall',
+          body.promptType || null,
+          body.correct ? 1 : 0,
+          body.rating ?? null,
+          body.responseTimeMs || 0,
+          body.hintUsed ? 1 : 0,
+          body.typedAnswer || null,
+          body.errorType || 'NONE',
+          body.createdAt || Date.now()
+        ]
+      );
+      sendJson(res, 200, { success: true, id: logId });
+    } catch (err: any) {
+      sendJson(res, 500, { success: false, error: err.message });
+    }
+    return true;
+  }
+
+  // 7. Add or Update single user-captured card (Personal)
   if (pathname === '/api/vocab/card' && method === 'POST') {
     try {
-      const body = await parseBody<{ card: VocabCard; deckId: string }>(req);
-      const { card, deckId } = body;
+      const body = await parseBody<{ card: VocabCard; deckId: string; updateExisting?: boolean }>(req);
+      const { card, deckId, updateExisting } = body;
       const now = Date.now();
+
+      // Check if duplicate exists for this word
+      const existingCards = await d1.query<any>(
+        `SELECT id, source_context, definition_vi FROM vocab_cards
+         WHERE (owner_user_id IS NULL OR owner_user_id = ?)
+           AND LOWER(word) = LOWER(?)
+         LIMIT 1;`,
+        [userId, card.word]
+      );
+
+      if (existingCards.length > 0 && !updateExisting) {
+        // Return duplicate alert with existing details so user can choose action
+        const existing = existingCards[0];
+        sendJson(res, 409, {
+          error: 'duplicate_word',
+          message: `Từ "${card.word}" đã có trong danh sách từ vựng.`,
+          existingCardId: existing.id,
+          existingContext: existing.source_context
+        });
+        return true;
+      }
+
+      const targetCardId = existingCards.length > 0 && updateExisting ? existingCards[0].id : card.id;
+
+      // If updating existing, combine contexts if new context provided
+      let finalContext = card.sourceContext || '';
+      if (existingCards.length > 0 && existingCards[0].source_context && card.sourceContext) {
+        if (!existingCards[0].source_context.includes(card.sourceContext)) {
+          finalContext = `${existingCards[0].source_context}\n• ${card.sourceContext}`;
+        } else {
+          finalContext = existingCards[0].source_context;
+        }
+      }
 
       await d1.execute(
         `INSERT INTO vocab_cards (
@@ -502,9 +630,11 @@ async function handleApiRoutes(req: http.IncomingMessage, res: http.ServerRespon
          ON CONFLICT(id) DO UPDATE SET
            definition_vi = excluded.definition_vi,
            definition_en = excluded.definition_en,
+           example = excluded.example,
+           source_context = excluded.source_context,
            updated_at = CURRENT_TIMESTAMP;`,
         [
-          card.id,
+          targetCardId,
           deckId,
           userId,
           card.word,
@@ -516,22 +646,21 @@ async function handleApiRoutes(req: http.IncomingMessage, res: http.ServerRespon
           JSON.stringify(card.collocations || []),
           card.category || '',
           card.source || '',
-          card.sourceContext || ''
+          finalContext
         ]
       );
 
-      // Create isolated user progress
+      // Upsert isolated user progress
       await d1.execute(
         `INSERT INTO user_vocab_progress (
            user_id, card_id, ease_factor, interval_days, repetitions,
            next_review, learning_status, created_at, updated_at
          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(user_id, card_id) DO UPDATE SET
-           next_review = excluded.next_review,
            updated_at = excluded.updated_at;`,
         [
           userId,
-          card.id,
+          targetCardId,
           card.easeFactor ?? 2.5,
           card.intervalDays ?? 1,
           card.repetition ?? 0,
@@ -548,14 +677,14 @@ async function handleApiRoutes(req: http.IncomingMessage, res: http.ServerRespon
         [deckId, deckId]
       );
 
-      sendJson(res, 200, { success: true });
+      sendJson(res, 200, { success: true, cardId: targetCardId });
     } catch (err: any) {
       sendJson(res, 500, { success: false, error: err.message });
     }
     return true;
   }
 
-  // 5. Update user card SRS rating (Isolated per user)
+  // 8. Update user card SRS rating (Isolated per user)
   if (pathname === '/api/vocab/review' && method === 'POST') {
     try {
       const body = await parseBody<{

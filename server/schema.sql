@@ -168,3 +168,25 @@ CREATE TABLE IF NOT EXISTS meta_settings (
     PRIMARY KEY (user_id, key),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+-- 9. VOCABULARY REVIEW LOGS (DETAILED AUDIT TRAIL PER USER)
+CREATE TABLE IF NOT EXISTS vocab_review_log (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    card_id TEXT NOT NULL,
+    review_mode TEXT NOT NULL,
+    prompt_type TEXT,
+    correct INTEGER NOT NULL,
+    rating INTEGER,
+    response_time_ms INTEGER,
+    hint_used INTEGER DEFAULT 0,
+    typed_answer TEXT,
+    error_type TEXT,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (card_id) REFERENCES vocab_cards(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_vocab_review_log_user_card ON vocab_review_log(user_id, card_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_vocab_review_log_created ON vocab_review_log(user_id, created_at);
+
