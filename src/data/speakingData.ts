@@ -1,197 +1,177 @@
-import { SpeakingNotePart, SpeakingGeneralTips } from '../types';
+import { SpeakingNotePart, SpeakingGeneralTips, SpeakingStoryItem } from '../types';
 
 export const SPEAKING_PARTS_DATA: SpeakingNotePart[] = [
   {
     part: 1,
-    title: 'Part 1: Phỏng Vấn Ngắn (Interview & Everyday Topics)',
-    frameworkName: 'Cấu Trúc A-R-E (Answer → Reason → Example)',
-    formula: 'Answer (1 câu trực tiếp) + Reason (1–2 câu giải thích lý do) + Example / Frequency (1 câu ví dụ thực tế)',
-    explanation: 'Giám khảo kiểm tra độ trôi chảy (Fluency) và sự tự nhiên. Độ dài lý tưởng cho mỗi câu trả lời là 3–4 câu (khoảng 15–25 giây). Không trả lời cộc lốc "Yes/No" và cũng không diễn thuyết quá dài như Part 3.',
+    title: 'Part 1: Phỏng Vấn Ngắn (Everyday Topics)',
+    frameworkName: 'Cấu Trúc Tự Nhiên A-R-E (Answer → Reason → Example)',
+    formula: 'Answer (1 câu trực tiếp) + Reason (1–2 câu giải thích lý do) + Example / Habit (1 câu ví dụ thực tế)',
+    explanation: 'Giám khảo kiểm tra độ trôi chảy (Fluency) và tính tự nhiên. Hãy trả lời thoải mái trong khoảng 3–4 câu (15–20 giây). Tuyệt đối không cần dùng từ ngữ bác học xa lạ như "exceptionally therapeutic" hay "passionate about culinary arts". Trả lời rõ ràng, đúng trọng tâm là chìa khóa đạt Band 6.5+.',
     exampleDemonstration: {
       question: 'Do you enjoy cooking?',
       steps: [
         {
-          label: '1. Answer (Trực tiếp)',
-          text: 'To be completely honest, yes, I am quite passionate about culinary arts.'
+          label: '1. Answer (Trực tiếp & giản dị)',
+          text: 'Yes, I do. I actually enjoy preparing meals whenever I have free time.'
         },
         {
-          label: '2. Reason (Giải thích lý do)',
-          text: 'I find it exceptionally therapeutic after a demanding workday because creating a wholesome meal from scratch helps me unwind.'
+          label: '2. Reason (Lý do cụ thể)',
+          text: 'I usually cook at home because it helps me relax after a busy day at school or work.'
         },
         {
           label: '3. Example / Habit (Ví dụ thực tế)',
-          text: 'For instance, every Sunday evening, I usually experiment with traditional Vietnamese noodle recipes or bake pasta for my flatmates.'
+          text: 'For example, I often cook dinner for my family or make simple pasta dishes with my friends at weekends.'
         }
       ]
     },
     usefulFrames: [
-      'Well, generally speaking, I would say that I am a massive fan of...',
-      'To be fair, it really depends on the circumstances. When I have spare time,...',
-      'I have always had a penchant for [X] ever since I was a high school student.',
-      'As a matter of fact, I make it a point to [verb] on a regular basis, usually...'
+      'Yes, definitely. I usually [action] because it helps me...',
+      'To be honest, it really depends on the day. When I have spare time,...',
+      'I have always enjoyed [action] since I was younger.',
+      'As a matter of fact, I try to [action] on a regular basis, usually...'
     ],
     commonTopics: [
       {
         topic: 'Work / Study',
         sampleQuestions: [
           'Do you work or are you a student?',
-          'Why did you choose this field of study/profession?',
-          'What is the most rewarding aspect of your daily routine?'
+          'Why did you choose this field of study?',
+          'What do you enjoy most about your daily study or work routine?'
         ]
       },
       {
-        topic: 'Hometown & Accommodation',
+        topic: 'Hometown & Living',
         sampleQuestions: [
-          'Where is your hometown situated?',
-          'What do you appreciate most about living there?',
-          'Do you reside in a house or an apartment?'
+          'Where is your hometown located?',
+          'What do you like most about living there?',
+          'Do you prefer living in a house or an apartment?'
         ]
       },
       {
-        topic: 'Daily Routine & Habits',
+        topic: 'Daily Routine',
         sampleQuestions: [
           'What time do you usually wake up in the morning?',
-          'Do you prefer planning your day in advance or going with the flow?',
+          'What do you like to do to unwind in the evening?',
           'How do you typically spend your weekends?'
-        ]
-      },
-      {
-        topic: 'Technology & Social Media',
-        sampleQuestions: [
-          'How much time do you spend on digital devices each day?',
-          'Do you think technology makes our lives more convenient or stressful?',
-          'What mobile application do you rely on the most?'
         ]
       }
     ]
   },
   {
     part: 2,
-    title: 'Part 2: Độc Thoại Cá Nhân (The Long Turn / Cue Card)',
-    frameworkName: 'Khung 5 Điểm: What → When/Where → Details → Why → Feeling',
-    formula: '1 Phút Chuẩn Bị (Ghi từ khóa theo khung) + 2 Phút Nói (Nói trôi chảy theo trình tự thời gian & cảm xúc)',
-    explanation: 'Bạn có đúng 1 phút để chuẩn bị với giấy và bút chì, sau đó phải nói liên tục trong 1.5 – 2 phút mà không bị ngắt quãng. Bí quyết là không học thuộc lòng bài mẫu mà bám theo dòng thời gian (Past Background → Event/Actions → Climax → Reflection).',
+    title: 'Part 2: Bài Độc Thoại 2 Phút (The Long Turn)',
+    frameworkName: 'Cấu Trúc Kể Chuyện P-P-F (Past → Present → Future Feelings)',
+    formula: 'Bắt đầu trực tiếp (10s) → Bối cảnh quá khứ (30s) → Diễn biến chính (50s) → Cảm xúc & tác động (30s)',
+    explanation: 'Bạn có 1 phút chuẩn bị và 2 phút nói. Đừng trả lời từng câu gạch đầu dòng rời rạc; hãy liên kết thành một câu chuyện hoàn chỉnh. Xem phần My Story Bank bên dưới để tái sử dụng một câu chuyện cho nhiều đề khác nhau.',
     exampleDemonstration: {
-      question: 'Describe an inspiring teacher who has greatly influenced your educational journey.',
+      question: 'Describe an achievement you are proud of.',
       steps: [
         {
-          label: '1. What & Who (Giới thiệu nhân vật)',
-          text: 'I would like to talk about Mr. David, my high school physics teacher who completely reshaped my perspective on academia.'
+          label: 'Mở đầu trực tiếp',
+          text: 'I would like to talk about a university robotics project that our team completed last year.'
         },
         {
-          label: '2. When & Where (Bối cảnh thời gian/không gian)',
-          text: 'I first encountered him during my eleventh grade back in 2018 when I was struggling immensely with complex physical theories.'
+          label: 'Bối cảnh & Thử thách',
+          text: 'At first, we faced a major obstacle because our sensor code had repeated errors and we only had two weeks left.'
         },
         {
-          label: '3. Details & Actions (Hành động & Kỷ niệm cụ thể)',
-          text: 'What made his pedagogical approach extraordinary was his reliance on hands-on laboratory demonstrations rather than rigid rote memorization. He would stay behind after school for hours just to explain tricky concepts to struggling students like myself.'
+          label: 'Cách giải quyết',
+          text: 'We worked together late every evening, divided the workload clearly, and finally tested the machine successfully.'
         },
         {
-          label: '4. Why & Reflection (Vì sao có sức ảnh hưởng lớn)',
-          text: 'The fundamental reason he left an indelible mark on me was his unwavering enthusiasm and faith in our potential, which instilled in me genuine intellectual curiosity.'
-        },
-        {
-          label: '5. Feeling (Cảm xúc hiện tại)',
-          text: 'Looking back, I am tremendously indebted to him, and even today, his passion continues to motivate my independent self-study habits.'
+          label: 'Cảm xúc & Bài học',
+          text: 'I felt extremely proud and relieved because it taught me the true value of persistence and effective teamwork.'
         }
       ]
     },
     usefulFrames: [
-      'Today I would like to reminisce about / describe...',
-      'If my memory serves me right, this incident took place approximately [X] years ago...',
-      'What impressed me most profoundly was the fact that...',
-      'To put it in perspective, without his guidance, I would have certainly...',
-      'Looking back on the whole experience with the benefit of hindsight, I feel...'
+      'Today I would like to share a story about...',
+      'It happened roughly two years ago when I was...',
+      'What made this experience particularly memorable was...',
+      'Looking back, I learned a valuable lesson about...'
     ],
     commonTopics: [
       {
-        topic: 'Describe a Person (Người có ảnh hưởng / Bạn bè / Nhà lãnh đạo)',
+        topic: 'Person & Role Model',
         sampleQuestions: [
-          'Describe a creative person whom you admire.',
-          'Describe an elderly person who gave you beneficial advice.',
-          'Describe a friend who is an excellent communicator.'
+          'Describe a person who has inspired you to achieve a goal.',
+          'Describe a teacher or mentor who influenced your academic path.',
+          'Describe an elderly person you respect.'
         ]
       },
       {
-        topic: 'Describe an Object / Technology (Món đồ giá trị / Thiết bị)',
+        topic: 'Experience & Milestone',
         sampleQuestions: [
-          'Describe a piece of technology you find indispensable.',
-          'Describe a gift that took you a long time to choose.',
-          'Describe a photograph that brings back fond memories.'
+          'Describe a difficult task or project you completed successfully.',
+          'Describe a memorable trip you took with close friends.',
+          'Describe a time you learned an essential life skill.'
         ]
       },
       {
-        topic: 'Describe an Event / Experience (Trải nghiệm / Thách thức / Chuyến đi)',
+        topic: 'Place & Environment',
         sampleQuestions: [
-          'Describe a time when you overcame a significant difficulty.',
-          'Describe a memorable trip you took with family or friends.',
-          'Describe an occasion when you helped someone in need.'
-        ]
-      },
-      {
-        topic: 'Describe a Place (Thành phố / Quán cafe / Khu bảo tồn)',
-        sampleQuestions: [
-          'Describe a peaceful place you visit to escape urban noise.',
-          'Describe a city or country you would love to explore in the future.'
+          'Describe a quiet place where you like to relax.',
+          'Describe a historic building or scenic town you visited.'
         ]
       }
     ]
   },
   {
     part: 3,
-    title: 'Part 3: Thảo Luận Chuyên Sâu (Two-Way Discussion)',
-    frameworkName: 'Cấu Trúc Học Thuật O-R-E-C (Opinion → Reason → Example → Contrast / Consequence)',
-    formula: 'Opinion (Khẳng định góc nhìn học thuật) + Reason (Cơ chế logic sâu sắc) + Example (Ví dụ mang tính xã hội) + Contrast / Consequence (Mặt đối lập hoặc hệ quả dài hạn)',
-    explanation: 'Part 3 chuyển từ trải nghiệm cá nhân sang các vấn đề xã hội, triết lý và xu hướng toàn cầu. Không dùng "I usually" hay kể chuyện gia đình; hãy dùng các đại từ mang tính khách quan như "individuals, society, governments, the younger generation".',
+    title: 'Part 3: Thảo Luận Hai Chiều (Two-Way Discussion)',
+    frameworkName: 'Cấu Trúc Mở Rộng Ý (Direct Opinion → Reasons → Example → Future/Counter)',
+    formula: 'Direct answer → One main reason → Example → On the other hand / Future outlook',
+    explanation: 'Giám khảo không hỏi về cá nhân bạn nữa mà hỏi về xã hội và xu hướng chung. Luôn nói ở góc độ cộng đồng ("people", "governments", "society").',
     exampleDemonstration: {
-      question: 'Do you believe artificial intelligence will eventually replace human educators in the classroom?',
+      question: 'Why do many people prefer shopping online rather than in physical stores?',
       steps: [
         {
-          label: '1. Opinion (Góc nhìn khách quan)',
-          text: 'In my appraisal, while AI will inevitably revolutionize teaching methodology, it is highly improbable that human instructors will be entirely superseded.'
+          label: '1. Nêu luận điểm chính',
+          text: 'I think there are two main reasons for this growing trend.'
         },
         {
-          label: '2. Reason (Phân tích lý do bản chất)',
-          text: 'The primary rationale is that education encompasses far more than mere algorithmic information delivery. True pedagogical success hinges upon emotional intelligence, empathy, and moral mentorship—attributes that automated software cannot replicate.'
+          label: '2. Lý do 1 + Giải thích',
+          text: 'The primary factor is convenience. People can compare prices and place orders from home without wasting time in traffic.'
         },
         {
-          label: '3. Example (Ví dụ cấp độ xã hội)',
-          text: 'For instance, when a student experiences personal trauma or psychological setbacks, an intuitive teacher provides emotional counsel that no machine can offer.'
+          label: '3. Ví dụ',
+          text: 'For example, during holiday sales, online platforms offer instant home delivery.'
         },
         {
-          label: '4. Consequence / Contrast (Hệ quả đối chiếu)',
-          text: 'Consequently, the optimal trajectory lies in synergistic cooperation: educators should harness AI for administrative grading, thereby freeing up valuable time for direct interpersonal coaching.'
+          label: '4. Mặt trái hoặc tương lai',
+          text: 'However, physical stores still matter because customers cannot examine the actual quality of clothes or food online.'
         }
       ]
     },
     usefulFrames: [
-      'From a macro perspective, it is widely acknowledged that...',
-      'There is no denying that [X] plays a pivotal role; nevertheless, one must consider [Y]...',
-      'To delve deeper into the societal implications, ...',
-      'A notable case in point would be the recent legislative reforms concerning...',
-      'Consequently, unless proactive measures are instituted, society might witness...'
+      'I think there are two main reasons for this.',
+      'One major factor is that...',
+      'For instance, in many developing countries,...',
+      'However, this might be quite different for older generations.',
+      'In the future, I believe we will see more...'
     ],
     commonTopics: [
       {
-        topic: 'Education & Future Employment',
+        topic: 'Technology & Social Connection',
         sampleQuestions: [
-          'How has digital technology altered the dynamic between teachers and learners?',
-          'Should universities focus strictly on vocational training or broader theoretical knowledge?',
-          'What skills will be most coveted in the automated labor market of the future?'
+          'How has digital communication altered interpersonal relationships?',
+          'Will artificial intelligence replace human teachers in the future?',
+          'What are the negative effects of excessive screen exposure on youth?'
         ]
       },
       {
-        topic: 'Environment & Sustainable Living',
+        topic: 'Education & Employment',
         sampleQuestions: [
-          'Whose responsibility is it to combat climate change: individual citizens or multinational corporations?',
-          'How can governments effectively incentivize households to adopt renewable energy?'
+          'Should university education be accessible free of charge to everyone?',
+          'What qualities make an effective employee in the modern workforce?',
+          'Is practical vocational training more useful than theoretical knowledge?'
         ]
       },
       {
-        topic: 'Culture, Tourism & Globalization',
+        topic: 'Environment & Urban Living',
         sampleQuestions: [
-          'Does mass tourism promote cultural understanding or dilute historical identity?',
-          'Why are young people in many nations increasingly drawn to Western lifestyle trends?'
+          'Why do young professionals tend to gravitate toward large metropolitan areas?',
+          'Whose responsibility is it to combat plastic pollution: individuals or governments?'
         ]
       }
     ]
@@ -200,96 +180,154 @@ export const SPEAKING_PARTS_DATA: SpeakingNotePart[] = [
 
 export const SPEAKING_GENERAL_TIPS: SpeakingGeneralTips = {
   fillers: [
-    {
-      phrase: 'That is a rather intriguing question to consider...',
-      context: 'Dùng khi vừa nghe xong câu hỏi khó ở Part 3 để có 2–3 giây suy nghĩ ý tưởng.'
-    },
-    {
-      phrase: 'Well, to be completely candid with you,...',
-      context: 'Dùng khi muốn chia sẻ một quan điểm thật lòng hoặc hơi ngược số đông.'
-    },
-    {
-      phrase: 'If I were to pinpoint the single most decisive factor,...',
-      context: 'Dùng để nhấn mạnh lý do quan trọng nhất một cách tự nhiên.'
-    },
-    {
-      phrase: 'It is somewhat arduous to give a definitive answer, but I would speculate that...',
-      context: 'Dùng khi câu hỏi dự đoán tương lai không có câu trả lời chắc chắn.'
-    }
+    { phrase: 'Well, to be perfectly honest,...', context: 'Dùng khi cần 1-2s mở đầu suy nghĩ cho câu hỏi Part 1 & Part 3' },
+    { phrase: 'That is a rather intriguing question, let me think...', context: 'Dùng khi gặp câu hỏi khó hoặc lạ cần tổ chức ý tưởng' },
+    { phrase: 'As far as I can recall,...', context: 'Dùng khi gợi nhớ lại trải nghiệm trong quá khứ (Part 2)' },
+    { phrase: 'From my personal standpoint,...', context: 'Dùng để mở đầu quan điểm cá nhân trong Part 3' }
   ],
   elongationTechniques: [
     {
-      strategy: 'Kỹ thuật So Sánh Quá Khứ vs Hiện Tại (Past vs Present)',
-      prompt: 'Khi được hỏi về sở thích hoặc thói quen, đối chiếu bản thân hiện tại với 5 năm trước.',
-      example: 'Whereas I used to squander hours scrolling through social media in my early adolescence, nowadays I much prefer dedicating that time to physical fitness or reading.'
+      strategy: 'Kỹ thuật AREA (Answer - Reason - Example - Alternative)',
+      prompt: 'Trả lời trực tiếp -> Đưa ra lý do -> Cho 1 ví dụ cụ thể -> Nêu tình huống ngược lại.',
+      example: 'I enjoy cycling. Primarily because it helps me unwind after intense study hours. For instance, every Sunday morning I ride around the local lake with friends. If I stayed indoors all day, I would feel lethargic.'
     },
     {
-      strategy: 'Kỹ thuật Đặt Giả Thuyết Đối Lập (Hypothetical / Conditional)',
-      prompt: 'Dùng câu điều kiện loại 2 để giải thích nếu trường hợp ngược lại xảy ra.',
-      example: 'If I didn’t live in such a densely populated metropolis, I would undoubtedly spend far more time hiking in the mountains.'
+      strategy: 'Kỹ thuật So sánh quá khứ vs Hiện tại',
+      prompt: 'Nói về sự thay đổi sở thích hoặc thói quen theo thời gian.',
+      example: 'Back in high school, I was obsessed with video games. However, nowadays I lean towards outdoor activities like badminton.'
     },
     {
-      strategy: 'Kỹ thuật Dự Đoán Tương Lai (Future Speculation)',
-      prompt: 'Nói về sự thay đổi có thể xảy ra trong 5–10 năm tới.',
-      example: 'In the coming decade, however, with the rapid advancement of electric autonomous vehicles, I anticipate this traffic situation will improve dramatically.'
+      strategy: 'Kỹ thuật Phân tầng đối tượng (Part 3)',
+      prompt: 'Không vơ đũa cả nắm: chia theo giới trẻ vs người lớn tuổi, hoặc thành thị vs nông thôn.',
+      example: 'Well, it depends largely on demographics. Younger generations tend to embrace cashless payments, whereas elderly citizens still favor paper currency for tangible security.'
     }
   ],
   handlingUnknownWords: [
     {
-      strategy: 'Paraphrase bằng định nghĩa hoặc chức năng của đồ vật/khái niệm',
-      template: 'I am momentarily struggling to recall the precise English term, but it is essentially a device/concept used for [mô tả chức năng]...'
+      strategy: 'Mô tả công dụng hoặc hình dáng (Paraphrasing the unknown word)',
+      template: 'It is a kind of object that people use when they need to... / I cannot recall the exact technical term, but it basically functions like a...'
     },
     {
-      strategy: 'Dùng từ đồng nghĩa gần nghĩa nhất rồi bổ sung giải thích',
-      template: 'It is quite similar to [từ quen thuộc], except that it is specifically designed for...'
+      strategy: 'Thành thật và chuyển ngữ cảnh khéo léo',
+      template: 'The precise term escapes me at the moment, but what I mean is...'
     }
   ],
   selfCorrection: [
     {
-      strategy: 'Tự sửa lỗi ngữ pháp một cách tự nhiên (Examiner đánh giá cao Band 7+)',
-      template: 'He go... excuse me, he goes to the gym daily...'
+      strategy: 'Tự sửa thì hoặc mạo từ nhanh gọn mà không ngập ngừng lâu',
+      template: 'She go—I mean, she went there yesterday.'
     },
     {
-      strategy: 'Sửa thì quá khứ',
-      template: 'When I arrive... sorry, when I arrived at the venue yesterday,...'
+      strategy: 'Nâng cấp từ ngữ vừa nói',
+      template: 'It had a huge impact, or more precisely, a profound influence on my outlook.'
     }
   ],
   chatGptPrompts: [
     {
-      label: 'Mô phỏng Giám khảo IELTS Speaking Part 1 (Tương tác từng câu)',
-      description: 'Luyện tập hỏi - đáp trực tiếp từng câu, nhận phản hồi Band điểm ngay lập tức.',
-      prompt: `You are an official IELTS Speaking examiner. Conduct an IELTS Speaking Part 1 test with me.
-Topic: [Chọn chủ đề: ví dụ "Reading habits" hoặc "Work and Studies"].
-Ask me ONE question at a time. Wait for my response before asking the next question.
-After I answer each question:
-1. Provide a brief band-score estimation (Fluency, Lexical Resource, Grammar, Pronunciation).
-2. Point out any grammatical slips or unnatural collocations.
-3. Offer an upgraded, natural Band 7.5+ paraphrase of my answer using academic vocabulary and natural fillers.
-4. Then ask the next Part 1 question.
-Begin by asking your first question now.`
+      label: 'Mô phỏng Giám khảo thi Part 1',
+      description: 'Luyện phản xạ Part 1 từng câu một với phản hồi tự nhiên.',
+      prompt: `Please act as an IELTS Speaking examiner assessing my Part 1 answers.
+Ask me one Part 1 question at a time. After I answer, provide brief feedback on fluency and lexical naturalness, then ask the next question.`
     },
     {
       label: 'Chấm & Nâng cấp bài nói Part 2 Cue Card',
-      description: 'Dán bài nói Part 2 của bạn (bằng text hoặc voice transcription) để nhận bảng phân tích 4 tiêu chí.',
+      description: 'Dán bài nói Part 2 để nhận gợi ý nâng cấp collocation và ngữ pháp.',
       prompt: `Please act as an IELTS Speaking examiner assessing my Part 2 cue card performance.
-Cue card topic: [Dán đề bài Cue Card ở đây]
-Here is my spoken transcript:
-"[Dán nội dung bạn vừa nói ở đây]"
-
-Please provide:
-1. Estimated Band Score according to official IELTS Speaking descriptors.
-2. Lexical Resource review: Highlight 3 basic phrases and provide high-level academic/collocation alternatives.
-3. Grammatical Range review: Identify missing complex structures (e.g., conditional, participle clause, inversion) and show how to weave them in.
-4. A rewritten Band 8.0 version that retains my original personal ideas but sounds completely natural and fluent.`
+Provide: 1. Lexical upgrades (Band 6.5 -> 7.5+), 2. Grammatical range feedback, 3. A natural polished version keeping my original story.`
     },
     {
       label: 'Luyện phản xạ tư duy Part 3 (Phản biện xã hội)',
       description: 'Luyện trả lời các câu hỏi trừu tượng mang tính vĩ mô.',
-      prompt: `You are a rigorous IELTS examiner for Speaking Part 3.
-Topic: [Chọn chủ đề: ví dụ "The Influence of Artificial Intelligence on Future Employment"].
-Ask me deep, probing Part 3 questions one by one.
-If my answer is too brief or relies excessively on personal anecdotes rather than societal perspectives, challenge me by asking: "Why do you think society as a whole leans towards that?" or "Could you consider the contrary viewpoint?"
-Give constructive feedback after each answer.`
+      prompt: `You are an IELTS examiner for Speaking Part 3.
+Ask me deep, probing Part 3 questions one by one. If my answer is too brief or only personal, challenge me to explain societal perspectives.`
     }
+  ],
+  fluencyTips: [
+    'Nói với tốc độ tự nhiên, không cố bắn từ quá nhanh để rồi vấp ngắt quãng.',
+    'Dùng filler tự nhiên khi suy nghĩ: "Well, that is an interesting question...", "To be fair...", "Let me think for a second..."'
+  ],
+  lexicalTips: [
+    'Ưu tiên dùng collocation chính xác thay vì nhồi nhét từ hiếm sai ngữ cảnh.',
+    'Tự nhiên hóa câu trả lời bằng phrasal verbs phổ biến: get along with, look forward to, run into.'
+  ],
+  grammarTips: [
+    'Kiểm soát thì quá khứ (Past Simple) khi kể chuyện trong Part 2.',
+    'Dùng mệnh đề phức đơn giản với because, although, when để tạo cấu trúc câu phong phú.'
+  ],
+  pronunciationTips: [
+    'Nói rõ âm đuôi (ending sounds: -s, -ed, -t, -k).',
+    'Nhấn mạnh vào từ mang thông tin chính (content words).'
   ]
 };
+
+// ==========================================
+// MY STORY BANK: 10 REUSABLE STORIES FOR PART 2 & 3
+// ==========================================
+export const MY_STORY_BANK: SpeakingStoryItem[] = [
+  {
+    id: 'story-robot-project',
+    title: 'Dự Án Robot Khó Khăn (A Difficult Robot Project)',
+    category: 'project',
+    tagline: 'Câu chuyện vạn năng: Một thử thách khó khăn, một thành tích, làm việc nhóm, một lần vượt qua áp lực, tin vui, học kỹ năng mới.',
+    applicableCueCards: [
+      'Describe a difficult task you completed',
+      'Describe an achievement you are proud of',
+      'Describe a project you worked on with other people',
+      'Describe a time you learned a new skill',
+      'Describe a piece of good news you received'
+    ],
+    shortVersion: 'Năm ngoái, nhóm của tôi tại trường đại học tham gia một cuộc thi chế tạo robot dọn rác tự động. Chúng tôi gặp sự cố cảm biến chỉ 1 tuần trước hạn chót, nhưng nhờ làm việc nhóm thâu đêm và kiên trì gỡ lỗi mã nguồn, robot đã hoạt động hoàn hảo và đoạt giải Ba.',
+    extendedVersion: 'Roughly a year ago, my teammates and I decided to enter a robotics design competition at our university. Our goal was to build a compact automated cleaning robot. Everything went smoothly until just a week before the deadline, when our primary distance sensors failed to respond properly. We were under immense stress, but instead of giving up, we split the tasks: two members checked the wiring while I rewrote the navigation code. After three nights of debugging, it worked flawlessly on competition day and we earned the third-place award. This experience taught me the true power of calm collaboration under pressure.',
+    usefulVocab: [
+      { phrase: 'under immense pressure', meaningVi: 'dưới áp lực rất lớn' },
+      { phrase: 'debug the code', meaningVi: 'gỡ lỗi chương trình' },
+      { phrase: 'work flawlessly', meaningVi: 'hoạt động hoàn hảo không tì vết' },
+      { phrase: 'split the workload', meaningVi: 'phân chia khối lượng công việc' }
+    ],
+    feelingsVocab: ['stressed at first', 'determined', 'relieved and thrilled', 'profoundly grateful']
+  },
+  {
+    id: 'story-memorable-trip',
+    title: 'Chuyến Đi Leo Núi Đáng Nhớ (A Memorable Mountain Trek)',
+    category: 'trip',
+    tagline: 'Câu chuyện vạn năng: Một chuyến đi xa, một địa điểm yên tĩnh, một thử thách thể chất, một trải nghiệm cùng bạn bè, lần đầu làm điều gì đó.',
+    applicableCueCards: [
+      'Describe a trip you will never forget',
+      'Describe a quiet place you visited',
+      'Describe an outdoor activity you enjoyed',
+      'Describe a time you were close to nature',
+      'Describe a memorable journey with friends'
+    ],
+    shortVersion: 'Tôi và hai người bạn thân đã đi leo đỉnh núi Fansipan vào mùa xuân. Chuyến đi đầy sương mù và dốc đá đứng, nhưng khi chạm đến đỉnh trong ánh bình minh, tôi cảm thấy sự yên bình và tự hào chưa từng có.',
+    extendedVersion: 'Last spring, two of my closest friends and I planned a hiking trip to the mountains. The weather was unpredictable, and after four hours of climbing steep, muddy paths through thick fog, our legs were completely exhausted. However, when we finally reached the summit just as the sun was rising above the sea of clouds, the view was breathtaking. Breathing the crisp morning air and leaving the busy city behind gave me a sense of inner peace that I still cherish today.',
+    usefulVocab: [
+      { phrase: 'breathtaking scenery', meaningVi: 'phong cảnh đẹp nghẹt thở' },
+      { phrase: 'steep and rocky paths', meaningVi: 'những con đường đá dốc đứng' },
+      { phrase: 'crisp morning air', meaningVi: 'không khí buổi sáng trong lành' },
+      { phrase: 'recharge my batteries', meaningVi: 'nạp lại năng lượng tinh thần' }
+    ],
+    feelingsVocab: ['exhausted yet excited', 'peaceful', 'amazed by nature', 'sense of accomplishment']
+  },
+  {
+    id: 'story-inspiring-teacher',
+    title: 'Người Thầy Truyền Cảm Hứng (An Inspiring Teacher)',
+    category: 'person',
+    tagline: 'Câu chuyện vạn năng: Người bạn ngưỡng mộ, người dạy bạn một kỹ năng quan trọng, một cuộc trò chuyện ý nghĩa, một người lớn tuổi đáng kính.',
+    applicableCueCards: [
+      'Describe a person you admire',
+      'Describe a teacher who influenced you',
+      'Describe an older person you respect',
+      'Describe an important conversation you had',
+      'Describe someone who helped you make a good decision'
+    ],
+    shortVersion: 'Thầy Minh, giáo viên dạy tiếng Anh cấp 3 của tôi, là người đã giúp tôi vượt qua sự tự ti khi nói tiếng Anh bằng sự kiên nhẫn và phương pháp khuyến khích không phán xét.',
+    extendedVersion: 'When I was in high school, I was terrified of speaking English in front of others because I was afraid of making silly grammatical mistakes. Mr. Minh, my English teacher, noticed my hesitation. Instead of criticizing errors, he encouraged me to focus on getting my message across. He spent extra time after class listening to my practice talks and recommending simple English podcasts. His supportive guidance gave me the confidence to communicate freely, which shaped my entire academic journey.',
+    usefulVocab: [
+      { phrase: 'patient and approachable', meaningVi: 'kiên nhẫn và dễ gần' },
+      { phrase: 'boost my self-confidence', meaningVi: 'nâng cao sự tự tin' },
+      { phrase: 'supportive mentor', meaningVi: 'người thầy/người dẫn dắt tận tâm' },
+      { phrase: 'shape my perspective', meaningVi: 'định hình góc nhìn cuộc sống' }
+    ],
+    feelingsVocab: ['deeply respected', 'encouraged', 'forever grateful']
+  }
+];

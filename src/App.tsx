@@ -9,6 +9,8 @@ import { WritingNotesView } from './components/WritingNotesView';
 import { SpeakingNotesView } from './components/SpeakingNotesView';
 import { MistakesNotebookView } from './components/MistakesNotebookView';
 import { WeakAreasView } from './components/WeakAreasView';
+import { ProgressView } from './components/ProgressView';
+import { StrategyHandbookView } from './components/StrategyHandbookView';
 import { LoginView } from './components/LoginView';
 import { UserProfileModal } from './components/UserProfileModal';
 import { AppTab, ExamMode, UserProfile } from './types';
@@ -108,6 +110,10 @@ export default function App() {
           <VocabSRSView />
         )}
 
+        {activeTab === 'strategy' && (
+          <StrategyHandbookView />
+        )}
+
         {activeTab === 'writing' && (
           <WritingNotesView />
         )}
@@ -125,7 +131,7 @@ export default function App() {
         )}
 
         {activeTab === 'progress' && (
-          <TodayDashboard onNavigateTab={setActiveTab} user={user} />
+          <ProgressView onNavigateTab={setActiveTab} />
         )}
       </main>
 
@@ -135,15 +141,15 @@ export default function App() {
           <div className="flex items-center gap-2">
             <span className="font-bold text-slate-800">IELTS PREP STUDIO</span>
             <span>•</span>
-            <span>Academic Self-Study & SuperMemo SM-2 Engine</span>
+            <span>Sổ Tay Tự Học IELTS Thực Chiến Band 4.0 → 6.5</span>
           </div>
 
           <div className="flex items-center gap-3 text-[11px] text-slate-500">
-            <span>Local-First & Offline Ready</span>
+            <span>Offline-Ready (IndexedDB)</span>
             <span>•</span>
-            <span>User: {user.displayName}</span>
+            <span>Học viên: {user.displayName}</span>
             <span>•</span>
-            <span>Target Band {user.targetBand.toFixed(1)}</span>
+            <span>Mục tiêu Band {user.targetBand.toFixed(1)}</span>
           </div>
         </div>
       </footer>

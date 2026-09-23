@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: ielts-prep-studio-app
     ports:
-      - "127.0.0.1:${PORT:-8085}:80"
+      - "0.0.0.0:${PORT:-8085}:80"
     environment:
       - PORT=80
       - CLOUDFLARE_ACCOUNT_ID=${CLOUDFLARE_ACCOUNT_ID}

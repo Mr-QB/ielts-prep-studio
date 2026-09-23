@@ -871,3 +871,112 @@ export const WRITING_TASK2_NOTES: WritingTask2Note[] = [
     ]
   }
 ];
+
+export interface WritingPhraseCategory {
+  id: string;
+  category: string;
+  descriptionVi: string;
+  corePhrases: string[];
+  upgradePhrases: string[];
+  exampleSentence: string;
+}
+
+export const WRITING_PHRASE_BANK: WritingPhraseCategory[] = [
+  {
+    id: 'wp-opinion',
+    category: 'Nêu Ý Kiến (Give Opinion)',
+    descriptionVi: 'Khẳng định lập trường trong câu mở bài và kết bài',
+    corePhrases: ['In my view,...', 'I believe that...', 'From my perspective,...', 'It is my belief that...'],
+    upgradePhrases: ['I would argue that...', 'I firmly subscribe to the view that...'],
+    exampleSentence: 'In my view, government intervention is essential to reduce urban air pollution.'
+  },
+  {
+    id: 'wp-reason',
+    category: 'Nêu Lý Do (Give Reason)',
+    descriptionVi: 'Giải thích nguyên nhân dẫn đến nhận định',
+    corePhrases: ['One important reason is that...', 'This is primarily because...', 'The main factor behind this is...'],
+    upgradePhrases: ['This phenomenon can be attributed to...', 'A primary justification for this is...'],
+    exampleSentence: 'One important reason is that public transit fares are significantly lower than private car maintenance.'
+  },
+  {
+    id: 'wp-example',
+    category: 'Đưa Ví Dụ (Give Example)',
+    descriptionVi: 'Minh họa luận điểm bằng dẫn chứng cụ thể',
+    corePhrases: ['For example,...', 'For instance,...', 'A good illustration of this is...'],
+    upgradePhrases: ['This is exemplified by...', 'A notable case in point is...'],
+    exampleSentence: 'For example, many Nordic nations offer free university tuition to all citizens.'
+  },
+  {
+    id: 'wp-cause',
+    category: 'Nguyên Nhân (Cause)',
+    descriptionVi: 'Diễn tả nguồn gốc của vấn đề',
+    corePhrases: ['...is caused by...', '...leads to...', '...results in...'],
+    upgradePhrases: ['...is largely stemmed from...', '...serves as a catalyst for...'],
+    exampleSentence: 'Rapid industrial expansion often leads to severe water contamination in nearby rivers.'
+  },
+  {
+    id: 'wp-effect',
+    category: 'Hệ Quả (Effect)',
+    descriptionVi: 'Diễn tả kết quả, tác động kéo theo',
+    corePhrases: ['As a result,...', 'Consequently,...', 'Therefore,...'],
+    upgradePhrases: ['As an inevitable consequence,...', 'This has a profound bearing on...'],
+    exampleSentence: 'Consequently, many young professionals struggle with mounting living expenses.'
+  },
+  {
+    id: 'wp-contrast',
+    category: 'Tương Phản (Contrast)',
+    descriptionVi: 'So sánh hai mặt đối lập của vấn đề',
+    corePhrases: ['However,...', 'On the other hand,...', 'While [A], [B]...'],
+    upgradePhrases: ['Conversely,...', 'In sharp contrast to [A], [B]...'],
+    exampleSentence: 'While traditional classrooms encourage social bonding, online learning provides flexible schedules.'
+  },
+  {
+    id: 'wp-comparison',
+    category: 'So Sánh (Comparison)',
+    descriptionVi: 'Đối chiếu các đối tượng hoặc nhóm số liệu',
+    corePhrases: ['...is higher than...', 'Similarly,...', 'In comparison with...'],
+    upgradePhrases: ['...surpasses that of...', '...is substantially more pronounced in...'],
+    exampleSentence: 'The proportion of working women in Sweden was higher than that in neighboring countries.'
+  },
+  {
+    id: 'wp-trend-up',
+    category: 'Xu Hướng Tăng (Trend Up)',
+    descriptionVi: 'Mô tả số liệu hoặc sự vật gia tăng trong Task 1 & 2',
+    corePhrases: ['increased steadily', 'saw an upward trend', 'rose from [A] to [B]'],
+    upgradePhrases: ['experienced a substantial surge', 'climbed to a historic peak of...'],
+    exampleSentence: 'The number of international visitors increased steadily between 2010 and 2020.'
+  },
+  {
+    id: 'wp-trend-down',
+    category: 'Xu Hướng Giảm (Trend Down)',
+    descriptionVi: 'Mô tả số liệu đi xuống hoặc suy thoái',
+    corePhrases: ['decreased significantly', 'dropped to [number]', 'witnessed a downward trend'],
+    upgradePhrases: ['plummeted abruptly', 'underwent a marked reduction'],
+    exampleSentence: 'Coal consumption dropped significantly following the introduction of solar subsidies.'
+  },
+  {
+    id: 'wp-trend-stable',
+    category: 'Xu Hướng Ổn Định (Stable Trend)',
+    descriptionVi: 'Mô tả số liệu đi ngang, dao động nhẹ',
+    corePhrases: ['remained stable at around...', 'stayed relatively constant', 'fluctuated slightly'],
+    upgradePhrases: ['plateaued at...', 'hovered around the [X]% mark'],
+    exampleSentence: 'The literacy rate remained stable at around 92% throughout the decade.'
+  },
+  {
+    id: 'wp-solution',
+    category: 'Đề Xuất Giải Pháp (Solution)',
+    descriptionVi: 'Khuyến nghị hành động cho chính phủ và cá nhân',
+    corePhrases: ['Governments should...', 'One effective measure is to...', 'Individuals can contribute by...'],
+    upgradePhrases: ['It is imperative that authorities...', 'A multi-pronged approach is required to...'],
+    exampleSentence: 'Governments should invest in modern recycling plants to minimize urban waste.'
+  },
+  {
+    id: 'wp-conclusion',
+    category: 'Kết Luận (Conclusion)',
+    descriptionVi: 'Tóm lược toàn bộ bài viết trong 1–2 câu',
+    corePhrases: ['In conclusion,...', 'To sum up,...', 'Overall, it is evident that...'],
+    upgradePhrases: ['Taking all factors into consideration,...', 'All things considered,...'],
+    exampleSentence: 'In conclusion, while technological devices bring undeniable convenience, moderate screen time is essential.'
+  }
+];
+

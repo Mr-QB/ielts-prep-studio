@@ -1,10 +1,192 @@
-import { VocabCard, VocabDeck } from '../types';
+import { VocabCard, VocabDeck, ParaphraseItem } from '../types';
 
 export const INITIAL_VOCAB_DECKS: VocabDeck[] = [
+  // 1. CORE BAND 4.0 -> 5.5 (DEFAULT STARTER)
+  {
+    id: 'core-band-4-5',
+    name: 'Core Vocabulary (Band 4.0 → 5.5)',
+    description: 'Từ vựng cốt lõi, tần suất xuất hiện cao nhất trong bài thi IELTS Reading và Writing. Phù hợp cho người học xây dựng nền móng.',
+    createdAt: '2026-09-23',
+    source: 'Cambridge Academic Vocabulary Taxonomy',
+    cards: [
+      {
+        id: 'v-core-1',
+        word: 'increase',
+        phonetic: '/ɪnˈkriːs/',
+        partOfSpeech: 'verb',
+        definitionVi: 'tăng lên, làm cho tăng',
+        definitionEn: 'to become larger in amount or number',
+        example: 'The number of university graduates increased significantly last year.',
+        exampleVi: 'Số lượng sinh viên tốt nghiệp đại học đã tăng đáng kể vào năm ngoái.',
+        collocations: ['increase significantly', 'a steady increase', 'increase in price'],
+        category: 'General Academic',
+        repetition: 0,
+        intervalDays: 0,
+        easeFactor: 2.5,
+        dueDate: new Date().toISOString(),
+        state: 'new'
+      },
+      {
+        id: 'v-core-2',
+        word: 'decrease',
+        phonetic: '/dɪˈkriːs/',
+        partOfSpeech: 'verb',
+        definitionVi: 'giảm xuống, hạ bớt',
+        definitionEn: 'to become less or smaller',
+        example: 'The consumption of fossil fuels decreased after the new policy.',
+        exampleVi: 'Mức tiêu thụ nhiên liệu hóa thạch đã giảm sau khi có chính sách mới.',
+        collocations: ['decrease sharply', 'a dramatic decrease', 'decrease by 20%'],
+        category: 'General Academic',
+        repetition: 0,
+        intervalDays: 0,
+        easeFactor: 2.5,
+        dueDate: new Date().toISOString(),
+        state: 'new'
+      },
+      {
+        id: 'v-core-3',
+        word: 'solution',
+        phonetic: '/səˈluː.ʃən/',
+        partOfSpeech: 'noun',
+        definitionVi: 'giải pháp, cách giải quyết',
+        definitionEn: 'a way of solving a problem or dealing with a difficult situation',
+        example: 'Investing in public transit is an effective solution to traffic jams.',
+        exampleVi: 'Đầu tư vào giao thông công cộng là một giải pháp hiệu quả cho nạn kẹt xe.',
+        collocations: ['practical solution', 'find a solution', 'long-term solution'],
+        category: 'Society & Problems',
+        repetition: 0,
+        intervalDays: 0,
+        easeFactor: 2.5,
+        dueDate: new Date().toISOString(),
+        state: 'new'
+      },
+      {
+        id: 'v-core-4',
+        word: 'improve',
+        phonetic: '/ɪmˈpruːv/',
+        partOfSpeech: 'verb',
+        definitionVi: 'cải thiện, nâng cao chất lượng',
+        definitionEn: 'to make something better or become better',
+        example: 'Regular reading helps learners improve their vocabulary and grammar.',
+        exampleVi: 'Đọc sách thường xuyên giúp người học cải thiện vốn từ vựng và ngữ pháp.',
+        collocations: ['improve performance', 'dramatically improve', 'improve the quality'],
+        category: 'Education & Progress',
+        repetition: 0,
+        intervalDays: 0,
+        easeFactor: 2.5,
+        dueDate: new Date().toISOString(),
+        state: 'new'
+      },
+      {
+        id: 'v-core-5',
+        word: 'reduce',
+        phonetic: '/rɪˈdʒuːs/',
+        partOfSpeech: 'verb',
+        definitionVi: 'cắt giảm, giảm bớt',
+        definitionEn: 'to make something smaller in size, amount, or importance',
+        example: 'Cycling to work helps reduce urban air pollution and noise.',
+        exampleVi: 'Đi xe đạp đi làm giúp giảm thiểu ô nhiễm không khí và tiếng ồn đô thị.',
+        collocations: ['reduce emissions', 'reduce the risk of', 'greatly reduce'],
+        category: 'Environment',
+        repetition: 0,
+        intervalDays: 0,
+        easeFactor: 2.5,
+        dueDate: new Date().toISOString(),
+        state: 'new'
+      },
+      {
+        id: 'v-core-6',
+        word: 'significant',
+        phonetic: '/sɪɡˈnɪf.ɪ.kənt/',
+        partOfSpeech: 'adjective',
+        definitionVi: 'đáng kể, quan trọng',
+        definitionEn: 'important or large enough to be noticeable',
+        example: 'There was a significant difference between the two student groups.',
+        exampleVi: 'Đã có một sự khác biệt đáng kể giữa hai nhóm học sinh.',
+        collocations: ['significant increase', 'significant difference', 'significant impact'],
+        category: 'General Academic',
+        repetition: 0,
+        intervalDays: 0,
+        easeFactor: 2.5,
+        dueDate: new Date().toISOString(),
+        state: 'new'
+      },
+      {
+        id: 'v-core-7',
+        word: 'benefit',
+        phonetic: '/ˈben.ɪ.fɪt/',
+        partOfSpeech: 'noun',
+        definitionVi: 'lợi ích, điều có lợi',
+        definitionEn: 'a helpful or good effect, or something intended to help',
+        example: 'One major benefit of online learning is flexibility in study hours.',
+        exampleVi: 'Một lợi ích lớn của học trực tuyến là sự linh hoạt về giờ giấc học tập.',
+        collocations: ['major benefit', 'reap the benefits', 'economic benefit'],
+        category: 'General Academic',
+        repetition: 0,
+        intervalDays: 0,
+        easeFactor: 2.5,
+        dueDate: new Date().toISOString(),
+        state: 'new'
+      },
+      {
+        id: 'v-core-8',
+        word: 'environment',
+        phonetic: '/ɪnˈvaɪ.rən.mənt/',
+        partOfSpeech: 'noun',
+        definitionVi: 'môi trường sống tự nhiên',
+        definitionEn: 'the air, water, and land in or on which people, animals, and plants live',
+        example: 'Governments should enforce stricter laws to protect the natural environment.',
+        exampleVi: 'Các chính phủ nên thực thi luật nghiêm ngặt hơn để bảo vệ môi trường tự nhiên.',
+        collocations: ['protect the environment', 'environmental damage', 'natural environment'],
+        category: 'Environment',
+        repetition: 0,
+        intervalDays: 0,
+        easeFactor: 2.5,
+        dueDate: new Date().toISOString(),
+        state: 'new'
+      },
+      {
+        id: 'v-core-9',
+        word: 'cause',
+        phonetic: '/kɔːz/',
+        partOfSpeech: 'verb',
+        definitionVi: 'gây ra, là nguyên nhân của',
+        definitionEn: 'to make something happen, especially something bad',
+        example: 'Deforestation causes severe soil erosion and biodiversity loss.',
+        exampleVi: 'Chặt phá rừng gây ra xói mòn đất nghiêm trọng và mất đa dạng sinh học.',
+        collocations: ['cause damage', 'cause pollution', 'root cause'],
+        category: 'Cause & Effect',
+        repetition: 0,
+        intervalDays: 0,
+        easeFactor: 2.5,
+        dueDate: new Date().toISOString(),
+        state: 'new'
+      },
+      {
+        id: 'v-core-10',
+        word: 'likely',
+        phonetic: '/ˈlaɪ.kli/',
+        partOfSpeech: 'adjective',
+        definitionVi: 'có khả năng xảy ra, rất có thể',
+        definitionEn: 'probable or expected to happen',
+        example: 'Students who study consistently are more likely to achieve higher band scores.',
+        exampleVi: 'Những học sinh học tập đều đặn có nhiều khả năng đạt band điểm cao hơn.',
+        collocations: ['more likely to', 'highly likely', 'it is likely that'],
+        category: 'General Academic',
+        repetition: 0,
+        intervalDays: 0,
+        easeFactor: 2.5,
+        dueDate: new Date().toISOString(),
+        state: 'new'
+      }
+    ]
+  },
+
+  // 2. IELTS CORE (Band 5.5 -> 6.5)
   {
     id: 'starter-academic-core',
-    name: 'IELTS Academic Starter Deck (Band 6.5 - 7.0 Core)',
-    description: 'Từ vựng và cụm từ học thuật trọng điểm phân chia theo các chủ đề lớn của IELTS: Môi trường, Công nghệ, Xã hội, Giáo dục và Phát triển đô thị.',
+    name: 'IELTS Core (Band 5.5 → 6.5)',
+    description: 'Từ vựng học thuật trung cấp dành cho bài đọc Passage 2 và bài viết Task 2.',
     createdAt: '2026-09-22',
     source: 'Cambridge Academic Vocabulary Taxonomy',
     cards: [
@@ -68,187 +250,8 @@ export const INITIAL_VOCAB_DECKS: VocabDeck[] = [
         definitionEn: 'never having happened or existed in the past',
         example: 'The international economy witnessed an unprecedented surge in digital consumer transactions.',
         exampleVi: 'Nền kinh tế quốc tế đã chứng kiến một sự bùng nổ chưa từng có trong các giao dịch tiêu dùng kỹ thuật số.',
-        collocations: ['unprecedented scale', 'unprecedented growth', 'at an unprecedented rate'],
-        category: 'Time & Change',
-        repetition: 0,
-        intervalDays: 0,
-        easeFactor: 2.5,
-        dueDate: new Date().toISOString(),
-        state: 'new'
-      },
-      {
-        id: 'v-acad-5',
-        word: 'infrastructure',
-        phonetic: '/ˈɪn.frəˌstrʌk.tʃər/',
-        partOfSpeech: 'noun',
-        definitionVi: 'cơ sở hạ tầng (giao thông, điện nước, viễn thông)',
-        definitionEn: 'the basic physical systems and structures of a country or organization',
-        example: 'Sustained municipal investment in transport infrastructure fosters long-term economic stability.',
-        exampleVi: 'Đầu tư bền vững của chính quyền đô thị vào cơ sở hạ tầng giao thông thúc đẩy sự ổn định kinh tế lâu dài.',
-        collocations: ['transport infrastructure', 'upgrade infrastructure', 'critical infrastructure'],
-        category: 'City & Rural Life',
-        repetition: 0,
-        intervalDays: 0,
-        easeFactor: 2.5,
-        dueDate: new Date().toISOString(),
-        state: 'new'
-      },
-      {
-        id: 'v-acad-6',
-        word: 'incentivize',
-        phonetic: '/ɪnˈsen.tɪ.vaɪz/',
-        partOfSpeech: 'verb',
-        definitionVi: 'khuyến khích, tạo động lực thúc đẩy (bằng chính sách, ưu đãi)',
-        definitionEn: 'provide someone with an incentive for doing something',
-        example: 'Governments should incentivize renewable energy research by offering targeted tax credits.',
-        exampleVi: 'Chính phủ nên tạo động lực cho nghiên cứu năng lượng tái tạo bằng cách cung cấp các khoản giảm thuế có mục tiêu.',
-        collocations: ['incentivize investment', 'incentivize adoption'],
-        category: 'Society & Government',
-        repetition: 0,
-        intervalDays: 0,
-        easeFactor: 2.5,
-        dueDate: new Date().toISOString(),
-        state: 'new'
-      },
-      {
-        id: 'v-acad-7',
-        word: 'discrepancy',
-        phonetic: '/dɪˈskrep.ən.si/',
-        partOfSpeech: 'noun',
-        definitionVi: 'sự chênh lệch, sự khác biệt thiếu nhất quán',
-        definitionEn: 'an illogical or unexpected difference between two or more facts or data points',
-        example: 'There was a pronounced discrepancy between projected sales figures and actual commercial revenue.',
-        exampleVi: 'Có một sự chênh lệch rõ rệt giữa số liệu doanh số dự kiến và doanh thu thương mại thực tế.',
-        collocations: ['noticeable discrepancy', 'statistical discrepancy', 'discrepancy between'],
-        category: 'Problems & Solutions',
-        repetition: 0,
-        intervalDays: 0,
-        easeFactor: 2.5,
-        dueDate: new Date().toISOString(),
-        state: 'new'
-      },
-      {
-        id: 'v-acad-8',
-        word: 'sustainable',
-        phonetic: '/səˈsteɪ.nə.bəl/',
-        partOfSpeech: 'adjective',
-        definitionVi: 'bền vững, thân thiện với môi trường và có thể duy trì lâu dài',
-        definitionEn: 'causing little or no damage to the environment and therefore able to continue for a long time',
-        example: 'Transitioning to sustainable agricultural systems safeguards topsoil fertility for future generations.',
-        exampleVi: 'Việc chuyển đổi sang các hệ thống nông nghiệp bền vững bảo vệ độ màu mỡ của lớp đất mặt cho các thế hệ tương lai.',
-        collocations: ['sustainable development', 'sustainable practices', 'environmentally sustainable'],
-        category: 'Environment & Agriculture',
-        repetition: 0,
-        intervalDays: 0,
-        easeFactor: 2.5,
-        dueDate: new Date().toISOString(),
-        state: 'new'
-      },
-      {
-        id: 'v-acad-9',
-        word: 'deteriorate',
-        phonetic: '/dɪˈtɪə.ri.ə.reɪt/',
-        partOfSpeech: 'verb',
-        definitionVi: 'xuống cấp, xấu đi, suy giảm chất lượng',
-        definitionEn: 'become progressively worse over time',
-        example: 'Without adequate maintenance, public road networks deteriorate rapidly under heavy traffic.',
-        exampleVi: 'Nếu không được bảo trì thỏa đáng, mạng lưới đường bộ công cộng sẽ xuống cấp nhanh chóng dưới mật độ giao thông lớn.',
-        collocations: ['deteriorate rapidly', 'condition deteriorates', 'deteriorating air quality'],
-        category: 'Problems & Solutions',
-        repetition: 0,
-        intervalDays: 0,
-        easeFactor: 2.5,
-        dueDate: new Date().toISOString(),
-        state: 'new'
-      },
-      {
-        id: 'v-acad-10',
-        word: 'empirical',
-        phonetic: '/ɪmˈpɪr.ɪ.kəl/',
-        partOfSpeech: 'adjective',
-        definitionVi: 'dựa trên thực nghiệm, dựa trên bằng chứng quan sát thực tế',
-        definitionEn: 'based on, concerned with, or verifiable by observation or experience rather than theory or pure logic',
-        example: 'Academic researchers require rigorous empirical evidence before endorsing innovative clinical treatments.',
-        exampleVi: 'Các nhà nghiên cứu học thuật đòi hỏi bằng chứng thực nghiệm nghiêm ngặt trước khi chuẩn thuận các phương pháp điều trị lâm sàng cải tiến.',
-        collocations: ['empirical evidence', 'empirical research', 'empirical study'],
-        category: 'Science & Progress',
-        repetition: 0,
-        intervalDays: 0,
-        easeFactor: 2.5,
-        dueDate: new Date().toISOString(),
-        state: 'new'
-      }
-    ]
-  },
-  {
-    id: 'cambridge12-core',
-    name: 'Cambridge 12 Core Vocabulary (User Reference)',
-    description: 'Từ vựng học thuật xuất hiện trong các bài đọc và bài nghe tham khảo Cambridge 12 của người học.',
-    createdAt: '2026-09-22',
-    source: 'Cambridge IELTS 12 Local Reference',
-    cards: [
-      {
-        id: 'v-c12-1',
-        word: 'excursion',
-        phonetic: '/ɪkˈskɜː.ʃən/',
-        partOfSpeech: 'noun',
-        definitionVi: 'chuyến du ngoạn, chuyến đi ngắn ngày',
-        definitionEn: 'a short journey or trip, especially one taken as a leisure activity',
-        example: 'The tourist bureau offers daily family excursions to the mountain lake.',
-        exampleVi: 'Văn phòng du lịch tổ chức các chuyến du ngoạn gia đình hàng ngày tới hồ trên núi.',
-        collocations: ['family excursion', 'day excursion', 'embark on an excursion'],
-        category: 'Travel & Tourism',
-        repetition: 0,
-        intervalDays: 0,
-        easeFactor: 2.5,
-        dueDate: new Date().toISOString(),
-        state: 'new'
-      },
-      {
-        id: 'v-c12-2',
-        word: 'automaton',
-        phonetic: '/ɔːˈtɒm.ə.tən/',
-        partOfSpeech: 'noun',
-        definitionVi: 'cỗ máy tự động cổ, người máy cơ khí',
-        definitionEn: 'a moving mechanical device made in imitation of a human being or animal',
-        example: 'The 18th-century automaton could simulate handwriting with astonishing precision.',
-        exampleVi: 'Cỗ máy tự động thế kỷ 18 có thể mô phỏng chữ viết tay với độ chính xác kinh ngạc.',
-        collocations: ['mechanical automaton', 'clockwork automaton'],
-        category: 'Science & History',
-        repetition: 0,
-        intervalDays: 0,
-        easeFactor: 2.5,
-        dueDate: new Date().toISOString(),
-        state: 'new'
-      },
-      {
-        id: 'v-c12-3',
-        word: 'congestion',
-        phonetic: '/kənˈdʒes.tʃən/',
-        partOfSpeech: 'noun',
-        definitionVi: 'sự ùn tắc giao thông, tình trạng quá tải',
-        definitionEn: 'a state of being overcrowded or obstructed with traffic',
-        example: 'Frequent delays caused by severe traffic congestion degrade regional economic productivity.',
-        exampleVi: 'Sự chậm trễ thường xuyên do ùn tắc giao thông nghiêm trọng làm suy giảm năng suất kinh tế của khu vực.',
-        collocations: ['traffic congestion', 'alleviate congestion', 'severe congestion'],
-        category: 'City & Rural Life',
-        repetition: 0,
-        intervalDays: 0,
-        easeFactor: 2.5,
-        dueDate: new Date().toISOString(),
-        state: 'new'
-      },
-      {
-        id: 'v-c12-4',
-        word: 'apprentice',
-        phonetic: '/əˈpren.tɪs/',
-        partOfSpeech: 'noun',
-        definitionVi: 'người học việc, học viên nghề nghiệp',
-        definitionEn: 'a person learning a trade from a skilled employer for an agreed period',
-        example: 'Vocational academies partner with local manufacturing firms to train engineering apprentices.',
-        exampleVi: 'Các trường dạy nghề hợp tác với các công ty sản xuất địa phương để đào tạo thợ học nghề kỹ thuật.',
-        collocations: ['engineering apprentice', 'apprentice training'],
-        category: 'Study & Work',
+        collocations: ['unprecedented scale', 'unprecedented challenge', 'unprecedented surge'],
+        category: 'Economy & Society',
         repetition: 0,
         intervalDays: 0,
         easeFactor: 2.5,
@@ -259,4 +262,152 @@ export const INITIAL_VOCAB_DECKS: VocabDeck[] = [
   }
 ];
 
-export const INITIAL_VOCAB_CARDS: VocabCard[] = INITIAL_VOCAB_DECKS.flatMap(d => d.cards);
+export interface TopicVocabulary {
+  id: string;
+  name: string;
+  nameVi: string;
+  coreWords: string[];
+  usefulVerbs: string[];
+  usefulAdjectives: string[];
+  collocations: string[];
+  paraphrases: { word: string; alternatives: string[] }[];
+  exampleSentence: string;
+}
+
+export const VOCAB_TOPICS_DATA: TopicVocabulary[] = [
+  {
+    id: 'education',
+    name: 'Education',
+    nameVi: 'Giáo Dục',
+    coreWords: ['curriculum', 'literacy', 'pedagogy', 'assessment', 'discipline', 'qualification'],
+    usefulVerbs: ['acquire (knowledge)', 'cultivate (skills)', 'facilitate', 'assess', 'standardize'],
+    usefulAdjectives: ['compulsory', 'academic', 'vocational', 'holistic', 'rigorous'],
+    collocations: ['higher education', 'academic performance', 'curriculum reform', 'distance learning'],
+    paraphrases: [
+      { word: 'students', alternatives: ['pupils', 'learners', 'undergraduates', 'schoolchildren'] },
+      { word: 'teach', alternatives: ['instruct', 'educate', 'impart knowledge to', 'train'] }
+    ],
+    exampleSentence: 'A well-rounded curriculum cultivates critical thinking skills rather than rote memorization.'
+  },
+  {
+    id: 'environment',
+    name: 'Environment',
+    nameVi: 'Môi Trường',
+    coreWords: ['biodiversity', 'emissions', 'conservation', 'habitat', 'deforestation', 'pollutant'],
+    usefulVerbs: ['mitigate', 'deplete', 'contaminate', 'preserve', 'deteriorate'],
+    usefulAdjectives: ['sustainable', 'hazardous', 'renewable', 'ecological', 'catastrophic'],
+    collocations: ['carbon footprint', 'renewable energy', 'climate change', 'waste disposal'],
+    paraphrases: [
+      { word: 'pollution', alternatives: ['contamination', 'environmental degradation', 'toxic emissions'] },
+      { word: 'protect', alternatives: ['conserve', 'preserve', 'safeguard', 'shield'] }
+    ],
+    exampleSentence: 'Governments must introduce stringent policies to preserve endangered marine habitats.'
+  },
+  {
+    id: 'technology',
+    name: 'Technology',
+    nameVi: 'Công Nghệ',
+    coreWords: ['automation', 'algorithm', 'telecommunication', 'innovation', 'artificial intelligence'],
+    usefulVerbs: ['revolutionize', 'streamline', 'facilitate', 'disrupt', 'integrate'],
+    usefulAdjectives: ['automated', 'indispensable', 'cutting-edge', 'obsolete', 'digital'],
+    collocations: ['technological breakthrough', 'automated systems', 'digital divide', 'user-friendly interface'],
+    paraphrases: [
+      { word: 'devices', alternatives: ['gadgets', 'appliances', 'electronic equipment'] },
+      { word: 'modern', alternatives: ['cutting-edge', 'state-of-the-art', 'contemporary', 'advanced'] }
+    ],
+    exampleSentence: 'Artificial intelligence is revolutionizing data processing and administrative tasks.'
+  },
+  {
+    id: 'health',
+    name: 'Health',
+    nameVi: 'Sức Khỏe',
+    coreWords: ['nutrition', 'sedentary lifestyle', 'longevity', 'epidemic', 'well-being'],
+    usefulVerbs: ['alleviate', 'boost (immunity)', 'deteriorate', 'combat', 'prevent'],
+    usefulAdjectives: ['chronic', 'nutritious', 'preventive', 'mental', 'sedentary'],
+    collocations: ['sedentary lifestyle', 'balanced diet', 'mental well-being', 'healthcare expenditure'],
+    paraphrases: [
+      { word: 'exercise', alternatives: ['physical activity', 'bodily exertion', 'working out'] },
+      { word: 'sick', alternatives: ['unwell', 'afflicted with disease', 'suffering from illness'] }
+    ],
+    exampleSentence: 'Regular physical activity and a balanced diet significantly reduce the risk of chronic diseases.'
+  },
+  {
+    id: 'work',
+    name: 'Work & Employment',
+    nameVi: 'Công Việc & Việc Làm',
+    coreWords: ['occupation', 'remuneration', 'productivity', 'job satisfaction', 'freelancer'],
+    usefulVerbs: ['collaborate', 'delegate', 'negotiate', 'dismiss', 'promote'],
+    usefulAdjectives: ['lucrative', 'demanding', 'flexible', 'monotonous', 'temporary'],
+    collocations: ['work-life balance', 'career advancement', 'minimum wage', 'flexible hours'],
+    paraphrases: [
+      { word: 'job', alternatives: ['occupation', 'profession', 'career', 'employment'] },
+      { word: 'salary', alternatives: ['remuneration', 'income', 'wages', 'earnings'] }
+    ],
+    exampleSentence: 'Achieving a healthy work-life balance is crucial for sustaining long-term productivity.'
+  }
+];
+
+export const TOPIC_VOCABULARIES = VOCAB_TOPICS_DATA;
+
+export const PARAPHRASE_BANK: ParaphraseItem[] = [
+  {
+    id: 'para-1',
+    word: 'increase',
+    meaningVi: 'tăng lên',
+    category: 'trend',
+    synonyms: [
+      { word: 'rise', nuance: 'tự tăng, dùng cho cả Task 1 & 2', example: 'Sales rose steadily over five years.' },
+      { word: 'grow', nuance: 'phát triển tăng trưởng', example: 'The population grew rapidly.' },
+      { word: 'climb', nuance: 'leo lên mức cao hơn', example: 'Temperatures climbed to 38 degrees.' },
+      { word: 'escalate', nuance: 'leo thang (thường mang nghĩa tiêu cực)', example: 'Tensions escalated between both groups.' }
+    ]
+  },
+  {
+    id: 'para-2',
+    word: 'decrease',
+    meaningVi: 'giảm xuống',
+    category: 'trend',
+    synonyms: [
+      { word: 'fall', nuance: 'giảm sút phổ biến', example: 'Expenditure fell by 15%.' },
+      { word: 'drop', nuance: 'rơi xuống nhanh', example: 'The rate dropped abruptly.' },
+      { word: 'decline', nuance: 'suy giảm từ từ, trang trọng', example: 'The number of visitors declined steadily.' },
+      { word: 'plummet', nuance: 'lao dốc rất mạnh', example: 'Oil prices plummeted during the crisis.' }
+    ]
+  },
+  {
+    id: 'para-3',
+    word: 'important',
+    meaningVi: 'quan trọng',
+    category: 'importance',
+    synonyms: [
+      { word: 'significant', nuance: 'đáng kể, có tầm ảnh hưởng lớn', example: 'It played a significant role in modern history.' },
+      { word: 'crucial', nuance: 'cực kỳ then chốt, mang tính quyết định', example: 'Early intervention is crucial for recovery.' },
+      { word: 'vital', nuance: 'thiết yếu cho sự tồn tại hoặc thành công', example: 'Clean water is vital for public health.' },
+      { word: 'essential', nuance: 'cần thiết cơ bản không thể thiếu', example: 'Teamwork is essential in this profession.' }
+    ]
+  },
+  {
+    id: 'para-4',
+    word: 'cause',
+    meaningVi: 'gây ra / nguyên nhân',
+    category: 'cause-effect',
+    synonyms: [
+      { word: 'lead to', nuance: 'dẫn đến kết quả gì', example: 'Careless driving leads to road accidents.' },
+      { word: 'result in', nuance: 'mang lại kết cục', example: 'The policy resulted in severe inflation.' },
+      { word: 'bring about', nuance: 'đem lại sự thay đổi', example: 'Technology brought about major shifts in society.' },
+      { word: 'trigger', nuance: 'châm ngòi, kích hoạt phản ứng', example: 'Pollution can trigger respiratory attacks.' }
+    ]
+  },
+  {
+    id: 'para-5',
+    word: 'problem',
+    meaningVi: 'vấn đề, khó khăn',
+    category: 'problem-solution',
+    synonyms: [
+      { word: 'issue', nuance: 'vấn đề cần bàn luận, trung tính', example: 'Plastic waste is a pressing global issue.' },
+      { word: 'obstacle', nuance: 'chướng ngại vật cản trở', example: 'High tariffs remain a major obstacle to trade.' },
+      { word: 'dilemma', nuance: 'tình huống khó xử, tiến thoái lưỡng nan', example: 'Parents face a dilemma between career and childcare.' },
+      { word: 'challenge', nuance: 'thử thách cần vượt qua', example: 'Aging populations pose a serious challenge for pensions.' }
+    ]
+  }
+];

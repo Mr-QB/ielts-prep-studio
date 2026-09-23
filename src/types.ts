@@ -1,20 +1,24 @@
-export type TopTab = 'today' | 'reading' | 'listening' | 'learn' | 'review';
-export type LearnSubTab = 'grammar' | 'vocab' | 'writing' | 'speaking';
-export type ReviewSubTab = 'mistakes' | 'weak-areas' | 'progress';
+export type TopTab = 'today' | 'practice' | 'knowledge' | 'review';
+export type PracticeSubTab = 'reading' | 'listening';
+export type KnowledgeSubTab = 'grammar' | 'vocab' | 'writing' | 'speaking' | 'strategy';
+export type ReviewSubTab = 'mistakes' | 'progress';
 
 export type AppTab =
   | 'today'
   | 'reading'
   | 'listening'
-  | 'learn'
-  | 'review'
   | 'grammar'
   | 'vocab'
   | 'writing'
   | 'speaking'
+  | 'strategy'
   | 'mistakes'
-  | 'weak-areas'
-  | 'progress';
+  | 'progress'
+  | 'weak-areas';
+
+export type ReadingQuestionGroup = 'statements' | 'matching' | 'completion' | 'questions';
+
+export type MistakeRetryStatus = 'new' | 'retry' | 'learning' | 'mastered';
 
 export interface UserProfile {
   id: string;
@@ -473,6 +477,10 @@ export interface SpeakingGeneralTips {
   handlingUnknownWords: { strategy: string; template: string }[];
   selfCorrection: { strategy: string; template: string }[];
   chatGptPrompts: { label: string; prompt: string; description: string }[];
+  fluencyTips?: string[];
+  lexicalTips?: string[];
+  grammarTips?: string[];
+  pronunciationTips?: string[];
 }
 
 // ==========================================
@@ -492,6 +500,91 @@ export interface RecordedMistake {
   note?: string;
   evidence?: string;
   timestamp: string;
+  status?: MistakeRetryStatus;
+  retryCount?: number;
+  consecutiveCorrect?: number;
+  nextRetryDate?: string;
+  selectedReason?: string;
+  questionPrompt?: string;
+  options?: string[];
+}
+
+export interface ReadingStrategyLesson {
+  type: ReadingQuestionType;
+  group: ReadingQuestionGroup;
+  title: string;
+  subtitle: string;
+  rememberIn30Sec: string[];
+  steps: string[];
+  keywordsParaphrase: { question: string; passage: string; note: string }[];
+  commonTraps: { trap: string; example: string; fix: string }[];
+  examples: { question: string; passage: string; answer: string; reason: string }[];
+  miniPractice: {
+    id: string;
+    passage: string;
+    questions: {
+      id: string;
+      prompt: string;
+      options?: string[];
+      correctAnswer: string;
+      explanation: string;
+    }[];
+  };
+  reviewTips: string[];
+}
+
+export interface ListeningStrategyLesson {
+  id: string;
+  title: string;
+  subtitle: string;
+  signalWords?: string[];
+  explanation: string;
+  audioExample?: {
+    audioText: string;
+    questionPrompt: string;
+    wrongAnswer: string;
+    correctAnswer: string;
+    whyWrong: string;
+    signalUsed: string;
+  };
+  practiceDrills: {
+    id: string;
+    audioSnippet: string;
+    prompt: string;
+    options?: string[];
+    correctAnswer: string;
+    explanation: string;
+  }[];
+}
+
+export interface ParaphraseItem {
+  id: string;
+  word: string;
+  meaningVi: string;
+  category: 'trend' | 'importance' | 'cause-effect' | 'opinion' | 'comparison' | 'problem-solution' | 'general';
+  topic?: string;
+  synonyms: { word: string; nuance?: string; example?: string }[];
+}
+
+export interface SpeakingStoryItem {
+  id: string;
+  title: string;
+  category: 'person' | 'place' | 'project' | 'challenge' | 'achievement' | 'good-news' | 'object' | 'trip' | 'skill' | 'event';
+  tagline: string;
+  applicableCueCards: string[];
+  shortVersion: string;
+  extendedVersion: string;
+  usefulVocab: { phrase: string; meaningVi: string }[];
+  feelingsVocab: string[];
+}
+
+export interface WritingPhraseGroup {
+  id: string;
+  category: string;
+  descriptionVi: string;
+  corePhrases: string[];
+  upgradePhrases: string[];
+  exampleSentence: string;
 }
 
 export interface WeakAreaStat {
