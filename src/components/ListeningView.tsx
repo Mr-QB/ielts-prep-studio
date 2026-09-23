@@ -1,34 +1,46 @@
 import React, { useState, useEffect } from 'react';
-import { LISTENING_SECTIONS } from '../data/listeningData';
+import { LISTENING_SECTIONS, LISTENING_SOURCES } from '../data/listeningData';
 import { AudioPlayer } from './AudioPlayer';
-import { ExamMode } from '../types';
-import { Headphones, CheckCircle2, XCircle, RotateCcw, FileText, ChevronRight, ChevronLeft, Flag, HelpCircle, ArrowRight, BookOpen, Volume2 } from 'lucide-react';
+import { ExamMode, TestAttempt } from '../types';
+import { recordAttempt } from '../utils/db';
+import { Flag, Eye, EyeOff, RotateCcw, Check, X, ChevronRight, ChevronLeft } from 'lucide-react';
 
 interface ListeningViewProps {
   examMode?: ExamMode;
 }
 
-export const ListeningView: React.FC<ListeningViewProps> = ({ examMode = 'simulation' }) => {
+export const ListeningView: React.FC<ListeningViewProps> = ({ examMode = 'study' }) => {
+  // Library filter states
+  const [selectedSourceId, setSelectedSourceId] = useState<string>('all');
+  const [selectedPart, setSelectedPart] = useState<number | 'all'>('all');
   const [selectedSectionId, setSelectedSectionId] = useState<string>(LISTENING_SECTIONS[0].id);
+
+  // User input states
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [flaggedQuestions, setFlaggedQuestions] = useState<Record<string, boolean>>({});
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
-  const [showTranscript, setShowTranscript] = useState<boolean>(examMode === 'study');
-  const [activeSentenceText, setActiveSentenceText] = useState<string>('');
+  const [showTranscript, setShowTranscript] = useState<boolean>(false);
   const [activeQuestionIndex, setActiveQuestionIndex] = useState<number>(0);
+
+  const filteredSections = LISTENING_SECTIONS.filter(sec => {
+    if (selectedSourceId !== 'all' && sec.sourceId !== selectedSourceId) return false;
+    if (selectedPart !== 'all' && sec.sectionNumber !== selectedPart) return false;
+    return true;
+  });
 
   const currentSection = LISTENING_SECTIONS.find(s => s.id === selectedSectionId) || LISTENING_SECTIONS[0];
   const questions = currentSection.questions;
   const currentQuestion = questions[activeQuestionIndex] || questions[0];
+  const currentSource = LISTENING_SOURCES.find(s => s.id === currentSection.sourceId);
 
-  // Update transcript view when mode changes
+  // Reset states on section switch
   useEffect(() => {
-    if (examMode === 'study') {
-      setShowTranscript(true);
-    } else {
-      setShowTranscript(false);
-    }
-  }, [examMode]);
+    setUserAnswers({});
+    setFlaggedQuestions({});
+    setIsSubmitted(false);
+    setShowTranscript(false);
+    setActiveQuestionIndex(0);
+  }, [selectedSectionId]);
 
   const handleAnswerChange = (questionId: string, value: string) => {
     if (isSubmitted && examMode === 'simulation') return;
@@ -49,444 +61,380 @@ export const ListeningView: React.FC<ListeningViewProps> = ({ examMode = 'simula
     setUserAnswers({});
     setFlaggedQuestions({});
     setIsSubmitted(false);
+    setShowTranscript(false);
     setActiveQuestionIndex(0);
   };
 
   const calculateScore = () => {
     let correctCount = 0;
     questions.forEach(q => {
-      const ans = (userAnswers[q.id] || '').trim().toLowerCase();
+      const userAns = (userAnswers[q.id] || '').trim().toLowerCase();
       const target = q.correctAnswer.trim().toLowerCase();
       const acceptable = (q.acceptableAnswers || []).map(a => a.trim().toLowerCase());
-
-      if (ans === target || acceptable.includes(ans)) {
+      if (userAns === target || acceptable.includes(userAns)) {
         correctCount += 1;
       }
     });
     return correctCount;
   };
 
+  const handleSubmit = () => {
+    setIsSubmitted(true);
+    setShowTranscript(true);
+
+    const score = calculateScore();
+    const incorrects: number[] = [];
+    const mistakes: TestAttempt['mistakeTags'] = [];
+
+    questions.forEach(q => {
+      const userAns = (userAnswers[q.id] || '').trim();
+      const target = q.correctAnswer.trim();
+      const acceptable = (q.acceptableAnswers || []).map(a => a.trim().toLowerCase());
+      const isCorrect = userAns.toLowerCase() === target.toLowerCase() || acceptable.includes(userAns.toLowerCase());
+
+      if (!isCorrect) {
+        incorrects.push(q.number);
+        mistakes.push({
+          questionNumber: q.number,
+          type: q.type,
+          userAnswer: userAns || '(chưa trả lời)',
+          correctAnswer: target
+        });
+      }
+    });
+
+    const attempt: TestAttempt = {
+      id: `attempt-${Date.now()}`,
+      skill: 'listening',
+      sectionId: currentSection.id,
+      sectionTitle: currentSection.title,
+      date: new Date().toISOString(),
+      score,
+      total: questions.length,
+      durationSeconds: currentSection.duration,
+      mode: examMode,
+      userAnswers,
+      incorrectQuestionNumbers: incorrects,
+      mistakeTags: mistakes
+    };
+
+    recordAttempt(attempt);
+  };
+
   const score = calculateScore();
   const total = questions.length;
 
-  const getEstimatedBand = (correct: number, max: number) => {
-    const ratio = correct / max;
-    if (ratio >= 0.9) return 'Band 8.5 - 9.0';
-    if (ratio >= 0.8) return 'Band 7.5 - 8.0';
-    if (ratio >= 0.7) return 'Band 6.5 - 7.0';
-    if (ratio >= 0.55) return 'Band 5.5 - 6.0';
-    return 'Dưới 5.5';
-  };
-
-  // Check if active question is flagged
-  const isCurrentFlagged = !!flaggedQuestions[currentQuestion?.id];
-
-  // Keyboard navigation for CD-IELTS question jumping
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't intercept if user is typing into an input
-      if ((e.target as HTMLElement).tagName === 'INPUT') return;
-
-      if (e.key === 'ArrowRight' || (e.altKey && e.key.toLowerCase() === 'n')) {
-        setActiveQuestionIndex(prev => Math.min(questions.length - 1, prev + 1));
-      } else if (e.key === 'ArrowLeft' || (e.altKey && e.key.toLowerCase() === 'p')) {
-        setActiveQuestionIndex(prev => Math.max(0, prev - 1));
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [questions.length]);
-
   return (
-    <div className="space-y-6 pb-20">
-      {/* Test Section Header */}
-      <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6 pb-16">
+      {/* Content Selector Bar (Source -> Part -> Lesson) */}
+      <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-mono text-xs font-bold text-slate-500 uppercase tracking-wider">
-                LISTENING COMPONENT • SECTION {currentSection.sectionNumber}
-              </span>
-              <span className="text-slate-300">•</span>
-              <span className="text-xs text-slate-600 font-medium">Cambridge IELTS 12 Authentic</span>
-            </div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-              {currentSection.title}
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block font-mono">
+              LISTENING LIBRARY • ACADEMIC FOCUS
+            </span>
+            <h1 className="text-lg font-bold text-slate-900 tracking-tight">
+              Luyện Nghe IELTS 4 Parts Chuẩn Format
             </h1>
-            <p className="text-xs text-slate-500 mt-1">
-              {currentSection.context}
-            </p>
           </div>
 
-          {/* Section Selector */}
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xs font-semibold text-slate-700">Chọn Section:</span>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Filter by Source */}
             <select
-              value={selectedSectionId}
-              onChange={(e) => {
-                setSelectedSectionId(e.target.value);
-                handleReset();
-              }}
-              className="bg-slate-50 border border-slate-300 rounded px-3 py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:border-slate-800 cursor-pointer"
+              value={selectedSourceId}
+              onChange={(e) => setSelectedSourceId(e.target.value)}
+              className="bg-slate-50 border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 font-medium cursor-pointer"
             >
-              {LISTENING_SECTIONS.map(s => (
-                <option key={s.id} value={s.id}>
-                  Section {s.sectionNumber}: {s.title.split(': ')[1] || s.title}
-                </option>
+              <option value="all">Tất cả nguồn học liệu</option>
+              {LISTENING_SOURCES.map(s => (
+                <option key={s.id} value={s.id}>{s.provider} ({s.title})</option>
               ))}
+            </select>
+
+            {/* Filter by Part */}
+            <select
+              value={selectedPart}
+              onChange={(e) => setSelectedPart(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+              className="bg-slate-50 border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 font-medium cursor-pointer"
+            >
+              <option value="all">Tất cả các Part (1-4)</option>
+              <option value={1}>Part 1: Hội thoại đời thường</option>
+              <option value={2}>Part 2: Độc thoại đời sống</option>
+              <option value={3}>Part 3: Thảo luận học thuật</option>
+              <option value={4}>Part 4: Bài giảng học thuật</option>
             </select>
           </div>
         </div>
+
+        {/* Compact Lesson List Tabs */}
+        <div className="flex flex-wrap gap-2 pt-1">
+          {filteredSections.map(sec => {
+            const isSelected = sec.id === selectedSectionId;
+            return (
+              <button
+                key={sec.id}
+                type="button"
+                onClick={() => setSelectedSectionId(sec.id)}
+                className={`px-3 py-1.5 rounded text-xs text-left transition-colors cursor-pointer border ${
+                  isSelected
+                    ? 'bg-slate-900 text-white border-slate-900 font-semibold'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className={`px-1 rounded text-[10px] font-mono ${
+                    isSelected ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    P{sec.sectionNumber}
+                  </span>
+                  <span className="truncate max-w-[200px]">{sec.title}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Examination Audio Player Console */}
-      <AudioPlayer
-        transcript={currentSection.transcript}
-        narratorVoice={currentSection.narratorVoice}
-        externalSources={currentSection.audioSources}
-        onSentenceChange={(_, text) => setActiveSentenceText(text)}
-      />
+      {/* Active Section Header & Provenance Badge */}
+      <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded text-[11px] font-semibold font-mono bg-slate-100 text-slate-700 border border-slate-200">
+              Part {currentSection.sectionNumber}
+            </span>
 
-      {/* Official Instructions Banner */}
-      <div className="bg-slate-100 border-l-4 border-slate-800 p-4 text-xs text-slate-800 font-medium">
-        <p className="font-bold text-slate-900 uppercase tracking-wide">
-          Instructions to Candidates
-        </p>
-        <p className="mt-0.5">
-          {currentSection.instructions}
-        </p>
+            {/* Source Provenance Badge */}
+            <span className={`px-2 py-0.5 rounded text-[11px] font-medium border ${
+              currentSource?.isOfficial
+                ? 'bg-blue-50 text-blue-800 border-blue-200'
+                : currentSource?.sourceType === 'user-reference'
+                ? 'bg-amber-50 text-amber-800 border-amber-200'
+                : 'bg-slate-50 text-slate-700 border-slate-200'
+            }`}>
+              {currentSource?.provider || 'Học liệu tự học'}
+            </span>
+
+            {currentSection.verificationStatus === 'audio-unavailable' && (
+              <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-rose-50 text-rose-700 border border-rose-200">
+                Audio unavailable on web
+              </span>
+            )}
+          </div>
+
+          <span className="text-xs text-slate-500 font-mono">
+            {questions.length} câu hỏi • Thời lượng: ~{Math.round(currentSection.duration / 60)} phút
+          </span>
+        </div>
+
+        <h2 className="text-base font-bold text-slate-900">{currentSection.title}</h2>
+        <p className="text-xs text-slate-600 leading-relaxed">{currentSection.context}</p>
+
+        {currentSection.sourceNotice && (
+          <div className="p-2.5 bg-slate-50 border border-slate-200 rounded text-xs text-slate-600">
+            {currentSection.sourceNotice}
+          </div>
+        )}
+
+        {/* Minimal Audio Player */}
+        <AudioPlayer
+          transcript={currentSection.transcript}
+          narratorVoice={currentSection.narratorVoice}
+          audioSources={currentSection.audioSources}
+          canonicalUrl={currentSection.canonicalUrl}
+          examMode={examMode}
+        />
       </div>
 
-      {/* Main Questions Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Official Question Paper Presentation */}
-        <div className={`space-y-4 ${showTranscript ? 'lg:col-span-7' : 'lg:col-span-12'}`}>
-          <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs space-y-6">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                Questions {questions[0]?.number} – {questions[questions.length - 1]?.number}
-              </span>
-              <span className="text-xs text-slate-500">
-                Đã điền: <strong className="text-slate-800">{Object.keys(userAnswers).filter(k => (userAnswers[k] || '').trim()).length}</strong> / {questions.length}
-              </span>
-            </div>
+      {/* Question Pane & Answers */}
+      <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div className="text-xs font-semibold text-slate-800">
+            <span>{currentSection.instructions}</span>
+          </div>
 
-            {/* Questions List */}
-            <div className="space-y-4 divide-y divide-slate-100">
-              {questions.map((q, idx) => {
-                const userVal = userAnswers[q.id] || '';
-                const isCorrect = userVal.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase() ||
-                  (q.acceptableAnswers || []).map(a => a.trim().toLowerCase()).includes(userVal.trim().toLowerCase());
-                const isFlagged = !!flaggedQuestions[q.id];
-                const isActive = activeQuestionIndex === idx;
+          <div className="flex items-center gap-2">
+            {/* Reveal Transcript Button */}
+            <button
+              type="button"
+              onClick={() => setShowTranscript(prev => !prev)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded border border-slate-300 hover:bg-slate-50 text-slate-700 cursor-pointer font-medium"
+            >
+              {showTranscript ? <EyeOff className="w-3.5 h-3.5 text-slate-500" /> : <Eye className="w-3.5 h-3.5 text-slate-500" />}
+              <span>{showTranscript ? 'Ẩn Transcript' : 'Xem Transcript'}</span>
+            </button>
 
-                return (
-                  <div
-                    key={q.id}
-                    id={`question-${q.id}`}
-                    onClick={() => setActiveQuestionIndex(idx)}
-                    className={`pt-4 first:pt-0 transition-colors rounded p-2 ${
-                      isActive ? 'bg-slate-50/80 ring-1 ring-slate-300' : ''
+            <button
+              type="button"
+              onClick={handleReset}
+              title="Làm lại bài tập"
+              className="p-1.5 rounded text-slate-500 hover:text-slate-800 hover:bg-slate-100 cursor-pointer"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Question List */}
+        <div className="space-y-4">
+          {questions.map((q, idx) => {
+            const userAns = userAnswers[q.id] || '';
+            const isFlagged = Boolean(flaggedQuestions[q.id]);
+            const isAnswered = Boolean(userAns.trim());
+            const isCorrect = isSubmitted && (
+              userAns.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase() ||
+              (q.acceptableAnswers || []).map(a => a.trim().toLowerCase()).includes(userAns.trim().toLowerCase())
+            );
+
+            return (
+              <div
+                key={q.id}
+                className={`p-4 rounded-lg border transition-all ${
+                  isSubmitted
+                    ? isCorrect
+                      ? 'bg-emerald-50/40 border-emerald-300'
+                      : 'bg-rose-50/40 border-rose-300'
+                    : isFlagged
+                    ? 'bg-amber-50/30 border-amber-300'
+                    : 'bg-slate-50/50 border-slate-200'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-slate-200 text-slate-800 text-xs font-bold font-mono flex items-center justify-center">
+                      {q.number}
+                    </span>
+                    <span className="text-xs font-semibold text-slate-500 uppercase font-mono">
+                      {q.type}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => toggleFlag(q.id)}
+                    title={isFlagged ? 'Bỏ đánh dấu' : 'Đánh dấu xem lại'}
+                    className={`p-1 rounded cursor-pointer ${
+                      isFlagged ? 'text-amber-600' : 'text-slate-400 hover:text-slate-700'
                     }`}
                   >
-                    <div className="flex items-start gap-3">
-                      {/* Question Number Badge with Flag indicator */}
-                      <div className="relative shrink-0 mt-0.5">
-                        <span className="inline-flex items-center justify-center w-7 h-7 rounded border border-slate-300 bg-white font-mono text-xs font-bold text-slate-800 shadow-xs">
-                          {q.number}
-                        </span>
-                        {isFlagged && (
-                          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-500 border border-white" title="Đã gắn cờ xem lại" />
-                        )}
-                      </div>
-
-                      {/* Question Prompt & Input */}
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-slate-800 leading-relaxed">
-                          {q.type === 'fill-blank' ? (
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span>{q.prompt.split('_____')[0]}</span>
-                              <div className="inline-flex items-center relative">
-                                <input
-                                  type="text"
-                                  value={userVal}
-                                  disabled={isSubmitted && examMode === 'simulation'}
-                                  onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                                  placeholder={`[ ${q.number} ]`}
-                                  className={`w-44 px-2.5 py-1 text-xs font-mono font-medium rounded border transition-all focus:outline-none ${
-                                    isSubmitted
-                                      ? isCorrect
-                                        ? 'bg-emerald-50 border-emerald-500 text-emerald-900 font-bold'
-                                        : 'bg-rose-50 border-rose-400 text-rose-900 line-through'
-                                      : 'bg-white border-slate-300 focus:border-slate-800 focus:ring-1 focus:ring-slate-800'
-                                  }`}
-                                />
-                                {isSubmitted && (
-                                  <span className="ml-1.5 shrink-0">
-                                    {isCorrect ? (
-                                      <CheckCircle2 className="w-4 h-4 text-emerald-600 inline" />
-                                    ) : (
-                                      <XCircle className="w-4 h-4 text-rose-500 inline" />
-                                    )}
-                                  </span>
-                                )}
-                              </div>
-                              <span>{q.prompt.split('_____')[1] || ''}</span>
-                            </div>
-                          ) : (
-                            <div>
-                              <p className="mb-2">{q.prompt}</p>
-                              {q.options && (
-                                <div className="space-y-1.5 ml-2">
-                                  {q.options.map((opt, optIdx) => {
-                                    const optLetter = opt.charAt(0).toUpperCase();
-                                    const isSelected = userVal === optLetter;
-                                    return (
-                                      <label
-                                        key={optIdx}
-                                        className={`flex items-center gap-2.5 p-2 rounded text-xs cursor-pointer border transition-colors ${
-                                          isSelected
-                                            ? 'border-slate-800 bg-slate-100 font-semibold text-slate-900'
-                                            : 'border-slate-200 hover:bg-slate-50 text-slate-700'
-                                        }`}
-                                      >
-                                        <input
-                                          type="radio"
-                                          name={`q-${q.id}`}
-                                          checked={isSelected}
-                                          disabled={isSubmitted && examMode === 'simulation'}
-                                          onChange={() => handleAnswerChange(q.id, optLetter)}
-                                          className="text-slate-900 focus:ring-slate-800"
-                                        />
-                                        <span>{opt}</span>
-                                      </label>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Review / Flag Button for this Question */}
-                        <div className="mt-2 flex items-center justify-between text-xs">
-                          <button
-                            onClick={() => toggleFlag(q.id)}
-                            className={`flex items-center gap-1 cursor-pointer transition-colors ${
-                              isFlagged ? 'text-amber-600 font-bold' : 'text-slate-400 hover:text-slate-600'
-                            }`}
-                          >
-                            <Flag className="w-3 h-3" />
-                            <span>{isFlagged ? 'Đã đánh dấu Review' : 'Gắn cờ xem lại'}</span>
-                          </button>
-
-                          {/* Study mode explanation */}
-                          {(isSubmitted || examMode === 'study') && (
-                            <div className="text-[11px] text-slate-500">
-                              Đáp án chuẩn: <strong className="font-mono text-emerald-700 uppercase">{q.correctAnswer}</strong>
-                              {q.acceptableAnswers && q.acceptableAnswers.length > 0 && (
-                                <span className="text-slate-400"> (chấp nhận: {q.acceptableAnswers.join(', ')})</span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Explanation panel in study mode or after submit */}
-                        {(isSubmitted || examMode === 'study') && (
-                          <div className="mt-2 p-2.5 bg-slate-50 border border-slate-200 rounded text-xs text-slate-700">
-                            <span className="font-bold text-slate-900 block mb-0.5">Phân tích băng ghi âm:</span>
-                            <p>{q.explanation}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Test Submission Bar */}
-            <div className="pt-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleReset}
-                  className="px-3 py-1.5 border border-slate-300 hover:bg-slate-50 rounded text-xs font-semibold text-slate-700 flex items-center gap-1.5 cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Làm lại từ đầu</span>
-                </button>
-                <button
-                  onClick={() => setShowTranscript(!showTranscript)}
-                  className="px-3 py-1.5 border border-slate-300 hover:bg-slate-50 rounded text-xs font-semibold text-slate-700 flex items-center gap-1.5 cursor-pointer"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>{showTranscript ? 'Ẩn Transcript' : 'Xem Transcript & Dẫn chứng'}</span>
-                </button>
-              </div>
-
-              <div className="flex items-center gap-3">
-                {!isSubmitted ? (
-                  <button
-                    onClick={() => setIsSubmitted(true)}
-                    className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded transition-colors cursor-pointer shadow-xs"
-                  >
-                    Nộp bài & Chấm điểm
+                    <Flag className="w-3.5 h-3.5" />
                   </button>
+                </div>
+
+                <p className="text-sm font-medium text-slate-900 mb-3">{q.prompt}</p>
+
+                {/* Question Input / Option Selection */}
+                {q.type === 'multiple-choice' && q.options ? (
+                  <div className="space-y-1.5 ml-1">
+                    {q.options.map(opt => {
+                      const letter = opt.charAt(0);
+                      const isSelected = userAns.toUpperCase() === letter.toUpperCase();
+                      return (
+                        <label
+                          key={opt}
+                          className={`flex items-center gap-2 text-xs p-2 rounded cursor-pointer border transition-colors ${
+                            isSelected
+                              ? 'bg-slate-900 text-white border-slate-900 font-medium'
+                              : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name={`q-${q.id}`}
+                            value={letter}
+                            checked={isSelected}
+                            disabled={isSubmitted && examMode === 'simulation'}
+                            onChange={() => handleAnswerChange(q.id, letter)}
+                            className="hidden"
+                          />
+                          <span>{opt}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 ) : (
-                  <div className="flex items-center gap-3 bg-slate-100 border border-slate-300 px-4 py-1.5 rounded">
-                    <div className="text-xs font-mono">
-                      Kết quả: <strong className="text-slate-900 text-sm">{score}/{total}</strong> ({Math.round((score/total)*100)}%)
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={userAns}
+                      placeholder="Nhập câu trả lời..."
+                      disabled={isSubmitted && examMode === 'simulation'}
+                      onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                      className="max-w-xs w-full bg-white border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-900 focus:border-blue-600"
+                    />
+                  </div>
+                )}
+
+                {/* Explanation and Mistake feedback upon submit */}
+                {isSubmitted && (
+                  <div className="mt-3 pt-3 border-t border-slate-200 text-xs space-y-1">
+                    <div className="flex items-center gap-1.5 font-semibold">
+                      {isCorrect ? (
+                        <span className="text-emerald-700 flex items-center gap-1">
+                          <Check className="w-3.5 h-3.5" /> Đúng: {q.correctAnswer}
+                        </span>
+                      ) : (
+                        <span className="text-rose-700 flex items-center gap-1">
+                          <X className="w-3.5 h-3.5" /> Sai. Đáp án đúng: {q.correctAnswer}
+                        </span>
+                      )}
                     </div>
-                    <span className="text-slate-300">|</span>
-                    <span className="text-xs font-bold text-slate-800">{getEstimatedBand(score, total)}</span>
+                    <p className="text-slate-600 font-mono text-[11px]">{q.explanation}</p>
                   </div>
                 )}
               </div>
-            </div>
+            );
+          })}
+        </div>
+
+        {/* Submit Bar & Score Summary */}
+        <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4">
+          <div className="text-xs text-slate-600">
+            {isSubmitted ? (
+              <span className="font-bold text-slate-900 text-sm">
+                Kết quả: {score} / {total} câu đúng ({Math.round((score / total) * 100)}%)
+              </span>
+            ) : (
+              <span>Đã làm: {Object.keys(userAnswers).length} / {questions.length} câu</span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3">
+            {!isSubmitted ? (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-semibold cursor-pointer shadow-xs"
+              >
+                Chấm Điểm & Xem Giải Thích
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleReset}
+                className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 rounded text-xs font-semibold cursor-pointer"
+              >
+                Luyện Tập Lại Bài Này
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Right Column: Interactive Script & Evidence Drawer */}
+        {/* Collapsible Transcript Section */}
         {showTranscript && (
-          <div className="lg:col-span-5 bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-4 sticky top-24">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-slate-700" />
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  Audio Script & Dẫn Chứng Đáp Án
-                </h3>
-              </div>
-              <span className="text-[11px] text-slate-400 font-mono">Cambridge Official</span>
+          <div className="mt-6 pt-6 border-t border-slate-200 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-slate-800 uppercase font-mono tracking-wider">
+                AUDIOSCRIPT (Kèm đánh dấu đáp án [Q])
+              </h3>
+              <span className="text-[11px] text-slate-400 font-mono">
+                {currentSection.narratorVoice}
+              </span>
             </div>
-
-            <p className="text-[11px] text-slate-500">
-              Các đoạn chứa câu trả lời được đánh dấu <span className="bg-amber-100 text-amber-900 px-1 font-mono font-bold rounded">[Q1]..[Q10]</span>.
-            </p>
-
-            {/* Script Viewer with highlighting */}
-            <div className="max-h-[500px] overflow-y-auto pr-2 space-y-2 text-xs font-serif-reading text-slate-800 leading-relaxed divide-y divide-slate-100">
-              {currentSection.transcript.split('\n').map((line, lIdx) => {
-                const isSpeakingLine = activeSentenceText && line.includes(activeSentenceText.slice(0, 20));
-                const containsQuestionMarker = line.match(/\[Q\d+\]/);
-
-                return (
-                  <div
-                    key={lIdx}
-                    className={`pt-2 first:pt-0 transition-colors ${
-                      isSpeakingLine ? 'bg-amber-50/80 -mx-2 px-2 py-1 rounded border-l-2 border-amber-500 font-sans text-slate-950 font-medium' : ''
-                    }`}
-                  >
-                    {line.startsWith('TC EMPLOYEE:') || line.startsWith('VISITOR:') || line.startsWith('GUIDE:') ? (
-                      <span className="font-sans font-bold text-[11px] text-slate-600 block mb-0.5">
-                        {line.split(':')[0]}:
-                      </span>
-                    ) : null}
-                    <p>
-                      {line.replace(/^[A-Z\s]+:\s*/, '').split(/(\[Q\d+\])/g).map((part, pIdx) => {
-                        if (part.match(/\[Q\d+\]/)) {
-                          return (
-                            <span key={pIdx} className="font-mono text-xs font-bold bg-amber-200 text-amber-950 px-1 py-0.5 mx-1 rounded border border-amber-300">
-                              {part}
-                            </span>
-                          );
-                        }
-                        return part;
-                      })}
-                    </p>
-                  </div>
-                );
-              })}
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded text-xs font-mono text-slate-700 whitespace-pre-line leading-relaxed max-h-96 overflow-y-auto">
+              {currentSection.transcript}
             </div>
           </div>
         )}
-      </div>
-
-      {/* Official CD-IELTS Bottom Question Navigation Palette */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-slate-900 border-t border-slate-800 text-slate-100 px-4 py-2.5 shadow-2xl">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
-          {/* Question tiles grid */}
-          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto py-1">
-            <span className="text-[11px] font-mono text-slate-400 mr-1 hidden sm:inline">Questions:</span>
-            {questions.map((q, idx) => {
-              const isAnswered = !!(userAnswers[q.id] || '').trim();
-              const isFlagged = !!flaggedQuestions[q.id];
-              const isActive = activeQuestionIndex === idx;
-
-              return (
-                <button
-                  key={q.id}
-                  onClick={() => {
-                    setActiveQuestionIndex(idx);
-                    const el = document.getElementById(`question-${q.id}`);
-                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  }}
-                  title={`Câu ${q.number}${isAnswered ? ' (Đã làm)' : ' (Chưa làm)'}${isFlagged ? ' - Có cờ xem lại' : ''}`}
-                  className={`relative w-7 h-7 sm:w-8 sm:h-8 rounded text-xs font-mono font-bold flex items-center justify-center transition-all cursor-pointer ${
-                    isActive
-                      ? 'border-2 border-amber-400 text-white bg-slate-800 shadow-sm'
-                      : isAnswered
-                      ? 'bg-slate-700 hover:bg-slate-600 text-slate-100 border border-slate-600'
-                      : 'bg-slate-950 hover:bg-slate-800 text-slate-400 border border-slate-800'
-                  }`}
-                >
-                  <span>{q.number}</span>
-                  {isFlagged && (
-                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 border border-slate-900" />
-                  )}
-                  {isAnswered && (
-                    <span className="absolute bottom-0.5 w-3.5 h-0.5 bg-amber-400 rounded-full" />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Current Question Review & Navigation Controls */}
-          <div className="flex items-center gap-3 ml-auto text-xs">
-            {/* Review flag checkbox */}
-            <label className="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white select-none">
-              <input
-                type="checkbox"
-                checked={isCurrentFlagged}
-                onChange={() => currentQuestion && toggleFlag(currentQuestion.id)}
-                className="rounded border-slate-700 text-amber-500 focus:ring-0 cursor-pointer"
-              />
-              <Flag className={`w-3.5 h-3.5 ${isCurrentFlagged ? 'text-amber-400' : 'text-slate-400'}`} />
-              <span className="hidden sm:inline">Review</span>
-            </label>
-
-            {/* Prev / Next buttons */}
-            <div className="flex items-center gap-1">
-              <button
-                disabled={activeQuestionIndex === 0}
-                onClick={() => {
-                  const nextIdx = Math.max(0, activeQuestionIndex - 1);
-                  setActiveQuestionIndex(nextIdx);
-                  const el = document.getElementById(`question-${questions[nextIdx]?.id}`);
-                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }}
-                className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-slate-200 flex items-center gap-1 cursor-pointer font-medium"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Previous</span>
-              </button>
-
-              <button
-                disabled={activeQuestionIndex === questions.length - 1}
-                onClick={() => {
-                  const nextIdx = Math.min(questions.length - 1, activeQuestionIndex + 1);
-                  setActiveQuestionIndex(nextIdx);
-                  const el = document.getElementById(`question-${questions[nextIdx]?.id}`);
-                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }}
-                className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-slate-200 flex items-center gap-1 cursor-pointer font-medium"
-              >
-                <span className="hidden sm:inline">Next</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

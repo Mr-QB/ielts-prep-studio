@@ -2,47 +2,56 @@
 
 @layer base {
   body {
-    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     color: #0f172a;
     background-color: #f8fafc;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
   }
 }
 
 .font-serif-reading {
-  font-family: 'Newsreader', Georgia, Cambria, 'Times New Roman', Times, serif;
+  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
 }
 
 .font-mono-code {
-  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-/* CD-IELTS official highlight markers */
+/* Academic reading text highlights */
 .hl-yellow {
   background-color: #fef08a;
-  border-bottom: 2px solid #eab308;
-  padding: 1px 3px;
+  border-bottom: 2px solid #ca8a04;
+  padding: 1px 2px;
   border-radius: 2px;
 }
 .hl-blue {
-  background-color: #bae6fd;
-  border-bottom: 2px solid #0284c7;
-  padding: 1px 3px;
+  background-color: #bfdbfe;
+  border-bottom: 2px solid #2563eb;
+  padding: 1px 2px;
   border-radius: 2px;
 }
 .hl-green {
   background-color: #bbf7d0;
   border-bottom: 2px solid #16a34a;
-  padding: 1px 3px;
+  padding: 1px 2px;
   border-radius: 2px;
 }
 
-/* Examination custom scrollbar */
+/* Minimal calm scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #f8fafc;
 }
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;

@@ -1,6 +1,6 @@
 {
   "name": "IELTS Prep Studio",
-  "description": "Nền tảng luyện thi IELTS: Luyện Nghe chuẩn format, Luyện Đọc & Ngữ pháp trọng điểm, Ôn từ vựng Lặp ngắt quãng (SRS) tương tác phím & click.",
+  "description": "Nền tảng tự học IELTS Academic cá nhân: Luyện Nghe, Luyện Đọc, Ngữ pháp trọng điểm & Từ vựng Spaced Repetition (SM-2) keyboard-first, local-first.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": []
 }

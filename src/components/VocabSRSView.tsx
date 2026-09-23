@@ -1,59 +1,66 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { VocabCard, VocabDeck, SRSIntervalRating } from '../types';
+import { VocabCard, VocabDeck, SRSIntervalRating, ParsePreviewResult } from '../types';
 import { INITIAL_VOCAB_DECKS } from '../data/vocabData';
-import { calculateNextSRS, parseVocabText, playPronunciation } from '../utils/srsEngine';
 import {
-  Upload, FileText, Volume2, CheckCircle2, XCircle,
-  RotateCcw, Keyboard, Download, Plus, Check, Trash2,
-  HelpCircle, ArrowRight, BookOpen, Layers
+  calculateNextSRS,
+  previewNextInterval,
+  parseVocabText,
+  analyzeVocabImport,
+  playPronunciation
+} from '../utils/srsEngine';
+import { loadDecksFromStorage, saveDecksToStorage } from '../utils/db';
+import {
+  Upload, Download, Volume2, Check, X, RotateCcw, Plus, Trash2, Edit3,
+  Layers, AlertCircle, FileText
 } from 'lucide-react';
 
 export const VocabSRSView: React.FC = () => {
-  // Load decks from localStorage or initial Cambridge decks
-  const [decks, setDecks] = useState<VocabDeck[]>(() => {
-    try {
-      const saved = localStorage.getItem('ielts_vocab_decks_v2');
-      if (saved) return JSON.parse(saved);
-    } catch {
-      // Fallback
-    }
-    return INITIAL_VOCAB_DECKS;
-  });
-
-  const [activeDeckId, setActiveDeckId] = useState<string>(decks[0]?.id || 'cambridge12-core');
+  const [decks, setDecks] = useState<VocabDeck[]>(INITIAL_VOCAB_DECKS);
+  const [activeDeckId, setActiveDeckId] = useState<string>(INITIAL_VOCAB_DECKS[0]?.id || 'starter-academic-core');
   const [studyMode, setStudyMode] = useState<'flashcard' | 'typing'>('flashcard');
   const [currentCardIndex, setCurrentCardIndex] = useState<number>(0);
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
+  const [voiceAccent, setVoiceAccent] = useState<'en-GB' | 'en-US'>('en-GB');
 
-  // Typing mode states
+  // Typing Mode States
   const [typedInput, setTypedInput] = useState<string>('');
   const [typingChecked, setTypingChecked] = useState<boolean>(false);
   const [isTypingCorrect, setIsTypingCorrect] = useState<boolean>(false);
   const typingInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Upload modal state
-  const [showUploadModal, setShowUploadModal] = useState<boolean>(false);
-  const [uploadText, setUploadText] = useState<string>('');
-  const [newDeckName, setNewDeckName] = useState<string>('');
-  const [uploadNotification, setUploadNotification] = useState<string | null>(null);
+  // Deck Management States
+  const [isCreatingDeck, setIsCreatingDeck] = useState<boolean>(false);
+  const [newDeckTitle, setNewDeckTitle] = useState<string>('');
+  const [newDeckDesc, setNewDeckDesc] = useState<string>('');
 
-  // Voice Accent selector
-  const [voiceAccent, setVoiceAccent] = useState<'en-GB' | 'en-US'>('en-GB');
+  // Import TXT/CSV Modal & Preview States
+  const [showImportModal, setShowImportModal] = useState<boolean>(false);
+  const [importText, setImportText] = useState<string>('');
+  const [importDeckName, setImportDeckName] = useState<string>('');
+  const [importAnalysis, setImportAnalysis] = useState<ParsePreviewResult | null>(null);
+  const [duplicateHandling, setDuplicateHandling] = useState<'skip' | 'replace' | 'keep-both'>('skip');
 
-  // Save to localStorage
+  // Load from IndexedDB on mount
   useEffect(() => {
-    try {
-      localStorage.setItem('ielts_vocab_decks_v2', JSON.stringify(decks));
-    } catch {
-      // safe fallback
-    }
-  }, [decks]);
+    loadDecksFromStorage(INITIAL_VOCAB_DECKS).then(loaded => {
+      if (loaded && loaded.length > 0) {
+        setDecks(loaded);
+        setActiveDeckId(loaded[0].id);
+      }
+    });
+  }, []);
 
-  const currentDeck = decks.find(d => d.id === activeDeckId) || decks[0];
+  // Save to IndexedDB whenever decks change
+  const updateDecks = (newDecks: VocabDeck[]) => {
+    setDecks(newDecks);
+    saveDecksToStorage(newDecks);
+  };
+
+  const currentDeck = decks.find(d => d.id === activeDeckId) || decks[0] || INITIAL_VOCAB_DECKS[0];
   const cards = currentDeck?.cards || [];
   const currentCard = cards[currentCardIndex] || cards[0];
 
-  // Reset states on card index change
+  // Auto-focus input in typing mode
   useEffect(() => {
     if (studyMode === 'typing') {
       setTypedInput('');
@@ -61,19 +68,45 @@ export const VocabSRSView: React.FC = () => {
       setIsTypingCorrect(false);
       setTimeout(() => {
         typingInputRef.current?.focus();
-      }, 100);
+      }, 50);
     } else {
       setIsFlipped(false);
     }
   }, [currentCardIndex, studyMode, activeDeckId]);
 
-  // Global Keyboard Shortcuts
+  // Analyze import text as user types or pastes
+  useEffect(() => {
+    if (!showImportModal || !importText.trim()) {
+      setImportAnalysis(null);
+      return;
+    }
+    const existingWords = new Set(cards.map(c => c.word.toLowerCase()));
+    const analysis = analyzeVocabImport(importText, existingWords, importDeckName || 'Uploaded Deck');
+    setImportAnalysis(analysis);
+  }, [importText, showImportModal, importDeckName, cards]);
+
+  // Keyboard Shortcuts Handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
 
-      if (studyMode === 'flashcard') {
+      // Global typing mode check
+      if (studyMode === 'typing') {
+        if (e.key === 'Enter') {
+          if (!typingChecked) {
+            e.preventDefault();
+            handleCheckTyping();
+          } else {
+            e.preventDefault();
+            handleRateCard(isTypingCorrect ? 3 : 1);
+          }
+        }
+        return;
+      }
+
+      // Flashcard mode shortcuts (only when not typing in any inputs)
+      if (studyMode === 'flashcard' && !isInput) {
         if (e.code === 'Space') {
           e.preventDefault();
           setIsFlipped(prev => !prev);
@@ -87,15 +120,24 @@ export const VocabSRSView: React.FC = () => {
           handleRateCard(4);
         } else if (e.key.toLowerCase() === 'r') {
           if (currentCard) playPronunciation(currentCard.word, voiceAccent);
+        } else if (e.key === 'ArrowRight') {
+          advanceNextCard();
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [studyMode, isFlipped, currentCard, voiceAccent]);
+  }, [studyMode, isFlipped, currentCard, voiceAccent, typingChecked, isTypingCorrect, typedInput]);
 
-  // Rate card with SM-2 Spaced Repetition
+  const advanceNextCard = () => {
+    if (currentCardIndex < cards.length - 1) {
+      setCurrentCardIndex(prev => prev + 1);
+    } else {
+      setCurrentCardIndex(0);
+    }
+  };
+
   const handleRateCard = (rating: SRSIntervalRating) => {
     if (!currentCard) return;
 
@@ -110,24 +152,16 @@ export const VocabSRSView: React.FC = () => {
       return d;
     });
 
-    setDecks(updatedDecks);
-
-    // Advance to next card
-    if (currentCardIndex < cards.length - 1) {
-      setCurrentCardIndex(prev => prev + 1);
-    } else {
-      setCurrentCardIndex(0);
-    }
+    updateDecks(updatedDecks);
+    advanceNextCard();
   };
 
-  // Check typed spelling
-  const handleCheckTyping = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  const handleCheckTyping = () => {
     if (!currentCard || !typedInput.trim()) return;
 
-    const targetWord = currentCard.word.trim().toLowerCase();
-    const userWord = typedInput.trim().toLowerCase();
-    const correct = targetWord === userWord;
+    const target = currentCard.word.trim().toLowerCase();
+    const typed = typedInput.trim().toLowerCase();
+    const correct = target === typed;
 
     setIsTypingCorrect(correct);
     setTypingChecked(true);
@@ -137,35 +171,36 @@ export const VocabSRSView: React.FC = () => {
     }
   };
 
-  const handleNextTypingCard = (rating: SRSIntervalRating = 3) => {
-    handleRateCard(rating);
-  };
+  // Import TXT/CSV handler
+  const handleExecuteImport = () => {
+    if (!importAnalysis || importAnalysis.parsed.length === 0) return;
 
-  // Upload custom file / text
-  const handleProcessUpload = () => {
-    if (!uploadText.trim()) return;
+    let finalNewCards = [...importAnalysis.parsed];
+    const targetDeckName = importDeckName.trim() || `Bộ Từ Mới (${new Date().toLocaleDateString('vi-VN')})`;
 
-    const parsedCards = parseVocabText(uploadText);
-    if (parsedCards.length === 0) {
-      setUploadNotification('Không phát hiện từ vựng hợp lệ. Vui lòng kiểm tra lại định dạng.');
-      return;
+    const existingMap = new Map(cards.map(c => [c.word.toLowerCase(), c]));
+
+    if (duplicateHandling === 'skip') {
+      finalNewCards = finalNewCards.filter(c => !existingMap.has(c.word.toLowerCase()));
     }
 
-    const deckTitle = newDeckName.trim() || `Bộ từ ${new Date().toLocaleDateString('vi-VN')}`;
     const newDeck: VocabDeck = {
       id: `deck-${Date.now()}`,
-      name: deckTitle,
-      description: `Nhập từ file cá nhân (${parsedCards.length} từ vựng)`,
-      cards: parsedCards
+      name: targetDeckName,
+      description: `Nhập từ file TXT (${finalNewCards.length} thẻ từ)`,
+      createdAt: new Date().toISOString(),
+      source: 'User TXT Import',
+      cards: finalNewCards
     };
 
-    setDecks([...decks, newDeck]);
+    const nextDecks = [...decks, newDeck];
+    updateDecks(nextDecks);
     setActiveDeckId(newDeck.id);
     setCurrentCardIndex(0);
-    setShowUploadModal(false);
-    setUploadText('');
-    setNewDeckName('');
-    setUploadNotification(null);
+    setShowImportModal(false);
+    setImportText('');
+    setImportDeckName('');
+    setImportAnalysis(null);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -176,24 +211,71 @@ export const VocabSRSView: React.FC = () => {
     reader.onload = (event) => {
       const content = event.target?.result as string;
       if (content) {
-        setUploadText(content);
-        if (!newDeckName) {
-          setNewDeckName(file.name.replace(/\.[^/.]+$/, ''));
+        setImportText(content);
+        if (!importDeckName) {
+          setImportDeckName(file.name.replace(/\.[^/.]+$/, ''));
         }
       }
     };
     reader.readAsText(file);
   };
 
-  // Stats calculation
+  // Export deck as JSON (Preserves full SRS state)
+  const handleExportJSON = () => {
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(currentDeck, null, 2));
+    const a = document.createElement('a');
+    a.href = dataStr;
+    a.download = `${currentDeck.name.replace(/\s+/g, '_')}_srs.json`;
+    a.click();
+  };
+
+  // Export deck as TXT (word - vi - example)
+  const handleExportTXT = () => {
+    const lines = currentDeck.cards.map(c => `${c.word} | ${c.phonetic} | ${c.definitionVi} | ${c.example}`);
+    const dataStr = 'data:text/plain;charset=utf-8,' + encodeURIComponent(lines.join('\n'));
+    const a = document.createElement('a');
+    a.href = dataStr;
+    a.download = `${currentDeck.name.replace(/\s+/g, '_')}.txt`;
+    a.click();
+  };
+
+  const handleDeleteDeck = (deckId: string) => {
+    if (decks.length <= 1) return;
+    const remaining = decks.filter(d => d.id !== deckId);
+    updateDecks(remaining);
+    setActiveDeckId(remaining[0].id);
+    setCurrentCardIndex(0);
+  };
+
+  const handleCreateDeck = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDeckTitle.trim()) return;
+
+    const newDeck: VocabDeck = {
+      id: `deck-${Date.now()}`,
+      name: newDeckTitle.trim(),
+      description: newDeckDesc.trim() || 'Bộ từ tự tạo',
+      createdAt: new Date().toISOString(),
+      source: 'User Deck',
+      cards: []
+    };
+
+    updateDecks([...decks, newDeck]);
+    setActiveDeckId(newDeck.id);
+    setNewDeckTitle('');
+    setNewDeckDesc('');
+    setIsCreatingDeck(false);
+  };
+
+  // Stats
+  const now = new Date();
+  const dueCount = cards.filter(c => !c.dueDate || new Date(c.dueDate) <= now).length;
   const masteredCount = cards.filter(c => c.state === 'mastered').length;
-  const learningCount = cards.filter(c => c.state === 'learning' || c.state === 'new').length;
-  const reviewCount = cards.filter(c => c.state === 'review').length;
 
   return (
     <div className="space-y-6 pb-16">
       {/* Top Header & Deck Switcher Bar */}
-      <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs">
+      <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -201,163 +283,222 @@ export const VocabSRSView: React.FC = () => {
                 LEXICAL RESOURCE • SUPERMEMO SM-2 ENGINE
               </span>
               <span className="text-slate-300">•</span>
-              <span className="text-xs text-slate-600 font-medium">Lặp Ngắt Quãng Chuyên Nghiệp</span>
+              <span className="text-xs text-slate-600 font-medium">Lặp Ngắt Quãng Keyboard-First</span>
             </div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-              Ôn Luyện Từ Vựng Học Thuật & Đề Thi Cambridge 12
+              Ôn Luyện Từ Vựng Học Thuật Academic
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Hỗ trợ học Flashcard 2 mặt, gõ chính tả (Typing), phát âm chuẩn bản ngữ và nhập file cá nhân.
-            </p>
           </div>
 
-          {/* Action buttons: Upload and Mode toggle */}
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Mode Switcher */}
-            <div className="flex items-center border border-slate-300 rounded p-0.5 bg-slate-50 text-xs">
+          {/* Action buttons */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Mode Toggle: Flashcard vs Typing */}
+            <div className="flex items-center bg-slate-100 p-0.5 rounded text-xs">
               <button
+                type="button"
                 onClick={() => setStudyMode('flashcard')}
-                className={`px-3 py-1 rounded font-semibold transition-colors cursor-pointer ${
+                className={`px-3 py-1 rounded font-semibold cursor-pointer transition-colors ${
                   studyMode === 'flashcard'
                     ? 'bg-slate-900 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Flashcard
+                Flashcard (Phím 1-4, Space)
               </button>
               <button
+                type="button"
                 onClick={() => setStudyMode('typing')}
-                className={`px-3 py-1 rounded font-semibold transition-colors cursor-pointer ${
+                className={`px-3 py-1 rounded font-semibold cursor-pointer transition-colors ${
                   studyMode === 'typing'
                     ? 'bg-slate-900 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Gõ chính tả (Typing)
+                Gõ Chính Tả (Typing)
               </button>
             </div>
 
-            {/* Upload custom deck button */}
+            {/* Import TXT button */}
             <button
-              onClick={() => setShowUploadModal(true)}
-              className="px-3.5 py-1.5 border border-slate-300 hover:bg-slate-50 text-slate-800 text-xs font-semibold rounded flex items-center gap-1.5 cursor-pointer transition-colors"
+              type="button"
+              onClick={() => setShowImportModal(true)}
+              className="px-3 py-1.5 border border-slate-300 hover:bg-slate-50 text-slate-800 text-xs font-semibold rounded flex items-center gap-1.5 cursor-pointer"
             >
               <Upload className="w-3.5 h-3.5 text-slate-600" />
-              <span>Nhập File .txt/.csv</span>
+              <span>Nhập File .txt</span>
+            </button>
+
+            {/* Export Deck */}
+            <button
+              type="button"
+              onClick={handleExportJSON}
+              title="Xuất file JSON (Bảo toàn tiến độ SRS)"
+              className="px-2.5 py-1.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-medium rounded flex items-center gap-1 cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Xuất JSON</span>
             </button>
           </div>
         </div>
 
-        {/* Deck Selector and Stats */}
-        <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="text-slate-500 font-medium">Bộ thẻ:</span>
-            <select
-              value={activeDeckId}
-              onChange={(e) => {
-                setActiveDeckId(e.target.value);
-                setCurrentCardIndex(0);
-              }}
-              className="bg-slate-50 border border-slate-300 rounded px-2.5 py-1 font-semibold text-slate-800 focus:outline-none focus:border-slate-800 cursor-pointer"
+        {/* Deck List & Creator */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-slate-500 font-medium">Bộ từ:</span>
+            {decks.map(deck => {
+              const isSelected = deck.id === activeDeckId;
+              return (
+                <button
+                  key={deck.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveDeckId(deck.id);
+                    setCurrentCardIndex(0);
+                  }}
+                  className={`px-3 py-1 rounded text-xs cursor-pointer border transition-colors ${
+                    isSelected
+                      ? 'bg-slate-900 text-white border-slate-900 font-bold'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <span>{deck.name}</span>
+                  <span className="ml-1.5 text-[10px] font-mono opacity-80">({deck.cards.length})</span>
+                </button>
+              );
+            })}
+
+            <button
+              type="button"
+              onClick={() => setIsCreatingDeck(prev => !prev)}
+              className="p-1 rounded text-slate-500 hover:text-slate-800 border border-dashed border-slate-300 hover:border-slate-500 cursor-pointer"
+              title="Tạo bộ từ mới"
             >
-              {decks.map(d => (
-                <option key={d.id} value={d.id}>
-                  {d.name} ({d.cards.length} từ)
-                </option>
-              ))}
-            </select>
+              <Plus className="w-3.5 h-3.5" />
+            </button>
           </div>
 
-          <div className="flex items-center gap-4 text-slate-600">
-            <span>Đang học: <strong className="font-mono text-slate-900">{learningCount}</strong></span>
+          <div className="flex items-center gap-3 text-xs text-slate-500 font-mono">
+            <span>Cần ôn: <strong className="text-slate-900">{dueCount}</strong></span>
             <span>•</span>
-            <span>Cần ôn lại: <strong className="font-mono text-slate-900">{reviewCount}</strong></span>
-            <span>•</span>
-            <span>Đã làm chủ: <strong className="font-mono text-emerald-700">{masteredCount}</strong></span>
+            <span>Thuộc lòng: <strong className="text-slate-900">{masteredCount}</strong></span>
+            {decks.length > 1 && (
+              <button
+                type="button"
+                onClick={() => handleDeleteDeck(activeDeckId)}
+                title="Xóa bộ từ hiện tại"
+                className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer ml-1"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
+
+        {/* Create Deck Inline Form */}
+        {isCreatingDeck && (
+          <form onSubmit={handleCreateDeck} className="p-3 bg-slate-50 border border-slate-200 rounded flex flex-wrap items-center gap-2 text-xs">
+            <input
+              type="text"
+              value={newDeckTitle}
+              onChange={(e) => setNewDeckTitle(e.target.value)}
+              placeholder="Tên bộ từ mới..."
+              className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800"
+            />
+            <input
+              type="text"
+              value={newDeckDesc}
+              onChange={(e) => setNewDeckDesc(e.target.value)}
+              placeholder="Mô tả bộ từ..."
+              className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 flex-1 min-w-[200px]"
+            />
+            <button
+              type="submit"
+              className="px-3 py-1 bg-slate-900 text-white rounded font-medium cursor-pointer"
+            >
+              Lưu Deck
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsCreatingDeck(false)}
+              className="px-2 py-1 text-slate-600 hover:text-slate-900 cursor-pointer"
+            >
+              Hủy
+            </button>
+          </form>
+        )}
       </div>
 
-      {/* Main Flashcard / Typing Workbench */}
-      <div className="max-w-2xl mx-auto space-y-4">
-        {cards.length === 0 ? (
-          <div className="bg-white border border-slate-200 rounded-lg p-12 text-center text-xs text-slate-500 space-y-3">
-            <p>Bộ thẻ này hiện chưa có từ vựng nào.</p>
-            <button
-              onClick={() => setShowUploadModal(true)}
-              className="px-4 py-2 bg-slate-900 text-white font-bold rounded cursor-pointer"
-            >
-              Nhập từ vựng ngay
-            </button>
-          </div>
-        ) : studyMode === 'flashcard' ? (
-          /* Flashcard View */
-          <div className="space-y-4">
-            {/* Card Surface */}
-            <div
-              onClick={() => setIsFlipped(!isFlipped)}
-              className="bg-white border border-slate-200 hover:border-slate-300 rounded-lg p-8 sm:p-10 shadow-xs cursor-pointer min-h-[300px] flex flex-col justify-between transition-all select-none"
-            >
-              {/* Card Header: Progress & Audio */}
-              <div className="flex items-center justify-between text-xs text-slate-400">
-                <span className="font-mono">
-                  {currentCardIndex + 1} / {cards.length}
-                </span>
+      {/* Main Flashcard / Typing Viewport */}
+      {cards.length === 0 ? (
+        <div className="bg-white border border-slate-200 rounded-lg p-12 text-center space-y-3">
+          <FileText className="w-8 h-8 text-slate-400 mx-auto" />
+          <p className="text-sm font-semibold text-slate-800">Bộ từ này hiện chưa có thẻ nào.</p>
+          <p className="text-xs text-slate-500">Bấm nút "Nhập File .txt" phía trên để nạp từ vựng vào.</p>
+        </div>
+      ) : studyMode === 'flashcard' ? (
+        /* Flashcard Mode */
+        <div className="max-w-2xl mx-auto space-y-4">
+          {/* Card Viewport */}
+          <div
+            onClick={() => setIsFlipped(prev => !prev)}
+            tabIndex={0}
+            role="button"
+            aria-label="Thẻ từ vựng. Bấm phím Space hoặc click để lật mặt sau."
+            className="bg-white border border-slate-200 hover:border-slate-400 rounded-xl p-8 min-h-[300px] flex flex-col justify-between cursor-pointer transition-all shadow-xs select-none"
+          >
+            {/* Card Header */}
+            <div className="flex items-center justify-between text-xs text-slate-400 border-b border-slate-100 pb-3">
+              <span className="font-mono">Từ {currentCardIndex + 1} / {cards.length}</span>
+              <span className="px-2 py-0.5 bg-slate-100 rounded text-slate-600 text-[11px] font-mono">
+                {currentCard?.category}
+              </span>
+            </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                    {currentCard?.category || 'Cambridge 12'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (currentCard) playPronunciation(currentCard.word, voiceAccent);
-                    }}
-                    title="Phát âm từ này (Phím R)"
-                    className="p-1 rounded hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors"
-                  >
-                    <Volume2 className="w-4 h-4" />
-                  </button>
-                </div>
+            {/* Front & Back Content */}
+            <div className="text-center my-6 space-y-3">
+              <div className="flex items-center justify-center gap-2">
+                <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                  {currentCard?.word}
+                </h2>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (currentCard) playPronunciation(currentCard.word, voiceAccent);
+                  }}
+                  title="Phát âm (Phím R)"
+                  className="p-1.5 rounded-full hover:bg-slate-100 text-slate-600 hover:text-slate-900 cursor-pointer"
+                >
+                  <Volume2 className="w-4 h-4" />
+                </button>
               </div>
 
-              {/* Front or Back Presentation */}
-              {!isFlipped ? (
-                /* Front side */
-                <div className="text-center py-8 space-y-3">
-                  <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">
-                    {currentCard?.word}
-                  </h2>
-                  <div className="flex items-center justify-center gap-2 text-slate-500 font-serif-reading text-base">
-                    <span>{currentCard?.phonetic}</span>
-                    <span className="text-slate-300">•</span>
-                    <span className="font-mono text-xs text-slate-600 font-medium">{currentCard?.partOfSpeech}</span>
-                  </div>
-                  <p className="text-xs text-slate-400 pt-3">
-                    [ Bấm chuột hoặc nhấn <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded font-mono text-[10px] text-slate-700">Space</kbd> để lật mặt nghĩa ]
-                  </p>
-                </div>
-              ) : (
-                /* Back side */
-                <div className="text-center py-4 space-y-4 animate-in fade-in">
-                  <div>
-                    <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">
-                      {currentCard?.word}
-                    </h2>
-                    <span className="text-xs font-serif-reading text-slate-500">{currentCard?.phonetic}</span>
-                  </div>
+              <div className="flex items-center justify-center gap-2 font-mono text-xs text-slate-500">
+                <span>{currentCard?.phonetic}</span>
+                <span>•</span>
+                <span className="uppercase text-[11px]">{currentCard?.partOfSpeech}</span>
+              </div>
 
-                  <div className="p-3.5 bg-slate-50 rounded border border-slate-200 text-xs text-slate-800 space-y-1">
+              {!isFlipped ? (
+                <p className="text-xs text-slate-400 font-mono pt-4">
+                  (Bấm [Space] hoặc click vào thẻ để xem nghĩa & ví dụ)
+                </p>
+              ) : (
+                <div className="pt-4 border-t border-slate-100 space-y-3">
+                  <div className="p-3 bg-slate-50 rounded border border-slate-200 text-left space-y-1">
                     <p className="font-bold text-sm text-slate-900">{currentCard?.definitionVi}</p>
-                    <p className="text-slate-600">{currentCard?.definitionEn}</p>
+                    {currentCard?.definitionEn && (
+                      <p className="text-xs text-slate-600">{currentCard?.definitionEn}</p>
+                    )}
                   </div>
 
                   {currentCard?.example && (
-                    <div className="text-left p-3 rounded bg-slate-50/50 border border-slate-100 text-xs text-slate-700 font-serif-reading">
-                      <span className="font-sans font-bold text-slate-500 block text-[11px] mb-0.5">Ví dụ ngữ cảnh Cambridge:</span>
+                    <div className="text-left p-3 rounded bg-slate-50/50 border border-slate-100 text-xs font-serif-reading text-slate-700">
+                      <span className="font-sans font-bold text-slate-500 block text-[11px] mb-0.5">Ví dụ ngữ cảnh IELTS:</span>
                       <p className="italic">"{currentCard.example}"</p>
-                      {currentCard.exampleVi && <p className="text-slate-500 font-sans text-[11px] mt-1">{currentCard.exampleVi}</p>}
+                      {currentCard.exampleVi && (
+                        <p className="text-slate-500 font-sans text-[11px] mt-1">{currentCard.exampleVi}</p>
+                      )}
                     </div>
                   )}
 
@@ -365,8 +506,8 @@ export const VocabSRSView: React.FC = () => {
                     <div className="text-left text-xs">
                       <span className="font-bold text-slate-500 text-[11px] block mb-1">Collocations trọng điểm:</span>
                       <div className="flex flex-wrap gap-1.5">
-                        {currentCard.collocations.map((col, cIdx) => (
-                          <span key={cIdx} className="px-2 py-0.5 bg-slate-100 border border-slate-200 text-slate-800 rounded font-mono text-[11px]">
+                        {currentCard.collocations.map((col, idx) => (
+                          <span key={idx} className="px-2 py-0.5 bg-slate-100 border border-slate-200 text-slate-800 rounded font-mono text-[11px]">
                             {col}
                           </span>
                         ))}
@@ -375,194 +516,268 @@ export const VocabSRSView: React.FC = () => {
                   )}
                 </div>
               )}
-
-              {/* Card Footer State */}
-              <div className="text-center text-[11px] text-slate-400 border-t border-slate-100 pt-2 font-mono">
-                Chu kỳ: {currentCard?.intervalDays < 1 ? 'Học mới' : `${currentCard?.intervalDays} ngày`} • Trạng thái: {currentCard?.state}
-              </div>
             </div>
 
-            {/* SRS Rating Buttons (SM-2 Algorithm) */}
-            <div className="grid grid-cols-4 gap-2">
-              <button
-                onClick={() => handleRateCard(1)}
-                className="p-2.5 bg-white border border-slate-300 hover:border-slate-800 rounded text-center cursor-pointer transition-all hover:bg-slate-50"
-              >
-                <span className="block text-xs font-bold text-slate-900">[1] Quên</span>
-                <span className="text-[10px] text-slate-400 font-mono">&lt; 10 phút</span>
-              </button>
-
-              <button
-                onClick={() => handleRateCard(2)}
-                className="p-2.5 bg-white border border-slate-300 hover:border-slate-800 rounded text-center cursor-pointer transition-all hover:bg-slate-50"
-              >
-                <span className="block text-xs font-bold text-slate-900">[2] Khó</span>
-                <span className="text-[10px] text-slate-400 font-mono">1 ngày</span>
-              </button>
-
-              <button
-                onClick={() => handleRateCard(3)}
-                className="p-2.5 bg-white border border-slate-300 hover:border-slate-800 rounded text-center cursor-pointer transition-all hover:bg-slate-50"
-              >
-                <span className="block text-xs font-bold text-slate-900">[3] Nhớ tốt</span>
-                <span className="text-[10px] text-slate-400 font-mono">3 ngày</span>
-              </button>
-
-              <button
-                onClick={() => handleRateCard(4)}
-                className="p-2.5 bg-white border border-slate-300 hover:border-slate-800 rounded text-center cursor-pointer transition-all hover:bg-slate-50"
-              >
-                <span className="block text-xs font-bold text-slate-900">[4] Rất dễ</span>
-                <span className="text-[10px] text-slate-400 font-mono">6 ngày</span>
-              </button>
+            {/* Card Footer State */}
+            <div className="flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-100 pt-3 font-mono">
+              <span>Chu kỳ: {currentCard?.intervalDays < 1 ? 'Học mới' : `${currentCard?.intervalDays} ngày`}</span>
+              <span className="capitalize">Trạng thái: {currentCard?.state}</span>
             </div>
           </div>
-        ) : (
-          /* Typing Practice Mode */
-          <div className="bg-white border border-slate-200 rounded-lg p-8 shadow-xs space-y-6">
-            <div className="flex items-center justify-between text-xs text-slate-400 border-b border-slate-100 pb-3">
-              <span className="font-mono">Từ {currentCardIndex + 1} / {cards.length}</span>
-              <button
-                type="button"
-                onClick={() => currentCard && playPronunciation(currentCard.word, voiceAccent)}
-                className="flex items-center gap-1 text-slate-700 hover:text-slate-950 cursor-pointer"
-              >
-                <Volume2 className="w-3.5 h-3.5" />
-                <span>Nghe phát âm</span>
-              </button>
-            </div>
 
-            <div className="text-center space-y-2">
-              <span className="text-xs font-mono text-slate-500 uppercase">{currentCard?.partOfSpeech}</span>
-              <p className="text-lg font-bold text-slate-900">{currentCard?.definitionVi}</p>
-              <p className="text-xs text-slate-500 font-serif-reading italic">{currentCard?.definitionEn}</p>
-            </div>
+          {/* Dynamic SRS Rating Buttons (Interval dynamically computed via previewNextInterval) */}
+          <div className="grid grid-cols-4 gap-2">
+            <button
+              type="button"
+              onClick={() => handleRateCard(1)}
+              className="p-3 bg-white border border-slate-300 hover:border-slate-800 rounded-lg text-center cursor-pointer transition-all hover:bg-slate-50 shadow-xs"
+            >
+              <span className="block text-xs font-bold text-slate-900">[1] Quên</span>
+              <span className="text-[11px] text-slate-500 font-mono">
+                {currentCard ? previewNextInterval(currentCard, 1) : '< 10m'}
+              </span>
+            </button>
 
-            {/* Input Form */}
-            <form onSubmit={handleCheckTyping} className="space-y-4">
-              <div>
-                <input
-                  ref={typingInputRef}
-                  type="text"
-                  value={typedInput}
-                  disabled={typingChecked}
-                  onChange={(e) => setTypedInput(e.target.value)}
-                  placeholder="Gõ từ tiếng Anh tương ứng..."
-                  className={`w-full p-3 text-center text-lg font-mono rounded border transition-all focus:outline-none ${
-                    typingChecked
-                      ? isTypingCorrect
-                        ? 'bg-emerald-50 border-emerald-500 text-emerald-900 font-bold'
-                        : 'bg-rose-50 border-rose-400 text-rose-900 line-through'
-                      : 'border-slate-300 focus:border-slate-900'
-                  }`}
-                  autoFocus
-                />
-              </div>
+            <button
+              type="button"
+              onClick={() => handleRateCard(2)}
+              className="p-3 bg-white border border-slate-300 hover:border-slate-800 rounded-lg text-center cursor-pointer transition-all hover:bg-slate-50 shadow-xs"
+            >
+              <span className="block text-xs font-bold text-slate-900">[2] Khó</span>
+              <span className="text-[11px] text-slate-500 font-mono">
+                {currentCard ? previewNextInterval(currentCard, 2) : '12h'}
+              </span>
+            </button>
 
-              {!typingChecked ? (
-                <button
-                  type="submit"
-                  className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded transition-colors cursor-pointer"
-                >
-                  Kiểm tra chính tả (Enter)
-                </button>
-              ) : (
-                <div className="space-y-3 animate-in fade-in">
-                  <div className="p-3 rounded bg-slate-50 border border-slate-200 text-center text-xs space-y-1">
-                    <span className="text-slate-500">Từ chính xác:</span>
-                    <p className="text-base font-mono font-bold text-slate-900">{currentCard?.word}</p>
-                    <p className="text-slate-600 font-serif-reading">{currentCard?.phonetic}</p>
-                  </div>
+            <button
+              type="button"
+              onClick={() => handleRateCard(3)}
+              className="p-3 bg-white border border-slate-300 hover:border-slate-800 rounded-lg text-center cursor-pointer transition-all hover:bg-slate-50 shadow-xs"
+            >
+              <span className="block text-xs font-bold text-slate-900">[3] Tốt</span>
+              <span className="text-[11px] text-slate-500 font-mono">
+                {currentCard ? previewNextInterval(currentCard, 3) : '1d'}
+              </span>
+            </button>
 
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleNextTypingCard(isTypingCorrect ? 3 : 1)}
-                      className="flex-1 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded cursor-pointer"
-                    >
-                      Tiếp tục từ tiếp theo (Space / Enter)
-                    </button>
-                  </div>
-                </div>
-              )}
-            </form>
+            <button
+              type="button"
+              onClick={() => handleRateCard(4)}
+              className="p-3 bg-white border border-slate-300 hover:border-slate-800 rounded-lg text-center cursor-pointer transition-all hover:bg-slate-50 shadow-xs"
+            >
+              <span className="block text-xs font-bold text-slate-900">[4] Rất Dễ</span>
+              <span className="text-[11px] text-slate-500 font-mono">
+                {currentCard ? previewNextInterval(currentCard, 4) : '3d'}
+              </span>
+            </button>
           </div>
-        )}
 
-        {/* Keyboard Shortcuts Hint Bar */}
-        <div className="p-3 bg-slate-100 border border-slate-200 rounded text-center text-[11px] text-slate-600 font-mono">
-          Phím tắt: <kbd className="bg-white px-1.5 py-0.5 rounded border border-slate-300 text-slate-900">Space</kbd> Lật thẻ • <kbd className="bg-white px-1.5 py-0.5 rounded border border-slate-300 text-slate-900">1-4</kbd> Đánh giá nhớ • <kbd className="bg-white px-1.5 py-0.5 rounded border border-slate-300 text-slate-900">R</kbd> Phát âm
+          <div className="text-center text-[11px] text-slate-400 font-mono">
+            Phím tắt: [Space] Lật thẻ • [1-4] Đánh giá • [R] Phát âm • [→] Chuyển tiếp
+          </div>
         </div>
-      </div>
+      ) : (
+        /* Typing Mode */
+        <div className="max-w-xl mx-auto bg-white border border-slate-200 rounded-xl p-8 shadow-xs space-y-6">
+          <div className="flex items-center justify-between text-xs text-slate-400 border-b border-slate-100 pb-3">
+            <span className="font-mono">Từ {currentCardIndex + 1} / {cards.length}</span>
+            <button
+              type="button"
+              onClick={() => currentCard && playPronunciation(currentCard.word, voiceAccent)}
+              className="flex items-center gap-1 text-slate-700 hover:text-slate-950 cursor-pointer"
+            >
+              <Volume2 className="w-3.5 h-3.5" />
+              <span>Nghe phát âm</span>
+            </button>
+          </div>
 
-      {/* Upload Custom Deck Modal */}
-      {showUploadModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg border border-slate-300 p-6 max-w-lg w-full shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-              <h3 className="font-bold text-sm text-slate-900">
-                Nhập danh sách từ vựng cá nhân
-              </h3>
-              <button
-                onClick={() => setShowUploadModal(false)}
-                className="text-slate-400 hover:text-slate-700 cursor-pointer"
-              >
-                ✕
-              </button>
+          <div className="text-center space-y-2">
+            <span className="text-[11px] font-mono text-slate-400 uppercase">{currentCard?.partOfSpeech}</span>
+            <p className="text-xl font-bold text-slate-900">{currentCard?.definitionVi}</p>
+            {currentCard?.definitionEn && (
+              <p className="text-xs text-slate-500 italic">{currentCard?.definitionEn}</p>
+            )}
+          </div>
+
+          {/* Typing Form */}
+          <form onSubmit={(e) => { e.preventDefault(); handleCheckTyping(); }} className="space-y-4">
+            <div>
+              <input
+                ref={typingInputRef}
+                type="text"
+                value={typedInput}
+                disabled={typingChecked}
+                onChange={(e) => setTypedInput(e.target.value)}
+                placeholder="Gõ từ tiếng Anh tương ứng và nhấn Enter..."
+                className="w-full bg-white border border-slate-300 rounded px-4 py-2.5 text-sm text-slate-900 font-medium focus:border-blue-600"
+              />
             </div>
 
-            {uploadNotification && (
-              <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-800 rounded text-xs">
-                {uploadNotification}
+            {!typingChecked ? (
+              <button
+                type="submit"
+                disabled={!typedInput.trim()}
+                className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white rounded text-xs font-semibold cursor-pointer"
+              >
+                Kiểm Tra Chính Tả [Enter]
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <div className={`p-4 rounded border text-xs ${
+                  isTypingCorrect ? 'bg-emerald-50 border-emerald-300 text-emerald-900' : 'bg-rose-50 border-rose-300 text-rose-900'
+                }`}>
+                  <div className="flex items-center gap-1.5 font-bold mb-1">
+                    {isTypingCorrect ? <Check className="w-4 h-4 text-emerald-600" /> : <X className="w-4 h-4 text-rose-600" />}
+                    <span>{isTypingCorrect ? 'Chính xác!' : 'Chưa đúng chính tả'}</span>
+                  </div>
+                  <p>Từ chuẩn: <strong className="font-mono text-sm">{currentCard.word}</strong> <span className="font-mono text-slate-500">({currentCard.phonetic})</span></p>
+                  {currentCard.example && (
+                    <p className="italic mt-1 text-slate-700">"{currentCard.example}"</p>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleRateCard(isTypingCorrect ? 3 : 1)}
+                  className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-semibold cursor-pointer"
+                >
+                  Tiếp Tục [Enter hoặc Space]
+                </button>
               </div>
             )}
+          </form>
+        </div>
+      )}
 
-            <div className="space-y-3 text-xs">
+      {/* Import TXT/CSV Modal with 10-Card Preview */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-xl max-w-2xl w-full p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Tên bộ thẻ:</label>
+                <h3 className="text-base font-bold text-slate-900">Nhập Từ Vựng Từ File .txt / .csv</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Hỗ trợ định dạng: <code>word | IPA | nghĩa | ví dụ</code> hoặc <code>word - nghĩa</code> hoặc Tab/CSV.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowImportModal(false)}
+                className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Input name and file picker */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Tên bộ từ:</label>
                 <input
                   type="text"
-                  placeholder="Ví dụ: Từ vựng Reading Cam 12 Test 5"
-                  value={newDeckName}
-                  onChange={(e) => setNewDeckName(e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded focus:outline-none focus:border-slate-800"
+                  value={importDeckName}
+                  onChange={(e) => setImportDeckName(e.target.value)}
+                  placeholder="Ví dụ: Unit 1 Academic Words"
+                  className="w-full bg-white border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-800"
                 />
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Chọn file từ máy (.txt, .csv):</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Chọn file từ máy tính:</label>
                 <input
                   type="file"
                   accept=".txt,.csv"
                   onChange={handleFileUpload}
-                  className="w-full text-xs text-slate-600 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-800 hover:file:bg-slate-200 cursor-pointer"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Hoặc dán trực tiếp nội dung:</label>
-                <textarea
-                  rows={6}
-                  value={uploadText}
-                  onChange={(e) => setUploadText(e.target.value)}
-                  placeholder={`Định dạng hỗ trợ:\nword - definitionVi - example\nhoặc: word : definitionVi\nVí dụ:\nmitigate - giảm thiểu tác hại - We must mitigate climate risks.\ncurb - hạn chế, kiềm chế - Strict laws curb traffic violations.`}
-                  className="w-full p-2 font-mono text-xs border border-slate-300 rounded focus:outline-none focus:border-slate-800"
+                  className="w-full text-xs text-slate-600 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-800 cursor-pointer"
                 />
               </div>
             </div>
 
-            <div className="pt-2 flex justify-end gap-2 text-xs">
+            {/* Textarea Paste */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Hoặc dán nội dung văn bản:</label>
+              <textarea
+                value={importText}
+                onChange={(e) => setImportText(e.target.value)}
+                rows={6}
+                placeholder="mitigate - làm giảm bớt tác hại - Renewable energy mitigates carbon emissions&#10;proliferation | /prəˌlɪf.əˈreɪ.ʃən/ | sự tăng nhanh | Rapid proliferation of smartphones..."
+                className="w-full bg-white border border-slate-300 rounded p-3 text-xs font-mono text-slate-800 focus:border-blue-600"
+              />
+            </div>
+
+            {/* Import Preview Table & Duplicate Handling */}
+            {importAnalysis && (
+              <div className="space-y-3 pt-2 border-t border-slate-100">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-3">
+                    <span>Đã nhận diện: <strong className="text-emerald-700 font-mono">{importAnalysis.parsed.length}</strong> từ</span>
+                    {importAnalysis.duplicateCount > 0 && (
+                      <span>Trùng lặp: <strong className="text-amber-700 font-mono">{importAnalysis.duplicateCount}</strong></span>
+                    )}
+                    {importAnalysis.invalidLinesCount > 0 && (
+                      <span className="text-slate-400">Dòng trống/bỏ qua: {importAnalysis.invalidLinesCount}</span>
+                    )}
+                  </div>
+
+                  {/* Duplicate Choice */}
+                  {importAnalysis.duplicateCount > 0 && (
+                    <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                      <span>Xử lý trùng:</span>
+                      <select
+                        value={duplicateHandling}
+                        onChange={(e) => setDuplicateHandling(e.target.value as any)}
+                        className="bg-slate-50 border border-slate-300 rounded px-2 py-0.5 text-xs cursor-pointer"
+                      >
+                        <option value="skip">Bỏ qua từ trùng (Skip)</option>
+                        <option value="replace">Ghi đè (Replace)</option>
+                        <option value="keep-both">Giữ cả hai (Keep both)</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                {/* 10 Preview Cards Table */}
+                <div className="border border-slate-200 rounded max-h-40 overflow-y-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 text-slate-500 font-mono text-[11px] border-b border-slate-200">
+                      <tr>
+                        <th className="p-2">Từ vựng</th>
+                        <th className="p-2">Phiên âm</th>
+                        <th className="p-2">Nghĩa tiếng Việt</th>
+                        <th className="p-2">Ví dụ</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                      {importAnalysis.previewCards.map((c, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50">
+                          <td className="p-2 font-bold text-slate-900">{c.word}</td>
+                          <td className="p-2 text-slate-500">{c.phonetic}</td>
+                          <td className="p-2 text-slate-800">{c.definitionVi}</td>
+                          <td className="p-2 text-slate-600 truncate max-w-xs">{c.example}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
               <button
-                onClick={() => setShowUploadModal(false)}
-                className="px-3 py-1.5 border border-slate-300 rounded text-slate-700 hover:bg-slate-50 cursor-pointer font-medium"
+                type="button"
+                onClick={() => setShowImportModal(false)}
+                className="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 cursor-pointer"
               >
-                Hủy
+                Hủy bỏ
               </button>
               <button
-                onClick={handleProcessUpload}
-                className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded cursor-pointer transition-colors"
+                type="button"
+                onClick={handleExecuteImport}
+                disabled={!importAnalysis || importAnalysis.parsed.length === 0}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white rounded text-xs font-semibold cursor-pointer shadow-xs"
               >
-                Tạo bộ thẻ
+                Xác Nhận Tạo Bộ Từ ({importAnalysis?.parsed.length || 0} từ)
               </button>
             </div>
           </div>

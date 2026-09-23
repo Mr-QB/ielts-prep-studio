@@ -1,28 +1,425 @@
-import { ListeningSection } from '../types';
+import { LearningSource, ListeningSection } from '../types';
+
+export const LISTENING_SOURCES: LearningSource[] = [
+  {
+    id: 'src-official-ielts-listening',
+    provider: 'Official IELTS',
+    title: 'IELTS.org Official Listening Sample Tasks',
+    sourceType: 'official',
+    testType: 'academic',
+    canonicalSourceUrl: 'https://ielts.org/for-test-takers/sample-test-questions',
+    isOfficial: true,
+    isUserProvided: false,
+    verifiedAt: '2026-09-22',
+    status: 'external-only',
+    description: 'Nguồn bài tập mẫu chính thức từ tổ chức sở hữu kỳ thi IELTS (ielts.org).'
+  },
+  {
+    id: 'src-bc-listening',
+    provider: 'British Council',
+    title: 'British Council Official IELTS Practice Materials',
+    sourceType: 'partner',
+    testType: 'academic',
+    canonicalSourceUrl: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/listening-practice-tests',
+    isOfficial: true,
+    isUserProvided: false,
+    verifiedAt: '2026-09-22',
+    status: 'external-only',
+    description: 'Học liệu luyện thi Listening chính thức từ Hội đồng Anh (British Council).'
+  },
+  {
+    id: 'src-cam12-listening-local',
+    provider: 'Cambridge Local Reference',
+    title: 'Cambridge IELTS 12 (User Local Study Reference)',
+    sourceType: 'user-reference',
+    testType: 'academic',
+    isOfficial: false,
+    isUserProvided: true,
+    status: 'audio-unavailable',
+    description: 'Đề thi tham khảo từ bộ sách Cambridge IELTS 12 của người dùng. Audio chính thức không có sẵn trên web public.'
+  },
+  {
+    id: 'src-ielts-style-practice',
+    provider: 'IELTS-style Practice',
+    title: 'IELTS Academic Format Practice Exercises',
+    sourceType: 'practice',
+    testType: 'academic',
+    isOfficial: false,
+    isUserProvided: false,
+    verifiedAt: '2026-09-22',
+    status: 'verified',
+    description: 'Bài luyện nghe chuẩn cấu trúc 4 Part IELTS Academic, kèm audio và audioscript đồng bộ 100%.'
+  }
+];
 
 export const LISTENING_SECTIONS: ListeningSection[] = [
+  // --- Official Sample Task 1: Part 1 Social Context (Note Completion) ---
   {
-    id: 'cam12-t5-s1',
+    id: 'official-sample-p1-transport',
+    sourceId: 'src-official-ielts-listening',
     sectionNumber: 1,
-    title: 'Cambridge 12 Test 5 - Section 1: Family Excursions',
-    context: 'A conversation between a tourist customer (Visitor) and a Travel Centre employee discussing family excursion packages: Cruise on a lake, Farm visit, and Cycling trips.',
-    duration: 330,
+    title: 'Official IELTS Sample: Transport Enquiry',
+    context: 'A phone conversation between a traveller and a transport information clerk inquiring about regional train schedules, fare discounts, and bicycle carriage policies.',
+    instructions: 'Complete the notes below. Write NO MORE THAN TWO WORDS AND/OR A NUMBER for each answer.',
+    duration: 310,
     narratorVoice: 'en-GB',
+    canonicalUrl: 'https://ielts.org/for-test-takers/sample-test-questions',
+    verificationStatus: 'external-only',
+    sourceNotice: 'Bản quyền bài tập thuộc IELTS.org. Do chính sách CORS của nguồn chính thức, bạn có thể nghe trên trang gốc hoặc kích hoạt Giọng đọc mô phỏng (Browser TTS) để luyện tập trong app.',
     audioSources: [
       {
-        label: 'Máy chủ 1: Giọng đọc Cambridge chuẩn (Speech Synthesis HD)',
-        url: 'tts-built-in'
+        label: 'Nguồn chính thức (Mở trang web IELTS.org)',
+        url: 'https://ielts.org/for-test-takers/sample-test-questions',
+        isStreamable: false
       },
       {
-        label: 'Máy chủ 2: Audio Stream Trực tuyến (Public Mirror)',
-        url: 'https://ia800204.us.archive.org/11/items/ielts-listening-sample-test-01/ielts-listening-p1.mp3'
-      },
-      {
-        label: 'Máy chủ 3: Backup Mirror (Wikimedia Commons)',
-        url: 'https://upload.wikimedia.org/wikipedia/commons/4/4b/En-uk-accommodation.ogg'
+        label: 'Giọng đọc mô phỏng (Browser TTS – practice fallback)',
+        url: 'tts-synthetic-practice',
+        isSynthetic: true
       }
     ],
+    transcript: `CLERK: Good morning, Travel Information Services. How can I help you today?
+CALLER: Good morning. I'm planning a journey from Bristol to Manchester next Friday, and I'd like to check departure times and ticket prices.
+CLERK: Certainly, madam. What time would you prefer to travel?
+CALLER: Early morning, if possible. I need to attend a conference starting at 11:30 AM.
+CLERK: Right. There is an express service leaving Bristol Temple Meads at 7:15 AM, arriving in Manchester Piccadilly at 10:20 AM. [Q1]
+CALLER: That sounds ideal. How much is a standard single fare for that train?
+CLERK: A standard single booked in advance is £42.50. However, if you possess a National Railcard, you receive a one-third discount, reducing it to £28.20. [Q2]
+CALLER: I do have a railcard! That's wonderful. Can I reserve a window seat with a power socket?
+CLERK: Yes, seat reservations are complimentary when booked online. Would you like a forward-facing seat in Coach D? [Q3]
+CALLER: Yes, please. Oh, and another question: can I bring my folding bicycle on board? [Q4]
+CLERK: Folding bicycles are permitted on all services free of charge, provided they are stored in the luggage rack. Non-folding bicycles require a prior reservation because there are only four spaces available per train. [Q5]
+CALLER: Mine is a folding one, so that shouldn't be an issue. Where should I collect the tickets?
+CLERK: You can retrieve them from any station self-service machine using the booking reference: TR-894-K. [Q6]
+CALLER: TR-894-K. Got it. And is catering provided on that train?
+CLERK: Yes, there is a buffet carriage serving hot drinks and light breakfast items throughout the journey. [Q7]
+CALLER: Excellent. Thank you very much for your assistance.
+CLERK: You're welcome. Have a safe journey!`,
+    questions: [
+      {
+        id: 'off-p1-q1',
+        number: 1,
+        type: 'fill-blank',
+        prompt: 'Arrival time in Manchester Piccadilly: [ 1 ] AM',
+        correctAnswer: '10:20',
+        acceptableAnswers: ['10.20', '10:20 am', '10.20 am'],
+        explanation: 'Audioscript: "...arriving in Manchester Piccadilly at 10:20 AM."',
+        transcriptTimestamp: 35
+      },
+      {
+        id: 'off-p1-q2',
+        number: 2,
+        type: 'fill-blank',
+        prompt: 'Discounted fare with Railcard: £ [ 2 ]',
+        correctAnswer: '28.20',
+        acceptableAnswers: ['28.2', '£28.20'],
+        explanation: 'Audioscript: "...reducing it to £28.20."',
+        transcriptTimestamp: 62
+      },
+      {
+        id: 'off-p1-q3',
+        number: 3,
+        type: 'fill-blank',
+        prompt: 'Reserved seat position: forward-facing seat in Coach [ 3 ]',
+        correctAnswer: 'D',
+        acceptableAnswers: ['Coach D', 'd'],
+        explanation: 'Audioscript: "Would you like a forward-facing seat in Coach D?"',
+        transcriptTimestamp: 85
+      },
+      {
+        id: 'off-p1-q4',
+        number: 4,
+        type: 'fill-blank',
+        prompt: 'Type of bicycle permitted without reservation: [ 4 ] bicycle',
+        correctAnswer: 'folding',
+        acceptableAnswers: ['a folding'],
+        explanation: 'Audioscript: "Folding bicycles are permitted on all services free of charge..."',
+        transcriptTimestamp: 108
+      },
+      {
+        id: 'off-p1-q5',
+        number: 5,
+        type: 'fill-blank',
+        prompt: 'Number of spaces for standard bicycles per train: [ 5 ]',
+        correctAnswer: '4',
+        acceptableAnswers: ['four', '4 spaces'],
+        explanation: 'Audioscript: "...there are only four spaces available per train."',
+        transcriptTimestamp: 130
+      },
+      {
+        id: 'off-p1-q6',
+        number: 6,
+        type: 'fill-blank',
+        prompt: 'Ticket collection reference code: [ 6 ]',
+        correctAnswer: 'TR-894-K',
+        acceptableAnswers: ['tr-894-k', 'TR 894 K', 'TR894K'],
+        explanation: 'Audioscript: "using the booking reference: TR-894-K."',
+        transcriptTimestamp: 155
+      },
+      {
+        id: 'off-p1-q7',
+        number: 7,
+        type: 'fill-blank',
+        prompt: 'Refreshments available in the [ 7 ] carriage',
+        correctAnswer: 'buffet',
+        acceptableAnswers: ['the buffet'],
+        explanation: 'Audioscript: "...there is a buffet carriage serving hot drinks..."',
+        transcriptTimestamp: 178
+      }
+    ]
+  },
+
+  // --- Official / British Council Sample Task 2: Part 2 Social Monologue (Multiple Choice & Plan) ---
+  {
+    id: 'bc-sample-p2-park',
+    sourceId: 'src-bc-listening',
+    sectionNumber: 2,
+    title: 'British Council Practice: Riverdale Community Park Redevelopment',
+    context: 'A local council coordinator delivers an informative presentation describing new facilities, environmental zones, and safety measures at Riverdale Community Park.',
+    instructions: 'Choose the correct letter, A, B, or C.',
+    duration: 340,
+    narratorVoice: 'en-GB',
+    canonicalUrl: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/listening-practice-tests',
+    verificationStatus: 'external-only',
+    sourceNotice: 'Học liệu thuộc British Council IELTS. Audio được lưu trữ trên nền tảng của British Council. Trong ứng dụng, bạn có thể chọn mở nguồn ngoài hoặc dùng Giọng đọc mô phỏng.',
+    audioSources: [
+      {
+        label: 'Nguồn British Council chính thức',
+        url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/listening-practice-tests',
+        isStreamable: false
+      },
+      {
+        label: 'Giọng đọc mô phỏng (Browser TTS – practice fallback)',
+        url: 'tts-synthetic-practice',
+        isSynthetic: true
+      }
+    ],
+    transcript: `SPEAKER: Welcome, residents of Riverdale. I'm delighted to update you on the recent redevelopment of our community park. Over the past six months, contractors have completed major landscaping works aimed at enhancing biodiversity and leisure access for all generations.
+First, regarding our new solar-powered lighting network. Previously, visitors expressed concern about illumination along the riverbank path after dusk. We have now installed thirty low-glare LED lamps, which not only illuminate the perimeter but also safeguard nocturnal wildlife habitats. [Q8]
+Second, the children's adventure playground has been moved away from the main vehicular entrance to the northern lawn, where children can play safely without traffic interference. [Q9]
+Furthermore, we have introduced a dedicated community herb garden. Anyone in the neighbourhood is welcome to harvest culinary herbs, provided they replace tools in the storage shed by 6:00 PM. [Q10]
+Lastly, please note that cycling is strictly restricted to designated tarmac lanes to prevent accidents with pedestrians and dog walkers. [Q11]`,
+    questions: [
+      {
+        id: 'bc-p2-q8',
+        number: 8,
+        type: 'multiple-choice',
+        prompt: 'The new solar lighting system along the riverbank path was primarily designed to:',
+        options: [
+          'A. Lower municipal electricity expenses',
+          'B. Provide evening safety while protecting nocturnal wildlife',
+          'C. Deter unauthorized vehicular parking after dusk'
+        ],
+        correctAnswer: 'B',
+        explanation: 'Audioscript: "...which not only illuminate the perimeter but also safeguard nocturnal wildlife habitats."'
+      },
+      {
+        id: 'bc-p2-q9',
+        number: 9,
+        type: 'multiple-choice',
+        prompt: 'The adventure playground was relocated because:',
+        options: [
+          'A. The northern lawn receives more direct sunlight',
+          'B. The previous location was too close to traffic hazards',
+          'C. The equipment needed softer turf surfacing'
+        ],
+        correctAnswer: 'B',
+        explanation: 'Audioscript: "...moved away from the main vehicular entrance... where children can play safely without traffic interference."'
+      },
+      {
+        id: 'bc-p2-q10',
+        number: 10,
+        type: 'multiple-choice',
+        prompt: 'What condition is required when using the community herb garden?',
+        options: [
+          'A. Residents must sign an annual permit',
+          'B. Tools must be returned to the shed by 6:00 PM',
+          'C. Plants can only be collected during weekends'
+        ],
+        correctAnswer: 'B',
+        explanation: 'Audioscript: "...provided they replace tools in the storage shed by 6:00 PM."'
+      },
+      {
+        id: 'bc-p2-q11',
+        number: 11,
+        type: 'multiple-choice',
+        prompt: 'Cyclists using Riverdale Park are required to:',
+        options: [
+          'A. Wear high-visibility helmets at all times',
+          'B. Keep exclusively to designated paved paths',
+          'C. Dismount when encountering canine walkers'
+        ],
+        correctAnswer: 'B',
+        explanation: 'Audioscript: "...cycling is strictly restricted to designated tarmac lanes to prevent accidents..."'
+      }
+    ]
+  },
+
+  // --- IELTS-style Practice Part 3: Academic Discussion (Table & Multiple Choice) ---
+  {
+    id: 'practice-p3-renewable-energy',
+    sourceId: 'src-ielts-style-practice',
+    sectionNumber: 3,
+    title: 'IELTS-Style Practice: Offshore Wind Farm Project Review',
+    context: 'Two undergraduate engineering students, Clara and Liam, discuss their joint case study on North Sea offshore wind turbines with their academic supervisor, Dr. Harrison.',
+    instructions: 'Choose the correct letter, A, B, or C; or fill in the blank with NO MORE THAN TWO WORDS.',
+    duration: 360,
+    narratorVoice: 'en-GB',
+    verificationStatus: 'verified',
+    sourceNotice: 'Bài luyện tập mô phỏng chuẩn format IELTS Academic Part 3. Audioscript và câu hỏi được đồng bộ chặt chẽ để kiểm tra kỹ năng nghe học thuật.',
+    audioSources: [
+      {
+        label: 'Giọng đọc chuẩn (Browser TTS – practice fallback)',
+        url: 'tts-synthetic-practice',
+        isSynthetic: true
+      }
+    ],
+    transcript: `DR HARRISON: Good afternoon, Clara, Liam. Let's look over your presentation slides for tomorrow's seminar on the Hornsea offshore wind project. Where did you encounter the most difficulty?
+CLARA: Initially, we struggled to find reliable statistics on foundation manufacturing costs. Most industry reports combine turbine assembly and maritime installation under one umbrella budget. [Q12]
+LIAM: Yes, but once we cross-referenced Danish university publications, we isolated the concrete seabed gravity base expenses clearly.
+DR HARRISON: Excellent. And what about your analysis of acoustic disturbance to marine mammals during pile driving? [Q13]
+CLARA: That was fascinating. The engineering consortium deployed air bubble curtains around the drilling rigs, which dampened underwater sound waves by nearly fifteen decibels. [Q14]
+LIAM: We also found that seal populations returned to their usual foraging routes within three weeks of construction finishing, which contradicted earlier fears of long-term habitat abandonment. [Q15]
+DR HARRISON: Very thorough. Now make sure your final conclusion doesn't just praise the output figures. You need to address transmission cable losses over long distances to the national grid. [Q16]`,
+    questions: [
+      {
+        id: 'prac-p3-q12',
+        number: 12,
+        type: 'multiple-choice',
+        prompt: 'Why was data gathering difficult at the beginning of their research?',
+        options: [
+          'A. University databases lacked offshore engineering journals',
+          'B. Commercial reports combined distinct cost categories together',
+          'C. Danish turbine manufacturers refused to share production specs'
+        ],
+        correctAnswer: 'B',
+        explanation: 'Audioscript: "Most industry reports combine turbine assembly and maritime installation under one umbrella budget."'
+      },
+      {
+        id: 'prac-p3-q13',
+        number: 13,
+        type: 'fill-blank',
+        prompt: 'Specific foundation type analyzed: [ 13 ] base',
+        correctAnswer: 'gravity',
+        acceptableAnswers: ['gravity base', 'concrete seabed gravity'],
+        explanation: 'Audioscript: "...we isolated the concrete seabed gravity base expenses clearly."'
+      },
+      {
+        id: 'prac-p3-q14',
+        number: 14,
+        type: 'fill-blank',
+        prompt: 'Sound-dampening technology used: air [ 14 ] curtains',
+        correctAnswer: 'bubble',
+        acceptableAnswers: ['bubbles', 'bubble curtains'],
+        explanation: 'Audioscript: "The engineering consortium deployed air bubble curtains around the drilling rigs..."'
+      },
+      {
+        id: 'prac-p3-q15',
+        number: 15,
+        type: 'fill-blank',
+        prompt: 'Number of weeks for seals to resume foraging: [ 15 ] weeks',
+        correctAnswer: '3',
+        acceptableAnswers: ['three', '3 weeks'],
+        explanation: 'Audioscript: "...seal populations returned to their usual foraging routes within three weeks..."'
+      },
+      {
+        id: 'prac-p3-q16',
+        number: 16,
+        type: 'multiple-choice',
+        prompt: 'Dr. Harrison advises the students that their conclusion must address:',
+        options: [
+          'A. Power losses during long-distance cable transmission',
+          'B. The political dispute over marine territorial borders',
+          'C. Routine turbine maintenance schedules in winter'
+        ],
+        correctAnswer: 'A',
+        explanation: 'Audioscript: "You need to address transmission cable losses over long distances to the national grid."'
+      }
+    ]
+  },
+
+  // --- IELTS-style Practice Part 4: Academic Monologue (Summary / Sentence Completion) ---
+  {
+    id: 'practice-p4-microplastics',
+    sourceId: 'src-ielts-style-practice',
+    sectionNumber: 4,
+    title: 'IELTS-Style Practice: Microplastics in Deep-Sea Sediments',
+    context: 'A marine biology lecturer discusses recent oceanographic research concerning the distribution and ecological hazards of synthetic microfibers in benthic trenches.',
+    instructions: 'Complete the sentences below. Write NO MORE THAN TWO WORDS for each answer.',
+    duration: 380,
+    narratorVoice: 'en-US',
+    verificationStatus: 'verified',
+    sourceNotice: 'Bài thuyết trình học thuật chuẩn Part 4 IELTS Academic. Giọng đọc mô phỏng rõ ràng, kèm giải thích chi tiết cho từng bẫy thông tin (distractors).',
+    audioSources: [
+      {
+        label: 'Giọng đọc chuẩn (Browser TTS – practice fallback)',
+        url: 'tts-synthetic-practice',
+        isSynthetic: true
+      }
+    ],
+    transcript: `LECTURER: In today's seminar, we examine anthropogenic pollutants in remote oceanic ecosystems. Until recently, oceanographers assumed buoyant synthetic polymers would remain primarily in surface gyres or along coastal shorelines. However, deep-submergence sampling has revealed dense deposits of microfibers resting within abyssal trenches at depths exceeding 6,000 meters. [Q17]
+These microfibers originate predominantly from synthetic clothing shed during domestic laundry cycles. Because conventional wastewater treatment facilities lack fine filtration membranes, millions of fibers bypass filtration into river deltas daily. [Q18]
+Once in the ocean, dense microbial biofilms adhere to the plastic surfaces. This process, known as biofouling, increases their overall density, accelerating their descent toward the seabed. [Q19]
+Upon reaching benthic sediments, microplastics are ingested by bottom-dwelling detritivores, such as sea cucumbers and amphipods. These synthetic particles disrupt digestive enzymes and leach toxic plasticizers into benthic food webs. [Q20]`,
+    questions: [
+      {
+        id: 'prac-p4-q17',
+        number: 17,
+        type: 'fill-blank',
+        prompt: 'Microfibers have been detected in oceanic trenches below [ 17 ] meters.',
+        correctAnswer: '6,000',
+        acceptableAnswers: ['6000', '6,000 meters', 'six thousand'],
+        explanation: 'Audioscript: "...resting within abyssal trenches at depths exceeding 6,000 meters."'
+      },
+      {
+        id: 'prac-p4-q18',
+        number: 18,
+        type: 'fill-blank',
+        prompt: 'Primary source of synthetic fibers: domestic [ 18 ] cycles.',
+        correctAnswer: 'laundry',
+        acceptableAnswers: ['washing', 'laundry cycles'],
+        explanation: 'Audioscript: "...originate predominantly from synthetic clothing shed during domestic laundry cycles."'
+      },
+      {
+        id: 'prac-p4-q19',
+        number: 19,
+        type: 'fill-blank',
+        prompt: 'Process increasing microfiber density and sinking speed: [ 19 ].',
+        correctAnswer: 'biofouling',
+        acceptableAnswers: ['bio-fouling'],
+        explanation: 'Audioscript: "This process, known as biofouling, increases their overall density..."'
+      },
+      {
+        id: 'prac-p4-q20',
+        number: 20,
+        type: 'fill-blank',
+        prompt: 'Chemicals that leach into food webs from ingested particles: toxic [ 20 ].',
+        correctAnswer: 'plasticizers',
+        acceptableAnswers: ['plasticiser', 'plasticisers', 'plasticizer'],
+        explanation: 'Audioscript: "...disrupt digestive enzymes and leach toxic plasticizers into benthic food webs."'
+      }
+    ]
+  },
+
+  // --- Cambridge 12 User Reference Test 5 Section 1 (Classified as User Reference, Audio Unavailable) ---
+  {
+    id: 'cam12-t5-s1',
+    sourceId: 'src-cam12-listening-local',
+    sectionNumber: 1,
+    title: 'Cambridge 12 Test 5 - Part 1: Family Excursions (User Local Reference)',
+    context: 'A conversation between a tourist customer and a travel centre employee discussing family excursion packages.',
     instructions: 'Complete the notes below. Write ONE WORD AND/OR A NUMBER for each answer.',
+    duration: 330,
+    narratorVoice: 'en-GB',
+    verificationStatus: 'audio-unavailable',
+    sourceNotice: 'Học liệu tham khảo từ tài liệu cá nhân của người học. Audio gốc không có sẵn trên web; các liên kết mirror trôi nổi không được xác thực đã bị gỡ bỏ để đảm bảo tính chính xác.',
+    audioSources: [
+      {
+        label: 'Giọng đọc mô phỏng (Browser TTS – practice fallback)',
+        url: 'tts-synthetic-practice',
+        isSynthetic: true
+      }
+    ],
     transcript: `TC EMPLOYEE: Hi. Can I help you?
 VISITOR: I'd like to find out if you have any excursions suitable for families.
 TC EMPLOYEE: Sure. How about taking your family for a cruise? We have a steamship that takes passengers out several times a day – it's over 100 years old.
@@ -57,7 +454,7 @@ VISITOR: Yeah. So what sort of prices are we looking at here?
 TC EMPLOYEE: Let's see, that'd be one adult and one child for the cruise with farm tour, that's $117, and an adult and a child for the cruise only so that's $214 dollars altogether. Oh, wait a minute, how old did you say your daughter was?
 VISITOR: Fifteen.
 TC EMPLOYEE: Then I'm afraid it's $267 because she has to pay the adult fare, which is $75 instead of the child fare which is $22 – sorry about that. [Q10]
-VISITOR: That's OK. Er, so how do ...`,
+VISITOR: That's OK.`,
     questions: [
       {
         id: 'c12-t5-q1',
@@ -66,7 +463,7 @@ VISITOR: That's OK. Er, so how do ...`,
         prompt: 'Cruise on a lake: Can take photos of the [ 1 ] that surround the lake',
         correctAnswer: 'mountains',
         acceptableAnswers: ['mountain', 'the mountains'],
-        explanation: 'Audioscript: "And don\'t forget to take pictures of the mountains. They\'re all around you when you\'re on the boat..."',
+        explanation: 'Audioscript: "And don\'t forget to take pictures of the mountains."',
         transcriptTimestamp: 28
       },
       {
@@ -76,7 +473,7 @@ VISITOR: That's OK. Er, so how do ...`,
         prompt: 'Farm visit: Visit can include a 40-minute ride on a [ 2 ]',
         correctAnswer: 'horse',
         acceptableAnswers: ['a horse'],
-        explanation: 'Audioscript: "Well, there\'s also a 40-minute trek round the farm on a horse, if he wants."',
+        explanation: 'Audioscript: "...there\'s also a 40-minute trek round the farm on a horse..."',
         transcriptTimestamp: 62
       },
       {
@@ -86,7 +483,7 @@ VISITOR: That's OK. Er, so how do ...`,
         prompt: 'Visitors can walk in the farm’s [ 3 ] by the lake',
         correctAnswer: 'gardens',
         acceptableAnswers: ['garden', 'beautiful gardens'],
-        explanation: 'Audioscript: "There are some very beautiful gardens along the side of the lake which also belong to the farm..."',
+        explanation: 'Audioscript: "There are some very beautiful gardens along the side of the lake..."',
         transcriptTimestamp: 85
       },
       {
@@ -95,382 +492,69 @@ VISITOR: That's OK. Er, so how do ...`,
         type: 'fill-blank',
         prompt: '[ 4 ] is available at extra cost',
         correctAnswer: 'lunch',
-        acceptableAnswers: ['meals', 'lunch meal'],
-        explanation: 'Audioscript: "And can we get lunch there? You can, and it\'s very good, though it\'s not included in the basic cost."',
+        acceptableAnswers: ['meals'],
+        explanation: 'Audioscript: "And can we get lunch there? You can... though it\'s not included in the basic cost."',
         transcriptTimestamp: 104
       },
       {
         id: 'c12-t5-q5',
         number: 5,
         type: 'fill-blank',
-        prompt: 'Cycling trips: A [ 5 ] is provided',
+        prompt: 'Cycling trip: Visitors receive a [ 5 ] with their cruise ticket',
         correctAnswer: 'map',
-        acceptableAnswers: ['trail map', 'a map'],
-        explanation: 'Audioscript: "They\'ll give you a map when you get your ticket for the cruise – there\'s no extra charge."',
-        transcriptTimestamp: 132
+        acceptableAnswers: ['a map'],
+        explanation: 'Audioscript: "They\'ll give you a map when you get your ticket for the cruise..."',
+        transcriptTimestamp: 135
       },
       {
         id: 'c12-t5-q6',
         number: 6,
         type: 'fill-blank',
-        prompt: 'Only suitable for cyclists who have some [ 6 ]',
+        prompt: 'The Back Road trail requires cyclists to have [ 6 ]',
         correctAnswer: 'experience',
-        acceptableAnswers: ['cycling experience'],
-        explanation: 'Audioscript: "It wouldn\'t be suitable for your seven-year-old. It needs someone who\'s got a bit more experience."',
-        transcriptTimestamp: 155
+        acceptableAnswers: ['more experience'],
+        explanation: 'Audioscript: "It needs someone who\'s got a bit more experience."',
+        transcriptTimestamp: 160
       },
       {
         id: 'c12-t5-q7',
         number: 7,
         type: 'fill-blank',
-        prompt: 'Bikes can be hired from [ 7 ] (near the Cruise Ship terminal)',
+        prompt: 'Bike hire shop name: [ 7 ]',
         correctAnswer: 'Ratchesons',
-        acceptableAnswers: ['ratchesons', 'Ratcheson'],
-        explanation: 'Audioscript: "It\'s called Ratchesons... R-A-T-C-H-E-S-O-N-S."',
-        transcriptTimestamp: 182
+        acceptableAnswers: ['ratchesons'],
+        explanation: 'Audioscript: "It\'s called Ratchesons. R-A-T-C-H-E-S-O-N-S."',
+        transcriptTimestamp: 190
       },
       {
         id: 'c12-t5-q8',
         number: 8,
         type: 'fill-blank',
-        prompt: 'Cyclists need: a repair kit, food and drink, a [ 8 ] (can be hired)',
+        prompt: 'Must rent a [ 8 ] from the cycle shop',
         correctAnswer: 'helmet',
-        acceptableAnswers: ['a helmet', 'bike helmet'],
-        explanation: 'Audioscript: "And I assume I can rent a helmet from the bike place? Sure, you should definitely get that."',
-        transcriptTimestamp: 212
+        acceptableAnswers: ['a helmet', 'helmets'],
+        explanation: 'Audioscript: "And I assume I can rent a helmet from the bike place? Sure..."',
+        transcriptTimestamp: 215
       },
       {
         id: 'c12-t5-q9',
         number: 9,
         type: 'fill-blank',
-        prompt: 'There are no [ 9 ] or accommodation in the area',
-        correctAnswer: 'shops',
-        acceptableAnswers: ['shop', 'stores'],
-        explanation: 'Audioscript: "...you want to be well prepared because it\'s very remote – you won\'t see any shops round there..."',
+        prompt: 'Must return in time for the last [ 9 ]',
+        correctAnswer: 'boat',
+        acceptableAnswers: ['the boat'],
+        explanation: 'Audioscript: "...so you need to get back in time for the last boat."',
         transcriptTimestamp: 236
       },
       {
         id: 'c12-t5-q10',
         number: 10,
         type: 'fill-blank',
-        prompt: 'Total cost for whole family of cruise and farm visit: $ [ 10 ]',
+        prompt: 'Total cost for family: $ [ 10 ]',
         correctAnswer: '267',
         acceptableAnswers: ['267 dollars', '$267'],
         explanation: 'Audioscript: "Then I\'m afraid it\'s $267 because she has to pay the adult fare..."',
         transcriptTimestamp: 275
-      }
-    ]
-  },
-  {
-    id: 'cam12-t5-s2',
-    sectionNumber: 2,
-    title: 'Cambridge 12 Test 5 - Section 2: Talk to New Kitchen Assistants',
-    context: 'The manager of a busy restaurant, Joy Parkins, gives an orientation talk to newly hired kitchen assistants regarding duties, workplace safety, and team responsibilities.',
-    duration: 350,
-    narratorVoice: 'en-GB',
-    audioSources: [
-      {
-        label: 'Máy chủ 1: Giọng đọc Cambridge chuẩn (Speech Synthesis HD)',
-        url: 'tts-built-in'
-      },
-      {
-        label: 'Máy chủ 2: Audio Stream Trực tuyến (Public Mirror)',
-        url: 'https://ia800204.us.archive.org/11/items/ielts-listening-sample-test-01/ielts-listening-p2.mp3'
-      }
-    ],
-    instructions: 'Choose the correct letter, A, B, or C for 11–14; choose TWO letters for 15–16; and match restaurant staff to responsibilities for 17–20.',
-    transcript: `JOY PARKINS: Good morning everyone. My name's Joy Parkins and I'm the restaurant manager. And I understand that none of you've had any previous experience as kitchen assistants? Well, you might be feeling a bit nervous now, but most of our kitchen assistants say they enjoy the work. OK, they might get shouted at sometimes, but it's nothing personal, and they're pleased that they have so many different things to do, which means they never get bored. [Q11] And I'll tell you straightaway that if you do well, we might think about moving you up and giving you some more responsibility.
-
-Right, well, you've all shown up on time, which is an excellent start. Now I'm glad to see none of you have unsuitable footwear, so that's good – you need to be careful as the floors can get very wet and slippery. Those of you with long hair have got it well out of the way, but some of you'll need to remove your rings and bracelets – just put them somewhere safe for today, and remember to leave them at home tomorrow, as they can be a safety hazard. [Q12]
-
-Now it's going to be a busy day for you all today – we don't have any tables free for this evening, and only a few for lunch. [Q13] Fortunately we've got our Head Chef back – he was away on holiday all last week which meant the other chefs had extra work. Now, I'll tell you a bit more about the job in a minute but first, some general regulations. For all of you, whatever your age, there's some equipment you mustn't use until you've been properly trained, like the waste disposal system for example, for health and safety reasons. Then I think there are two of you here who are under 18 – that's Emma and Jake, isn't it? Right, so for you two, the meat slicer is out of bounds. [Q14] And of course none of you are allowed to use the electric mixer until you've been shown how it works.
-
-Now you may have heard that this can be a stressful job, and I have to say that can be true. You'll be working an eight-hour day for the first week, though you'll have the chance to do overtime after that as well if you want to. But however long the hours are, you'll get a break in the middle. What you will find is that you're on your feet all day long, lifting and carrying, so if you're not fit now you soon will be! [Q15/16] You'll find you don't have much chance to take it easy – when someone tells you to do something you need to do it straightaway [Q15/16] – but at least we do have a very efficient air conditioning system compared with some kitchens.
-
-Now let me tell you about some of the people you need to know. So as I said, I'm Joy Parkins and I decide who does what during the day and how long they work for. [Q17 - timetables] I'll be trying to get you to work with as many different people in the kitchen as possible, so that you learn while you're on the job. One person whose name you must remember is David Field. If you injure yourself at all, even if it's really minor, you must report to him and he'll make sure the incident is recorded and you get the appropriate treatment. He's trained to give basic treatment to staff himself, or he'll send you off somewhere else if necessary. [Q18 - first aid] Then there's Dexter Wills – he's the person you need to see if you smash a plate or something like that. Don't just leave it and hope no one will notice – it's really important to get things noted and replaced or there could be problems later. [Q19 - breakages] And finally, there's Mike Smith. He's the member of staff who takes care of all the stores of perishables, so if you notice we're getting low in flour or sugar or something, make sure you let him know so he can put in an order. [Q20 - food stocks]`,
-    questions: [
-      {
-        id: 'c12-t5-q11',
-        number: 11,
-        type: 'multiple-choice',
-        prompt: 'According to the manager, what do most people like about the job of kitchen assistant?',
-        options: [
-          'A. the variety of work',
-          'B. the friendly atmosphere',
-          'C. the opportunities for promotion'
-        ],
-        correctAnswer: 'A',
-        explanation: 'Audioscript: "...they\'re pleased that they have so many different things to do, which means they never get bored."'
-      },
-      {
-        id: 'c12-t5-q12',
-        number: 12,
-        type: 'multiple-choice',
-        prompt: 'The manager is concerned about some of the new staff’s',
-        options: [
-          'A. jewellery',
-          'B. hair styles',
-          'C. shoes'
-        ],
-        correctAnswer: 'A',
-        explanation: 'Audioscript: "...some of you\'ll need to remove your rings and bracelets... as they can be a safety hazard."'
-      },
-      {
-        id: 'c12-t5-q13',
-        number: 13,
-        type: 'multiple-choice',
-        prompt: 'The manager says that the day is likely to be busy for kitchen staff because',
-        options: [
-          'A. it is a public holiday',
-          'B. the head chef is absent',
-          'C. the restaurant is almost fully booked'
-        ],
-        correctAnswer: 'C',
-        explanation: 'Audioscript: "...we don\'t have any tables free for this evening, and only a few for lunch."'
-      },
-      {
-        id: 'c12-t5-q14',
-        number: 14,
-        type: 'multiple-choice',
-        prompt: 'Only kitchen staff who are 18 or older are allowed to use',
-        options: [
-          'A. the waste disposal unit',
-          'B. the electric mixer',
-          'C. the meat slicer'
-        ],
-        correctAnswer: 'C',
-        explanation: 'Audioscript: "Then I think there are two of you here who are under 18... Right, so for you two, the meat slicer is out of bounds."'
-      },
-      {
-        id: 'c12-t5-q15',
-        number: 15,
-        type: 'multiple-choice',
-        prompt: 'Questions 15 and 16 (Choose TWO letters A–E). According to the manager, which TWO things can make the job stressful? (Choice 1)',
-        options: [
-          'A. They have to follow orders immediately',
-          'B. The kitchen gets very hot',
-          'C. They may not be able to take a break',
-          'D. They have to do overtime',
-          'E. The work is physically demanding'
-        ],
-        correctAnswer: 'A',
-        explanation: 'Audioscript: "when someone tells you to do something you need to do it straightaway" [A] and "you\'re on your feet all day long, lifting and carrying" [E].'
-      },
-      {
-        id: 'c12-t5-q16',
-        number: 16,
-        type: 'multiple-choice',
-        prompt: 'Questions 15 and 16 (Choice 2):',
-        options: [
-          'A. They have to follow orders immediately',
-          'B. The kitchen gets very hot',
-          'C. They may not be able to take a break',
-          'D. They have to do overtime',
-          'E. The work is physically demanding'
-        ],
-        correctAnswer: 'E',
-        explanation: 'Answer is E (physically demanding) or A (follow orders immediately) in either order.'
-      },
-      {
-        id: 'c12-t5-q17',
-        number: 17,
-        type: 'multiple-choice',
-        prompt: 'Responsibility of Joy Parkins (Restaurant Manager):',
-        options: [
-          'A. training courses',
-          'B. food stocks',
-          'C. first aid',
-          'D. breakages',
-          'E. staff discounts',
-          'F. timetables'
-        ],
-        correctAnswer: 'F',
-        explanation: 'Audioscript: "I\'m Joy Parkins and I decide who does what during the day and how long they work for." -> F (timetables).'
-      },
-      {
-        id: 'c12-t5-q18',
-        number: 18,
-        type: 'multiple-choice',
-        prompt: 'Responsibility of David Field:',
-        options: [
-          'A. training courses',
-          'B. food stocks',
-          'C. first aid',
-          'D. breakages',
-          'E. staff discounts',
-          'F. timetables'
-        ],
-        correctAnswer: 'C',
-        explanation: 'Audioscript: "If you injure yourself at all... report to him... He\'s trained to give basic treatment" -> C (first aid).'
-      },
-      {
-        id: 'c12-t5-q19',
-        number: 19,
-        type: 'multiple-choice',
-        prompt: 'Responsibility of Dexter Wills:',
-        options: [
-          'A. training courses',
-          'B. food stocks',
-          'C. first aid',
-          'D. breakages',
-          'E. staff discounts',
-          'F. timetables'
-        ],
-        correctAnswer: 'D',
-        explanation: 'Audioscript: "Then there\'s Dexter Wills – he\'s the person you need to see if you smash a plate..." -> D (breakages).'
-      },
-      {
-        id: 'c12-t5-q20',
-        number: 20,
-        type: 'multiple-choice',
-        prompt: 'Responsibility of Mike Smith:',
-        options: [
-          'A. training courses',
-          'B. food stocks',
-          'C. first aid',
-          'D. breakages',
-          'E. staff discounts',
-          'F. timetables'
-        ],
-        correctAnswer: 'B',
-        explanation: 'Audioscript: "Mike Smith... takes care of all the stores of perishables... low in flour or sugar..." -> B (food stocks).'
-      }
-    ]
-  },
-  {
-    id: 'cam12-t8-s1',
-    sectionNumber: 3,
-    title: 'Cambridge 12 Test 8 - Section 1: Cycle Tour Leader Applicant Enquiry',
-    context: 'Margaret Smith enquires with Bob at Pembroke Cycling Holidays about becoming a cycle tour leader for summer expeditions.',
-    duration: 320,
-    narratorVoice: 'en-GB',
-    audioSources: [
-      {
-        label: 'Máy chủ 1: Giọng đọc Cambridge chuẩn (Speech Synthesis HD)',
-        url: 'tts-built-in'
-      },
-      {
-        label: 'Máy chủ 2: Audio Stream Trực tuyến (Public Mirror)',
-        url: 'https://ia600204.us.archive.org/11/items/ielts-listening-sample-test-01/ielts-listening-p3.mp3'
-      }
-    ],
-    instructions: 'Complete the notes below. Write ONE WORD AND/OR A NUMBER for each answer.',
-    transcript: `BOB: Hello, Pembroke Cycling Holidays, Bob speaking.
-MARGARET: Oh hello. I've seen your advert for people to lead cycle trips. Are you the right person to speak to?
-BOB: Yes, I am. Could I have your name, please?
-MARGARET: It's Margaret Smith.
-BOB: Are you looking for a permanent job, Margaret?
-MARGARET: No, temporary. I've got a permanent job starting in a few months' time, and I want to do something else until then. [Q1]
-BOB: What work do you do?
-MARGARET: This will probably sound crazy – I used to be a lawyer, and then I made a complete career change and I'm going to be a doctor. I've just finished my training. [Q2]
-BOB: Right. And have you had any experience of leading cycle trips?
-MARGARET: Yes, I've led several bike tours in Africa. The trip to India that I had arranged to lead next month has now been cancelled, so when I saw you were advertising for tour leaders, I decided to apply. [Q3]
-BOB: OK. Now we normally have two or three leaders on a trip, depending on the size of the group. Some tours are for very experienced cyclists, but we've got a tour coming up soon in Spain, which is proving so popular we need an additional leader. It's a cycling holiday for families. Would that suit you?
-MARGARET: It certainly would. I enjoy working with children, and I probably need some more experience before I go on a really challenging trip.
-BOB: That tour includes several teenagers: have you worked with that age group before?
-MARGARET: Yes, I'm a volunteer worker in a youth club, where I help people to improve their cycling skills. Before that I helped out in a cycling club where I taught beginners. [Q4]
-BOB: Well that's great. Now the trip I mentioned is just for a fortnight, but there might be the possibility of leading other tours after that. Would that fit in with your plans?
-MARGARET: That'd be fine. I'll be free for five months. My job is due to start on October the 2nd, and I'm available from May the 1st until late September. [Q5]
-BOB: Good. Now is there anything I need to know about the food you eat? We usually have one or two people in the group who don't eat meat, or have some sort of food allergy, so we're always very careful about that.
-MARGARET: Yes, I'm allergic to cheese. Would that be a problem? [Q6]
-BOB: No, as long as we have enough notice, we can deal with that.
-MARGARET: That's great. Could you send the application form to 27 Arbuthnot Place – A-R-B-U-T-H-N-O-T – Place, Dumfries. [Q7]
-BOB: And what's the postcode, please?
-MARGARET: DG7 4PH. [Q8]
-BOB: Got that. If you could return the application form by Friday this week, we can interview you on Tuesday next week. Say half past two. Would that be possible for you? [Q9]
-MARGARET: Yes, it's fine.
-BOB: And at the interview we'd like to find out about your experience of being a tour guide, so could you prepare a ten-minute talk about that, please? You don't need slides or any complicated equipment – just some notes. [Q10]
-MARGARET: Right. I'll start thinking about that straightaway!`,
-    questions: [
-      {
-        id: 'c12-t8-q1',
-        number: 1,
-        type: 'fill-blank',
-        prompt: 'Applicant wants a [ 1 ] job',
-        correctAnswer: 'temporary',
-        acceptableAnswers: ['a temporary'],
-        explanation: 'Audioscript: "No, temporary. I\'ve got a permanent job starting in a few months\' time..."'
-      },
-      {
-        id: 'c12-t8-q2',
-        number: 2,
-        type: 'fill-blank',
-        prompt: 'Will soon start work as a [ 2 ]',
-        correctAnswer: 'doctor',
-        acceptableAnswers: ['a doctor'],
-        explanation: 'Audioscript: "...and I\'m going to be a doctor. I\'ve just finished my training."'
-      },
-      {
-        id: 'c12-t8-q3',
-        number: 3,
-        type: 'fill-blank',
-        prompt: 'Has led cycle trips in [ 3 ]',
-        correctAnswer: 'Africa',
-        acceptableAnswers: ['africa'],
-        explanation: 'Audioscript: "Yes, I\'ve led several bike tours in Africa."'
-      },
-      {
-        id: 'c12-t8-q4',
-        number: 4,
-        type: 'fill-blank',
-        prompt: 'Is currently doing voluntary work with members of a [ 4 ] club',
-        correctAnswer: 'youth',
-        acceptableAnswers: ['a youth'],
-        explanation: 'Audioscript: "Yes, I\'m a volunteer worker in a youth club..."'
-      },
-      {
-        id: 'c12-t8-q5',
-        number: 5,
-        type: 'fill-blank',
-        prompt: 'Available for five months from the 1st of [ 5 ]',
-        correctAnswer: 'May',
-        acceptableAnswers: ['may', '1st May'],
-        explanation: 'Audioscript: "...and I\'m available from May the 1st until late September."'
-      },
-      {
-        id: 'c12-t8-q6',
-        number: 6,
-        type: 'fill-blank',
-        prompt: 'Can’t eat [ 6 ]',
-        correctAnswer: 'cheese',
-        acceptableAnswers: ['dairy cheese'],
-        explanation: 'Audioscript: "Yes, I\'m allergic to cheese. Would that be a problem?"'
-      },
-      {
-        id: 'c12-t8-q7',
-        number: 7,
-        type: 'fill-blank',
-        prompt: 'Address: 27 [ 7 ] Place, Dumfries',
-        correctAnswer: 'Arbuthnot',
-        acceptableAnswers: ['arbuthnot'],
-        explanation: 'Audioscript: "Could you send it to 27 Arbuthnot Place – A-R-B-U-T-H-N-O-T – Place..."'
-      },
-      {
-        id: 'c12-t8-q8',
-        number: 8,
-        type: 'fill-blank',
-        prompt: 'Postcode: [ 8 ]',
-        correctAnswer: 'DG7 4PH',
-        acceptableAnswers: ['dg7 4ph', 'DG74PH'],
-        explanation: 'Audioscript: "DG7 4PH."'
-      },
-      {
-        id: 'c12-t8-q9',
-        number: 9,
-        type: 'fill-blank',
-        prompt: 'Interview at 2.30 pm on [ 9 ]',
-        correctAnswer: 'Tuesday',
-        acceptableAnswers: ['tuesday'],
-        explanation: 'Audioscript: "...we can interview you on Tuesday next week. Say half past two."'
-      },
-      {
-        id: 'c12-t8-q10',
-        number: 10,
-        type: 'fill-blank',
-        prompt: 'Will plan a short 10-minute [ 10 ] about being a tour guide',
-        correctAnswer: 'talk',
-        acceptableAnswers: ['presentation', 'talk/presentation'],
-        explanation: 'Audioscript: "...so could you prepare a ten-minute talk about that, please?"'
       }
     ]
   }

@@ -1,467 +1,344 @@
 import React, { useState, useEffect } from 'react';
 import { GRAMMAR_TOPICS } from '../data/grammarData';
-import { GrammarTopic } from '../types';
-import { CheckCircle2, XCircle, Plus, Trash2, ArrowRight, BookOpen, Layers, Check, HelpCircle } from 'lucide-react';
-
-interface CustomGrammarNote {
-  id: string;
-  title: string;
-  formula: string;
-  notes: string;
-  exampleBand8: string;
-  createdAt: string;
-}
+import { GrammarCategory, GrammarProgressStatus } from '../types';
+import { loadGrammarProgress, saveGrammarProgress } from '../utils/db';
+import { CheckCircle2, Circle, Clock, Check, X, ArrowRight, BookOpen, Layers } from 'lucide-react';
 
 export const GrammarView: React.FC = () => {
   const [selectedTopicId, setSelectedTopicId] = useState<string>(GRAMMAR_TOPICS[0].id);
+  const [categoryFilter, setCategoryFilter] = useState<GrammarCategory | 'all'>('all');
+  const [progressMap, setProgressMap] = useState<Record<string, GrammarProgressStatus>>({});
+
+  // Interactive exercise state
   const [exerciseAnswers, setExerciseAnswers] = useState<Record<string, string>>({});
-  const [exerciseResults, setExerciseResults] = useState<Record<string, boolean>>({});
-  const [showExplanation, setShowExplanation] = useState<Record<string, boolean>>({});
-
-  // Custom grammar notes state (local storage)
-  const [customNotes, setCustomNotes] = useState<CustomGrammarNote[]>(() => {
-    try {
-      const saved = localStorage.getItem('ielts_custom_grammar_notes');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  const [isAddingNote, setIsAddingNote] = useState<boolean>(false);
-  const [newTitle, setNewTitle] = useState('');
-  const [newFormula, setNewFormula] = useState('');
-  const [newNotes, setNewNotes] = useState('');
-  const [newExample, setNewExample] = useState('');
+  const [exerciseChecked, setExerciseChecked] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    try {
-      localStorage.setItem('ielts_custom_grammar_notes', JSON.stringify(customNotes));
-    } catch {
-      // Safe fallback
-    }
-  }, [customNotes]);
+    loadGrammarProgress().then(res => {
+      setProgressMap(res || {});
+    });
+  }, []);
 
   const currentTopic = GRAMMAR_TOPICS.find(t => t.id === selectedTopicId) || GRAMMAR_TOPICS[0];
 
-  const handleCheckAnswer = (exerciseId: string, correctAnswer: string) => {
-    const userAns = (exerciseAnswers[exerciseId] || '').trim().toLowerCase();
-    const correctAns = correctAnswer.trim().toLowerCase();
+  const filteredTopics = GRAMMAR_TOPICS.filter(t => {
+    if (categoryFilter !== 'all' && t.category !== categoryFilter) return false;
+    return true;
+  });
 
-    // Check clean punctuation match
-    const cleanUser = userAns.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '').trim();
-    const cleanTarget = correctAns.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '').trim();
-
-    const isMatch = cleanUser === cleanTarget || userAns === correctAns;
-
-    setExerciseResults(prev => ({
-      ...prev,
-      [exerciseId]: isMatch
-    }));
-    setShowExplanation(prev => ({
-      ...prev,
-      [exerciseId]: true
-    }));
+  const handleUpdateStatus = (topicId: string, status: GrammarProgressStatus) => {
+    const updated = { ...progressMap, [topicId]: status };
+    setProgressMap(updated);
+    saveGrammarProgress(topicId, status);
   };
 
-  const handleSaveCustomNote = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim()) return;
-
-    const newNote: CustomGrammarNote = {
-      id: `custom-g-${Date.now()}`,
-      title: newTitle.trim(),
-      formula: newFormula.trim() || 'Negative Adverbial + Aux + S + V',
-      notes: newNotes.trim() || 'Ghi chú ngữ pháp cá nhân',
-      exampleBand8: newExample.trim() || 'Ví dụ minh họa chuẩn Band 8.0+',
-      createdAt: new Date().toLocaleDateString('vi-VN')
-    };
-
-    setCustomNotes([newNote, ...customNotes]);
-    setNewTitle('');
-    setNewFormula('');
-    setNewNotes('');
-    setNewExample('');
-    setIsAddingNote(false);
+  const handleExerciseChange = (exId: string, val: string) => {
+    setExerciseAnswers(prev => ({ ...prev, [exId]: val }));
   };
 
-  const handleDeleteNote = (id: string) => {
-    setCustomNotes(customNotes.filter(n => n.id !== id));
+  const handleCheckExercise = (exId: string) => {
+    setExerciseChecked(prev => ({ ...prev, [exId]: true }));
+    // If not completed, mark as learning
+    if (!progressMap[currentTopic.id] || progressMap[currentTopic.id] === 'not-started') {
+      handleUpdateStatus(currentTopic.id, 'learning');
+    }
   };
+
+  // Stats
+  const completedCount = Object.values(progressMap).filter(s => s === 'completed').length;
+  const learningCount = Object.values(progressMap).filter(s => s === 'learning').length;
 
   return (
     <div className="space-y-6 pb-16">
-      {/* Editorial Academic Header */}
-      <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs">
+      {/* Header & Progress Stats */}
+      <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-3">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="font-mono text-xs font-bold text-slate-500 uppercase tracking-wider">
-                IELTS WRITING & SPEAKING • BAND CRITERIA GRA
+                GRAMMATICAL RANGE & ACCURACY • PROGRESSION CURRICULUM
               </span>
               <span className="text-slate-300">•</span>
-              <span className="text-xs text-slate-600 font-medium">Cambridge Applied Linguistics</span>
+              <span className="text-xs text-slate-600 font-medium">Từ Nền Tảng (4.0) tới Nâng Cao (7.0+)</span>
             </div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-              Ngữ Pháp Trọng Điểm & Biến Đổi Cú Pháp (Band 7.5 – 8.5)
+              26 Chủ Điểm Ngữ Pháp IELTS Thực Chiến
             </h1>
-            <p className="text-xs text-slate-500 mt-1 max-w-3xl">
-              Nâng cấp tiêu chí <strong>Grammatical Range and Accuracy</strong> bằng cách thay thế các cấu trúc đơn giản (Band 6.0) bằng cấu trúc phức hợp (Đảo ngữ, Câu chẻ, Mệnh đề phân từ, Danh từ hóa).
-            </p>
           </div>
 
-          <button
-            onClick={() => setIsAddingNote(true)}
-            className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Thêm Cấu Trúc Cá Nhân</span>
-          </button>
+          <div className="flex items-center gap-3 text-xs">
+            <div className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded">
+              <span className="text-slate-500">Đã hoàn thành: </span>
+              <span className="font-bold text-slate-900 font-mono">{completedCount} / 26</span>
+            </div>
+            <div className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded">
+              <span className="text-slate-500">Đang học: </span>
+              <span className="font-bold text-slate-900 font-mono">{learningCount}</span>
+            </div>
+          </div>
         </div>
 
-        {/* Structure Selector Tabs */}
-        <div className="mt-5 flex items-center gap-2 overflow-x-auto border-t border-slate-100 pt-4">
-          {GRAMMAR_TOPICS.map((topic) => (
+        {/* Category Filter Tabs */}
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+          {[
+            { id: 'all', label: 'Tất cả 26 bài' },
+            { id: 'foundation', label: '1. Foundation (G01–G06: Band 4.0 - 5.5)' },
+            { id: 'core', label: '2. Core IELTS (G07–G20: Band 6.0 - 7.0)' },
+            { id: 'advanced', label: '3. Advanced (G21–G26: Band 7.5+)' }
+          ].map(tab => (
             <button
-              key={topic.id}
-              onClick={() => setSelectedTopicId(topic.id)}
-              className={`px-3 py-1.5 rounded text-xs font-semibold whitespace-nowrap transition-all cursor-pointer border ${
-                selectedTopicId === topic.id
-                  ? 'bg-slate-900 text-white border-slate-900'
-                  : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
+              key={tab.id}
+              type="button"
+              onClick={() => setCategoryFilter(tab.id as any)}
+              className={`px-3 py-1.5 rounded text-xs font-medium cursor-pointer transition-colors border ${
+                categoryFilter === tab.id
+                  ? 'bg-slate-900 text-white border-slate-900 font-semibold shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
               }`}
             >
-              {topic.title}
+              {tab.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Main Study Workbench */}
+      {/* Main Layout: Left Topics Navigator / Right Active Lesson Content */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left 8 Cols: Formula, Linguistic Matrix & Transformation Exercises */}
-        <div className="lg:col-span-8 space-y-6">
-          {/* Topic Detail Card */}
-          <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs space-y-5">
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold text-slate-500 uppercase">
-                  CẤU TRÚC HỌC THUẬT: {currentTopic.level}
-                </span>
-              </div>
-              <h2 className="text-lg font-bold text-slate-900 mt-1">
-                {currentTopic.title}
-              </h2>
-              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                {currentTopic.concept}
-              </p>
-            </div>
+        {/* Left Topics List */}
+        <div className="lg:col-span-4 bg-white border border-slate-200 rounded-lg p-3 shadow-xs max-h-[750px] overflow-y-auto space-y-1">
+          {filteredTopics.map(topic => {
+            const isSelected = topic.id === currentTopic.id;
+            const status = progressMap[topic.id] || 'not-started';
 
-            {/* Formula Block (Monospace code presentation) */}
-            <div className="bg-slate-900 text-slate-100 rounded-lg p-4 font-mono text-xs border border-slate-800 shadow-inner">
-              <span className="text-slate-400 text-[11px] block uppercase font-sans mb-1 font-bold">
-                Công thức chuẩn cú pháp:
-              </span>
-              <p className="text-amber-400 font-semibold tracking-wide text-sm">
-                {currentTopic.formula}
-              </p>
-            </div>
+            return (
+              <button
+                key={topic.id}
+                type="button"
+                onClick={() => {
+                  setSelectedTopicId(topic.id);
+                  setExerciseChecked({});
+                }}
+                className={`w-full text-left p-2.5 rounded text-xs transition-colors cursor-pointer border flex items-center justify-between gap-2 ${
+                  isSelected
+                    ? 'bg-slate-900 text-white border-slate-900 font-semibold'
+                    : 'bg-white text-slate-800 border-slate-100 hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <span className={`px-1.5 py-0.5 rounded font-mono text-[10px] shrink-0 ${
+                    isSelected ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {topic.code}
+                  </span>
+                  <span className="truncate">{topic.title}</span>
+                </div>
 
-            {/* Key Rules List */}
-            <div className="space-y-2">
-              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
-                Quy tắc biến đổi trọng tâm:
-              </span>
-              <ul className="space-y-1.5 text-xs text-slate-700">
-                {currentTopic.rules.map((rule, rIdx) => (
-                  <li key={rIdx} className="flex items-start gap-2 bg-slate-50 p-2.5 rounded border border-slate-200">
-                    <span className="text-slate-900 font-mono font-bold">•</span>
-                    <span className="font-mono text-slate-900">{rule}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Side-by-Side Comparative Matrix: Band 6 vs Band 8.5 */}
-            <div className="space-y-3 pt-2">
-              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
-                Bảng đối chiếu Band 6.0 vs Band 8.5:
-              </span>
-
-              <div className="space-y-3">
-                {currentTopic.bandComparison.map((comp, cIdx) => (
-                  <div key={cIdx} className="border border-slate-200 rounded-lg overflow-hidden text-xs">
-                    <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-200">
-                      {/* Band 6 Column */}
-                      <div className="p-3 bg-slate-50/70">
-                        <span className="text-[11px] font-bold text-slate-500 font-mono uppercase block mb-1">
-                          Band 6.0 (Câu thông thường)
-                        </span>
-                        <p className="text-slate-700 italic">"{comp.band6}"</p>
-                      </div>
-
-                      {/* Band 8.5 Column */}
-                      <div className="p-3 bg-slate-100/50">
-                        <span className="text-[11px] font-bold text-slate-900 font-mono uppercase block mb-1">
-                          Band 8.5 (Cú pháp học thuật)
-                        </span>
-                        <p className="text-slate-950 font-semibold font-serif-reading text-sm">
-                          "{comp.band8}"
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="p-2.5 bg-white border-t border-slate-200 text-slate-600 text-[11px]">
-                      <strong>Phân tích ngôn ngữ:</strong> {comp.analysis}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Interactive Transformation Laboratory */}
-          <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs space-y-5">
-            <div className="pb-3 border-b border-slate-200 flex items-center justify-between">
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                Thực hành biến đổi câu (Transformation Laboratory)
-              </h3>
-              <span className="text-xs text-slate-500">
-                {currentTopic.exercises.length} bài tập
-              </span>
-            </div>
-
-            <div className="space-y-5">
-              {currentTopic.exercises.map((ex, exIdx) => {
-                const userAns = exerciseAnswers[ex.id] || '';
-                const result = exerciseResults[ex.id];
-                const isChecked = showExplanation[ex.id];
-
-                return (
-                  <div key={ex.id} className="p-4 rounded-lg border border-slate-200 bg-slate-50/50 space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="font-mono text-xs font-bold text-slate-700">
-                        Bài tập {exIdx + 1}:
-                      </span>
-                      {isChecked && (
-                        <span className={`inline-flex items-center gap-1 text-xs font-bold ${result ? 'text-emerald-700' : 'text-rose-700'}`}>
-                          {result ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                          {result ? 'Chính xác!' : 'Chưa đúng chuẩn'}
-                        </span>
-                      )}
-                    </div>
-
-                    <p className="text-xs font-semibold text-slate-900 whitespace-pre-line leading-relaxed">
-                      {ex.question}
-                    </p>
-
-                    {/* Rewrite input or Multiple Choice */}
-                    {ex.type === 'rewrite' || ex.type === 'fill-gap' && !ex.options ? (
-                      <div className="space-y-2">
-                        <textarea
-                          rows={2}
-                          value={userAns}
-                          onChange={(e) => setExerciseAnswers({ ...exerciseAnswers, [ex.id]: e.target.value })}
-                          placeholder="Gõ câu biến đổi hoàn chỉnh của bạn tại đây..."
-                          className="w-full p-2.5 text-xs font-mono rounded border border-slate-300 bg-white focus:outline-none focus:border-slate-800"
-                        />
-                        <button
-                          onClick={() => handleCheckAnswer(ex.id, ex.correctAnswer)}
-                          className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded transition-colors cursor-pointer"
-                        >
-                          Kiểm tra cú pháp
-                        </button>
-                      </div>
-                    ) : ex.options ? (
-                      <div className="space-y-1.5">
-                        {ex.options.map((opt, oIdx) => {
-                          const optKey = opt.split('.')[0]?.trim() || opt;
-                          const isSelected = userAns.toUpperCase() === optKey.toUpperCase() || userAns === opt;
-                          return (
-                            <label
-                              key={oIdx}
-                              className={`flex items-center gap-2.5 p-2 rounded text-xs cursor-pointer border transition-colors ${
-                                isSelected
-                                  ? 'border-slate-800 bg-white font-semibold text-slate-900'
-                                  : 'border-slate-200 hover:bg-white text-slate-700'
-                              }`}
-                            >
-                              <input
-                                type="radio"
-                                name={`ex-${ex.id}`}
-                                checked={isSelected}
-                                onChange={() => {
-                                  setExerciseAnswers({ ...exerciseAnswers, [ex.id]: optKey });
-                                  handleCheckAnswer(ex.id, ex.correctAnswer);
-                                }}
-                                className="text-slate-900 focus:ring-slate-800"
-                              />
-                              <span>{opt}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-
-                    {/* Step-by-step grammatical explanation */}
-                    {isChecked && (
-                      <div className="p-3 bg-white border border-slate-200 rounded text-xs space-y-1.5 animate-in fade-in">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-slate-900 text-[11px] uppercase">
-                            Đáp án chuẩn Cambridge:
-                          </span>
-                        </div>
-                        <p className="font-mono text-emerald-800 font-semibold bg-emerald-50/60 p-1.5 rounded border border-emerald-200">
-                          {ex.correctAnswer}
-                        </p>
-                        <p className="text-slate-600 leading-relaxed pt-1">
-                          <strong>Giải thích cú pháp:</strong> {ex.explanation}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+                {status === 'completed' ? (
+                  <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-emerald-300' : 'text-emerald-600'}`} />
+                ) : status === 'learning' ? (
+                  <Clock className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-amber-300' : 'text-amber-500'}`} />
+                ) : (
+                  <Circle className={`w-3 h-3 shrink-0 ${isSelected ? 'text-slate-500' : 'text-slate-300'}`} />
+                )}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Right 4 Cols: Personal Grammar Notebook */}
-        <div className="lg:col-span-4 space-y-5">
-          <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+        {/* Right Active Lesson Content */}
+        <div className="lg:col-span-8 bg-white border border-slate-200 rounded-lg p-6 shadow-xs space-y-6">
+          {/* Lesson Header */}
+          <div className="border-b border-slate-100 pb-4 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-slate-800" />
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  Sổ Tay Ngữ Pháp Cá Nhân
-                </h3>
+                <span className="px-2 py-0.5 bg-slate-100 text-slate-800 rounded font-mono text-xs font-bold">
+                  {currentTopic.code}
+                </span>
+                <span className={`px-2 py-0.5 rounded text-[11px] font-medium uppercase font-mono ${
+                  currentTopic.category === 'foundation'
+                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                    : currentTopic.category === 'core'
+                    ? 'bg-blue-50 text-blue-800 border border-blue-200'
+                    : 'bg-purple-50 text-purple-800 border border-purple-200'
+                }`}>
+                  {currentTopic.category}
+                </span>
               </div>
-              <span className="text-xs font-mono text-slate-500 font-bold">
-                {customNotes.length} ghi chú
-              </span>
-            </div>
 
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Lưu lại các cấu trúc bạn gặp phải trong quá trình làm đề Cambridge 12 để ôn luyện trước ngày thi.
-            </p>
-
-            {/* Custom Notes List */}
-            {customNotes.length === 0 ? (
-              <div className="p-6 text-center border-2 border-dashed border-slate-200 rounded-lg text-xs text-slate-400">
-                Chưa có cấu trúc cá nhân nào. Bấm nút "Thêm Cấu Trúc" để tạo ghi chú mới.
-              </div>
-            ) : (
-              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-                {customNotes.map(n => (
-                  <div key={n.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2 text-xs">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="font-bold text-slate-900">{n.title}</span>
-                      <button
-                        onClick={() => handleDeleteNote(n.id)}
-                        className="text-slate-400 hover:text-rose-600 cursor-pointer"
-                        title="Xóa ghi chú này"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-
-                    <div className="font-mono text-[11px] bg-white p-1.5 rounded border border-slate-200 text-slate-800">
-                      {n.formula}
-                    </div>
-
-                    <p className="text-slate-600 text-[11px] leading-relaxed">
-                      {n.notes}
-                    </p>
-
-                    <div className="p-2 bg-slate-100/70 rounded border border-slate-200/80 text-[11px]">
-                      <span className="font-bold text-slate-800 block mb-0.5">Ví dụ áp dụng:</span>
-                      <span className="italic font-serif-reading text-slate-900">"{n.exampleBand8}"</span>
-                    </div>
-
-                    <span className="text-[10px] text-slate-400 block font-mono">
-                      Ngày tạo: {n.createdAt}
-                    </span>
-                  </div>
+              {/* Status Toggle Button */}
+              <div className="flex items-center gap-1">
+                {(['not-started', 'learning', 'completed'] as GrammarProgressStatus[]).map(st => (
+                  <button
+                    key={st}
+                    type="button"
+                    onClick={() => handleUpdateStatus(currentTopic.id, st)}
+                    className={`px-2 py-1 rounded text-[11px] font-medium cursor-pointer border ${
+                      (progressMap[currentTopic.id] || 'not-started') === st
+                        ? 'bg-slate-900 text-white border-slate-900 font-bold'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    {st === 'not-started' ? 'Chưa học' : st === 'learning' ? 'Đang học' : 'Đã xong ✓'}
+                  </button>
                 ))}
               </div>
-            )}
+            </div>
+
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight">{currentTopic.title}</h2>
+          </div>
+
+          {/* Section 1: Why it matters in IELTS */}
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 space-y-1">
+            <span className="font-bold text-slate-900 block font-mono text-[11px] uppercase tracking-wider">
+              TẠI SAO QUAN TRỌNG TRONG BÀI THI IELTS?
+            </span>
+            <p className="leading-relaxed">{currentTopic.whyItMatters}</p>
+          </div>
+
+          {/* Section 2: Formula & Concept */}
+          <div className="space-y-3">
+            <span className="text-xs font-bold text-slate-800 uppercase font-mono tracking-wider block">
+              CÔNG THỨC & NGUYÊN TẮC CỐT LÕI
+            </span>
+            <div className="p-3 bg-slate-900 text-slate-100 rounded-md font-mono text-xs overflow-x-auto">
+              {currentTopic.formula}
+            </div>
+            <p className="text-xs text-slate-700 leading-relaxed">{currentTopic.concept}</p>
+            <ul className="space-y-1.5 list-disc list-inside text-xs text-slate-700">
+              {currentTopic.rules.map((rule, idx) => (
+                <li key={idx} className="leading-relaxed">{rule}</li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Section 3: Concise Examples */}
+          <div className="space-y-3">
+            <span className="text-xs font-bold text-slate-800 uppercase font-mono tracking-wider block">
+              VÍ DỤ NGỮ CẢNH CHUẨN MỰC
+            </span>
+            <div className="grid grid-cols-1 gap-2.5">
+              {currentTopic.examples.map((ex, idx) => (
+                <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded text-xs space-y-1">
+                  <p className="font-semibold text-slate-900">"{ex.sentence}"</p>
+                  <p className="text-slate-500 font-mono text-[11px]">{ex.note}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Section 4: Common Mistake & Fix */}
+          <div className="space-y-2">
+            <span className="text-xs font-bold text-slate-800 uppercase font-mono tracking-wider block">
+              LỖI SAI ĐIỂN HÌNH & CÁCH KHẮC PHỤC
+            </span>
+            <div className="p-4 bg-rose-50/40 border border-rose-200 rounded-lg text-xs space-y-2">
+              <div className="flex items-start gap-2">
+                <span className="font-bold text-rose-700 shrink-0">Lỗi sai:</span>
+                <span className="text-slate-800 line-through">"{currentTopic.commonMistake.incorrect}"</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="font-bold text-emerald-700 shrink-0">Sửa đúng:</span>
+                <span className="text-slate-900 font-semibold">"{currentTopic.commonMistake.corrected}"</span>
+              </div>
+              <p className="text-slate-600 font-mono text-[11px] pt-1 border-t border-rose-100">
+                {currentTopic.commonMistake.explanation}
+              </p>
+            </div>
+          </div>
+
+          {/* Section 5: Mini Interactive Exercise */}
+          <div className="space-y-3 pt-2 border-t border-slate-100">
+            <span className="text-xs font-bold text-slate-800 uppercase font-mono tracking-wider block">
+              BÀI TẬP NHANH (MINI EXERCISE)
+            </span>
+            {currentTopic.exercises.map((ex) => {
+              const userVal = exerciseAnswers[ex.id] || '';
+              const isChecked = Boolean(exerciseChecked[ex.id]);
+              const isCorrect = isChecked && (
+                userVal.trim().toLowerCase() === ex.correctAnswer.trim().toLowerCase() ||
+                (ex.acceptableAnswers || []).map(a => a.trim().toLowerCase()).includes(userVal.trim().toLowerCase())
+              );
+
+              return (
+                <div key={ex.id} className="p-4 border border-slate-200 rounded-lg bg-slate-50/50 space-y-3 text-xs">
+                  <p className="font-medium text-slate-900 whitespace-pre-line leading-relaxed">{ex.question}</p>
+
+                  {ex.type === 'multiple-choice' && ex.options ? (
+                    <div className="space-y-1.5">
+                      {ex.options.map(opt => {
+                        const letter = opt.charAt(0);
+                        const isSelected = userVal.toUpperCase() === letter.toUpperCase();
+                        return (
+                          <label
+                            key={opt}
+                            className={`flex items-start gap-2 p-2 rounded cursor-pointer border transition-colors ${
+                              isSelected
+                                ? 'bg-slate-900 text-white border-slate-900 font-medium'
+                                : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name={`ex-${ex.id}`}
+                              value={letter}
+                              checked={isSelected}
+                              onChange={() => handleExerciseChange(ex.id, letter)}
+                              className="hidden"
+                            />
+                            <span>{opt}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={userVal}
+                      placeholder="Nhập câu trả lời viết lại / điền từ..."
+                      onChange={(e) => handleExerciseChange(ex.id, e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-900 focus:border-blue-600"
+                    />
+                  )}
+
+                  <div className="flex items-center justify-between pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleCheckExercise(ex.id)}
+                      disabled={!userVal.trim()}
+                      className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white rounded text-xs font-semibold cursor-pointer"
+                    >
+                      Kiểm Tra Đáp Án
+                    </button>
+                  </div>
+
+                  {isChecked && (
+                    <div className="mt-2 pt-2 border-t border-slate-200 text-xs space-y-1">
+                      {isCorrect ? (
+                        <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                          <Check className="w-3.5 h-3.5" /> Chính xác!
+                        </span>
+                      ) : (
+                        <span className="text-rose-700 font-semibold flex items-center gap-1">
+                          <X className="w-3.5 h-3.5" /> Chưa chính xác. Đáp án đúng: {ex.correctAnswer}
+                        </span>
+                      )}
+                      <p className="text-slate-600 font-mono text-[11px]">{ex.explanation}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Section 6: IELTS Context Example */}
+          <div className="p-3 bg-slate-100 border border-slate-200 rounded text-xs space-y-1">
+            <span className="font-bold text-slate-800 text-[11px] font-mono uppercase block">
+              ỨNG DỤNG THỰC TẾ TRONG WRITING/SPEAKING:
+            </span>
+            <p className="text-slate-700">{currentTopic.ieltsApplication}</p>
           </div>
         </div>
       </div>
-
-      {/* Add Custom Structure Modal */}
-      {isAddingNote && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg border border-slate-300 p-6 max-w-lg w-full shadow-2xl space-y-4">
-            <h3 className="font-bold text-sm text-slate-900 pb-2 border-b border-slate-200">
-              Thêm Cấu Trúc Ngữ Pháp Mới Vào Sổ Tay
-            </h3>
-
-            <form onSubmit={handleSaveCustomNote} className="space-y-3 text-xs">
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Tên cấu trúc / Chủ điểm:</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ví dụ: Đảo ngữ với Scarcely... when"
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded focus:outline-none focus:border-slate-800"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Công thức cú pháp:</label>
-                <input
-                  type="text"
-                  placeholder="Ví dụ: Scarcely + had + S + V3 + when + S + V2"
-                  value={newFormula}
-                  onChange={(e) => setNewFormula(e.target.value)}
-                  className="w-full p-2 font-mono border border-slate-300 rounded focus:outline-none focus:border-slate-800"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Ghi chú ngữ pháp & lưu ý tránh lỗi:</label>
-                <textarea
-                  rows={2}
-                  placeholder="Ví dụ: Không dùng than sau Scarcely, chỉ dùng when..."
-                  value={newNotes}
-                  onChange={(e) => setNewNotes(e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded focus:outline-none focus:border-slate-800"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Ví dụ câu hoàn chỉnh (Band 8.0+):</label>
-                <textarea
-                  rows={2}
-                  placeholder="Ví dụ câu áp dụng trong đề thi Writing Task 2..."
-                  value={newExample}
-                  onChange={(e) => setNewExample(e.target.value)}
-                  className="w-full p-2 font-serif-reading border border-slate-300 rounded focus:outline-none focus:border-slate-800"
-                />
-              </div>
-
-              <div className="pt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddingNote(false)}
-                  className="px-3 py-1.5 border border-slate-300 rounded text-slate-700 hover:bg-slate-50 cursor-pointer font-medium"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded cursor-pointer transition-colors"
-                >
-                  Lưu vào sổ tay
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

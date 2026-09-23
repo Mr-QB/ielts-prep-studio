@@ -1,86 +1,167 @@
-export type AppTab = 'listening' | 'reading' | 'grammar' | 'vocab';
+export type AppTab = 'today' | 'listening' | 'reading' | 'grammar' | 'vocab';
 
 export type ExamMode = 'simulation' | 'study';
 
+export type VerificationStatus =
+  | 'verified'
+  | 'external-only'
+  | 'needs-review'
+  | 'audio-unavailable';
+
+export type SourceProvider =
+  | 'Official IELTS'
+  | 'British Council'
+  | 'Cambridge Local Reference'
+  | 'IELTS-style Practice';
+
+export type SourceType = 'official' | 'partner' | 'user-reference' | 'practice';
+
+export type TestType = 'academic' | 'general-training';
+
+export type SkillType = 'listening' | 'reading' | 'grammar' | 'vocab';
+
+export interface LearningSource {
+  id: string;
+  provider: SourceProvider;
+  title: string;
+  sourceType: SourceType;
+  testType: TestType;
+  canonicalSourceUrl?: string;
+  isOfficial: boolean;
+  isUserProvided: boolean;
+  verifiedAt?: string;
+  status: VerificationStatus;
+  description?: string;
+}
+
 // --- Listening Types ---
+export type ListeningQuestionType =
+  | 'multiple-choice'
+  | 'fill-blank'
+  | 'note-completion'
+  | 'table-completion'
+  | 'form-completion'
+  | 'flowchart-completion'
+  | 'map-labelling'
+  | 'short-answer';
+
 export interface ListeningQuestion {
   id: string;
   number: number;
-  type: 'fill-blank' | 'multiple-choice';
+  type: ListeningQuestionType;
   prompt: string;
-  options?: string[]; // for multiple choice
-  correctAnswer: string; // trimmed lowercase match or letter
+  options?: string[]; // for multiple choice or matching
+  correctAnswer: string;
   acceptableAnswers?: string[];
   explanation: string;
-  transcriptTimestamp?: number; // seconds
+  transcriptTimestamp?: number; // seconds into recording
+  distractorNote?: string;
+}
+
+export interface AudioSourceItem {
+  label: string;
+  url: string;
+  isSynthetic?: boolean;
+  isStreamable?: boolean;
 }
 
 export interface ListeningSection {
   id: string;
+  sourceId: string;
   title: string;
   sectionNumber: 1 | 2 | 3 | 4;
   context: string;
-  audioSources: {
-    label: string;
-    url: string;
-  }[];
-  duration: number; // approximate duration in seconds
   instructions: string;
-  questions: ListeningQuestion[];
+  duration: number; // approximate duration in seconds
+  audioSources: AudioSourceItem[];
+  narratorVoice: 'en-GB' | 'en-US' | 'en-AU' | string;
   transcript: string;
-  narratorVoice: 'en-GB' | 'en-US' | 'en-AU';
+  questions: ListeningQuestion[];
+  verificationStatus: VerificationStatus;
+  canonicalUrl?: string;
+  sourceNotice?: string;
 }
 
 // --- Reading Types ---
+export type ReadingQuestionType =
+  | 'multiple-choice'
+  | 'true-false-notgiven'
+  | 'yes-no-notgiven'
+  | 'matching-headings'
+  | 'matching-features'
+  | 'matching-sentence-endings'
+  | 'summary-completion'
+  | 'sentence-completion'
+  | 'note-completion'
+  | 'table-completion'
+  | 'short-answer';
+
 export interface ReadingQuestion {
   id: string;
   number: number;
-  type: 'true-false-notgiven' | 'multiple-choice' | 'summary-completion' | 'matching-headings';
+  type: ReadingQuestionType;
   prompt: string;
-  options?: string[]; // for MCQ or Matching Headings
+  options?: string[];
   correctAnswer: string;
+  acceptableAnswers?: string[];
   explanation: string;
-  paragraphReference?: string; // e.g. "Paragraph B"
+  paragraphReference?: string;
 }
 
 export interface ReadingPassage {
   id: string;
+  sourceId: string;
   title: string;
   subtitle?: string;
   passageNumber: 1 | 2 | 3;
   topic: string;
+  wordCount: number;
+  testType: TestType;
   content: {
-    label: string; // e.g., "A", "B", "C"
+    label: string;
     text: string;
   }[];
   questions: ReadingQuestion[];
+  verificationStatus: VerificationStatus;
+  canonicalUrl?: string;
+  sourceNotice?: string;
 }
 
 // --- Grammar Types ---
+export type GrammarCategory = 'foundation' | 'core' | 'advanced';
+
+export type GrammarProgressStatus = 'not-started' | 'learning' | 'completed' | 'needs-review';
+
 export interface GrammarExercise {
   id: string;
   type: 'rewrite' | 'fill-gap' | 'multiple-choice';
   question: string;
   options?: string[];
   correctAnswer: string;
+  acceptableAnswers?: string[];
   explanation: string;
-  band6Example?: string;
-  band8Example?: string;
+  ieltsContext?: string;
 }
 
 export interface GrammarTopic {
   id: string;
+  code: string; // e.g. "G01", "G08", "G24"
+  category: GrammarCategory;
   title: string;
-  subtitle: string;
-  level: string; // e.g. "Band 7.0 - 8.5"
+  whyItMatters: string;
   formula: string;
   concept: string;
-  bandComparison: {
-    band6: string;
-    band8: string;
-    analysis: string;
-  }[];
   rules: string[];
+  examples: {
+    sentence: string;
+    note: string;
+  }[];
+  commonMistake: {
+    incorrect: string;
+    corrected: string;
+    explanation: string;
+  };
+  ieltsApplication: string;
   exercises: GrammarExercise[];
 }
 
@@ -98,11 +179,11 @@ export interface VocabCard {
   exampleVi?: string;
   collocations?: string[];
   category: string;
-  // SRS properties
+  // SRS state
   repetition: number;
-  intervalDays: number; // in days (or fractions)
-  easeFactor: number; // default 2.5
-  dueDate: string; // ISO string
+  intervalDays: number;
+  easeFactor: number;
+  dueDate: string;
   lastReviewed?: string;
   state: 'new' | 'learning' | 'review' | 'mastered';
 }
@@ -111,5 +192,36 @@ export interface VocabDeck {
   id: string;
   name: string;
   description: string;
+  createdAt: string;
+  source: string;
   cards: VocabCard[];
+}
+
+export interface ParsePreviewResult {
+  parsed: VocabCard[];
+  previewCards: VocabCard[];
+  invalidLinesCount: number;
+  duplicateCount: number;
+  existingDuplicateWords: string[];
+}
+
+// --- Attempt & History Types ---
+export interface TestAttempt {
+  id: string;
+  skill: 'listening' | 'reading';
+  sectionId: string;
+  sectionTitle: string;
+  date: string;
+  score: number;
+  total: number;
+  durationSeconds: number;
+  mode: ExamMode;
+  userAnswers: Record<string, string>;
+  incorrectQuestionNumbers: number[];
+  mistakeTags: {
+    questionNumber: number;
+    type: string;
+    userAnswer: string;
+    correctAnswer: string;
+  }[];
 }
