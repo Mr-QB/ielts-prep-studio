@@ -36,14 +36,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </div>
 
-          {/* Core Navigation Tabs (Today, Listening, Reading, Grammar, Vocabulary) */}
-          <nav className="flex items-center gap-1">
+          {/* Core Navigation Tabs */}
+          <nav className="flex items-center gap-1 overflow-x-auto">
             {[
               { id: 'today', label: 'Hôm Nay' },
-              { id: 'listening', label: 'Listening' },
               { id: 'reading', label: 'Reading' },
+              { id: 'listening', label: 'Listening' },
               { id: 'grammar', label: 'Grammar' },
-              { id: 'vocab', label: 'Vocabulary' }
+              { id: 'vocab', label: 'Vocabulary' },
+              { id: 'writing', label: 'Writing Notes' },
+              { id: 'speaking', label: 'Speaking Notes' }
             ].map(tab => {
               const isActive = activeTab === tab.id;
               return (
@@ -51,7 +53,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   key={tab.id}
                   type="button"
                   onClick={() => onTabChange(tab.id as AppTab)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
+                  className={`px-2.5 py-1.5 rounded-md text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                     isActive
                       ? 'bg-slate-900 text-white shadow-xs'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'

@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Private and copyrighted study material (local-only, not committed)
+data/private/**
+assets/private/**
+private/**

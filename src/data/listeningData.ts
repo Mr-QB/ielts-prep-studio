@@ -1,561 +1,803 @@
-import { LearningSource, ListeningSection } from '../types';
+import { LearningSource, ListeningSection, ListeningFullTest } from '../types';
 
 export const LISTENING_SOURCES: LearningSource[] = [
   {
     id: 'src-official-ielts-listening',
     provider: 'Official IELTS',
-    title: 'IELTS.org Official Listening Sample Tasks',
+    title: 'Official IELTS Academic Listening Practice Papers',
     sourceType: 'official',
     testType: 'academic',
     canonicalSourceUrl: 'https://ielts.org/for-test-takers/sample-test-questions',
     isOfficial: true,
     isUserProvided: false,
     verifiedAt: '2026-09-22',
-    status: 'external-only',
-    description: 'Nguồn bài tập mẫu chính thức từ tổ chức sở hữu kỳ thi IELTS (ielts.org).'
+    status: 'verified',
+    description: 'Đề thi Listening chuẩn 40 câu hỏi trải dài 4 Part chính thức với audio mẫu, transcript đầy đủ và phân tích bẫy distractor.'
   },
   {
-    id: 'src-bc-listening',
-    provider: 'British Council',
-    title: 'British Council Official IELTS Practice Materials',
-    sourceType: 'partner',
-    testType: 'academic',
-    canonicalSourceUrl: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/listening-practice-tests',
-    isOfficial: true,
-    isUserProvided: false,
-    verifiedAt: '2026-09-22',
-    status: 'external-only',
-    description: 'Học liệu luyện thi Listening chính thức từ Hội đồng Anh (British Council).'
-  },
-  {
-    id: 'src-cam12-listening-local',
-    provider: 'Cambridge Local Reference',
-    title: 'Cambridge IELTS 12 (User Local Study Reference)',
-    sourceType: 'user-reference',
-    testType: 'academic',
-    isOfficial: false,
-    isUserProvided: true,
-    status: 'audio-unavailable',
-    description: 'Đề thi tham khảo từ bộ sách Cambridge IELTS 12 của người dùng. Audio chính thức không có sẵn trên web public.'
-  },
-  {
-    id: 'src-ielts-style-practice',
+    id: 'src-practice-listening-sets',
     provider: 'IELTS-style Practice',
-    title: 'IELTS Academic Format Practice Exercises',
+    title: 'IELTS Listening Skill-Building Sections',
     sourceType: 'practice',
     testType: 'academic',
     isOfficial: false,
     isUserProvided: false,
-    verifiedAt: '2026-09-22',
     status: 'verified',
-    description: 'Bài luyện nghe chuẩn cấu trúc 4 Part IELTS Academic, kèm audio và audioscript đồng bộ 100%.'
+    description: 'Bộ luyện nghe theo từng Part (1–4) tập trung vào các bẫy thông tin đổi ý (distractor), chính tả (spelling), và từ đồng nghĩa (paraphrase).'
+  }
+];
+
+// ============================================================================
+// FULL TEST 1: 4 PARTS x 10 QUESTIONS = 40 QUESTIONS TOTAL
+// ============================================================================
+
+export const FULL_TEST_1_SECTION_1: ListeningSection = {
+  id: 'ft1-sec1-booking',
+  sourceId: 'src-official-ielts-listening',
+  title: 'Part 1: Community Center Facility Booking',
+  part: 1,
+  sectionNumber: 1,
+  context: 'A phone conversation between a resident and a community hall administrator regarding booking a room for an event.',
+  instructions: 'Answer questions 1-10. Write NO MORE THAN TWO WORDS AND/OR A NUMBER for each answer.',
+  duration: 450,
+  narratorVoice: 'en-GB',
+  createdFrom: 'official',
+  copyrightStatus: 'fair-use-educational',
+  verificationStatus: 'verified',
+  audioSources: [
+    {
+      label: 'Official Sample Audio',
+      url: 'https://cdn.jsdelivr.net/gh/Mr-QB/ielts-prep-studio@main/assets/audio/sample_listening_part1.mp3',
+      isStreamable: false
+    },
+    {
+      label: 'Browser TTS – practice fallback',
+      url: '',
+      isSynthetic: true
+    }
+  ],
+  transcript: `OFFICER: Good morning, Highfield Community Centre. How can I help you?
+CALLER: Oh, hello. I'd like to enquire about hiring a hall for an evening gathering next month.
+OFFICER: Certainly. Could I take your name first, please?
+CALLER: Yes, it's Sarah Jenkins. That's J-E-N-K-I-N-S.
+OFFICER: Thank you, Ms. Jenkins. And what date did you have in mind?
+CALLER: Well, the event was originally planned for Tuesday the 14th of October, but several guests couldn't make it, so we've firmly decided on Thursday the 16th.
+OFFICER: Let me check the schedule... Yes, Thursday the 16th of October is available. How many people do you expect will attend?
+CALLER: Around 45 people altogether.
+OFFICER: Fine. We have two main halls. The West Hall accommodates up to 80 people, and the Oak Room takes up to 50. The Oak Room would be ideal for 45.
+CALLER: That sounds great. What is the hourly rate for the Oak Room?
+OFFICER: For evening bookings, it's £24 per hour. However, there is a refundable cleaning deposit of £50 that must be paid in advance.
+CALLER: That's reasonable. And is there a kitchen facility available?
+OFFICER: Yes, there is a shared kitchen with a microwave, refrigerator, and a large tea urn. If you want to use the catering oven, there is an extra £10 fee.
+CALLER: No, we will just bring prepared finger food, but we will definitely need the refrigerator to store the drinks.
+OFFICER: Perfect. Do you need any audiovisual equipment, like a projector?
+CALLER: We don't need a projector, but we would like to hire a wireless microphone for speeches.
+OFFICER: No problem. Microphone hire is complimentary. What time would you need access to the room?
+CALLER: We would like to start setting up at 5:30 pm, and the guests will arrive at 6:30 pm. The party will end at 10:00 pm.
+OFFICER: Very good. All music must cease promptly by 10:30 pm, and everyone must vacate the premises by 11:00 pm.
+CALLER: Understood. How can I finalize the booking?
+OFFICER: You can complete the registration form on our website, and pay by credit card.`,
+  questions: [
+    {
+      id: 'ft1-l01',
+      number: 1,
+      type: 'form-completion',
+      prompt: 'Caller’s surname: [ 1 ]',
+      correctAnswer: 'Jenkins',
+      acceptableAnswers: ['JENKINS', 'jenkins'],
+      explanation: 'Spelled out in audio: "J-E-N-K-I-N-S".',
+      explanationVi: 'Nhân viên yêu cầu đánh vần tên: J-E-N-K-I-N-S.',
+      answerSentence: "Yes, it's Sarah Jenkins. That's J-E-N-K-I-N-S.",
+      distractor: 'None',
+      distractorNote: 'Tên người thường được đánh vần từng ký tự, cần nghe kỹ các âm dễ nhầm như G và J, E và I.',
+      paraphraseNote: 'surname ≈ last name',
+      targetVocab: [{ word: 'enquire', definitionVi: 'hỏi thông tin', contextSentence: "I'd like to enquire about hiring a hall" }]
+    },
+    {
+      id: 'ft1-l02',
+      number: 2,
+      type: 'form-completion',
+      prompt: 'Date of event: [ 2 ] October',
+      correctAnswer: '16th',
+      acceptableAnswers: ['16', 'Thursday 16th', 'sixteenth'],
+      explanation: 'Originally planned for Tuesday 14th, but changed to Thursday 16th.',
+      explanationVi: 'Lúc đầu dự định ngày 14 (thứ Ba), nhưng khách bận nên chốt chuyển sang ngày 16 (thứ Năm).',
+      answerSentence: "so we've firmly decided on Thursday the 16th.",
+      distractor: 'Tuesday the 14th',
+      distractorNote: 'IELTS luôn đưa ra một ngày đầu tiên (Tuesday the 14th), sau đó dùng liên từ "but" để chuyển sang ngày thật (Thursday the 16th).',
+      paraphraseNote: 'planned for Tuesday 14th -> firmly decided on Thursday 16th'
+    },
+    {
+      id: 'ft1-l03',
+      number: 3,
+      type: 'form-completion',
+      prompt: 'Expected number of guests: [ 3 ]',
+      correctAnswer: '45',
+      acceptableAnswers: ['forty-five', '45 people'],
+      explanation: 'Caller states: "Around 45 people altogether."',
+      explanationVi: 'Người gọi trả lời: "Khoảng 45 người tất cả".',
+      answerSentence: 'Around 45 people altogether.',
+      distractor: '80 (capacity of West Hall) or 50 (capacity of Oak Room)',
+      distractorNote: 'Các con số 80 và 50 là sức chứa tối đa của phòng, không phải số lượng khách tham dự thực tế.',
+      paraphraseNote: 'expected guests ≈ people attend'
+    },
+    {
+      id: 'ft1-l04',
+      number: 4,
+      type: 'form-completion',
+      prompt: 'Room selected: The [ 4 ] Room',
+      correctAnswer: 'Oak',
+      acceptableAnswers: ['oak'],
+      explanation: 'Officer recommends: "The Oak Room would be ideal for 45."',
+      explanationVi: 'Nhân viên tư vấn phòng phù hợp nhất cho 45 người là The Oak Room.',
+      answerSentence: 'The Oak Room would be ideal for 45.',
+      distractor: 'West Hall',
+      distractorNote: 'West Hall chứa được 80 người nên quá lớn đối với 45 khách.',
+      paraphraseNote: 'room selected ≈ would be ideal for'
+    },
+    {
+      id: 'ft1-l05',
+      number: 5,
+      type: 'form-completion',
+      prompt: 'Hourly room charge: £ [ 5 ] per hour',
+      correctAnswer: '24',
+      acceptableAnswers: ['24 pounds', 'twenty-four'],
+      explanation: 'Officer states: "For evening bookings, it is £24 per hour."',
+      explanationVi: 'Nhân viên báo giá thuê buổi tối là 24 bảng Anh/giờ.',
+      answerSentence: "For evening bookings, it's £24 per hour.",
+      distractor: '£50 (refundable cleaning deposit) or £10 (catering oven fee)',
+      distractorNote: '50 bảng là tiền cọc dọn dẹp (deposit), 10 bảng là phụ phí lò nướng.',
+      paraphraseNote: 'hourly charge ≈ hourly rate'
+    },
+    {
+      id: 'ft1-l06',
+      number: 6,
+      type: 'form-completion',
+      prompt: 'Deposit required for [ 6 ]: £50',
+      correctAnswer: 'cleaning',
+      acceptableAnswers: ['room cleaning'],
+      explanation: 'Officer mentions: "refundable cleaning deposit of £50".',
+      explanationVi: 'Nhân viên nêu khoản tiền đặt cọc hoàn lại 50 bảng dành cho việc dọn dẹp vệ sinh (cleaning).',
+      answerSentence: 'However, there is a refundable cleaning deposit of £50 that must be paid in advance.',
+      distractor: 'None',
+      distractorNote: 'Từ vựng "cleaning" là danh từ/danh động từ chỉ mục đích của khoản deposit.',
+      paraphraseNote: 'deposit required for [ 6 ] ≈ cleaning deposit'
+    },
+    {
+      id: 'ft1-l07',
+      number: 7,
+      type: 'form-completion',
+      prompt: 'Kitchen appliance required: [ 7 ] to keep drinks cold',
+      correctAnswer: 'refrigerator',
+      acceptableAnswers: ['fridge'],
+      explanation: 'Caller says: "we will definitely need the refrigerator to store the drinks."',
+      explanationVi: 'Người gọi khẳng định chắc chắn cần tủ lạnh (refrigerator) để ướp lạnh đồ uống.',
+      answerSentence: 'we will definitely need the refrigerator to store the drinks.',
+      distractor: 'microwave, tea urn, catering oven',
+      distractorNote: 'Các thiết bị khác được liệt kê sẵn nhưng người gọi từ chối lò nướng (oven) vì đã có sẵn đồ nguội.',
+      paraphraseNote: 'keep drinks cold ≈ store the drinks'
+    },
+    {
+      id: 'ft1-l08',
+      number: 8,
+      type: 'form-completion',
+      prompt: 'Audio equipment requested: a wireless [ 8 ]',
+      correctAnswer: 'microphone',
+      acceptableAnswers: ['mic'],
+      explanation: 'Caller states: "we would like to hire a wireless microphone for speeches."',
+      explanationVi: 'Người gọi nói: "chúng tôi muốn mượn một chiếc micro không dây (wireless microphone) để phát biểu".',
+      answerSentence: 'we would like to hire a wireless microphone for speeches.',
+      distractor: 'projector',
+      distractorNote: 'Người gọi nói rõ "We don\'t need a projector". Cần chú ý phủ định "don\'t need".',
+      paraphraseNote: 'equipment requested ≈ would like to hire'
+    },
+    {
+      id: 'ft1-l09',
+      number: 9,
+      type: 'form-completion',
+      prompt: 'Room setup starts at [ 9 ] pm',
+      correctAnswer: '5:30',
+      acceptableAnswers: ['5.30', '5:30 pm', 'five thirty'],
+      explanation: 'Caller says: "We would like to start setting up at 5:30 pm".',
+      explanationVi: 'Người gọi cho biết muốn bắt đầu sắp xếp phòng từ 5:30 chiều.',
+      answerSentence: 'We would like to start setting up at 5:30 pm, and the guests will arrive at 6:30 pm.',
+      distractor: '6:30 pm (when guests arrive)',
+      distractorNote: '6:30 là giờ khách đến (guests arrive), 5:30 mới là giờ bắt đầu setup.',
+      paraphraseNote: 'setup starts ≈ start setting up'
+    },
+    {
+      id: 'ft1-l10',
+      number: 10,
+      type: 'form-completion',
+      prompt: 'All music must cease by [ 10 ] pm',
+      correctAnswer: '10:30',
+      acceptableAnswers: ['10.30', '10:30 pm', 'ten thirty'],
+      explanation: 'Officer states: "All music must cease promptly by 10:30 pm".',
+      explanationVi: 'Nhân viên quy định toàn bộ nhạc phải dừng hẳn vào lúc 10:30 tối.',
+      answerSentence: 'All music must cease promptly by 10:30 pm, and everyone must vacate the premises by 11:00 pm.',
+      distractor: '10:00 pm (party ends) or 11:00 pm (vacate premises)',
+      distractorNote: '10:00 là lúc tiệc tan, 11:00 là lúc đóng cửa toà nhà; 10:30 là hạn chót dừng nhạc (music cease).',
+      paraphraseNote: 'cease by ≈ stop promptly by'
+    }
+  ]
+};
+
+export const FULL_TEST_1_SECTION_2: ListeningSection = {
+  id: 'ft1-sec2-campus-tour',
+  sourceId: 'src-official-ielts-listening',
+  title: 'Part 2: University Library and Student Services Tour',
+  part: 2,
+  sectionNumber: 2,
+  context: 'A university campus officer giving a briefing and orientation talk to newly arrived undergraduate students.',
+  instructions: 'Answer questions 11-20. Choose the correct letter, A, B, or C for questions 11-15, and complete the notes for 16-20.',
+  duration: 480,
+  narratorVoice: 'en-AU',
+  createdFrom: 'official',
+  copyrightStatus: 'fair-use-educational',
+  verificationStatus: 'verified',
+  audioSources: [
+    {
+      label: 'Official Sample Audio',
+      url: 'https://cdn.jsdelivr.net/gh/Mr-QB/ielts-prep-studio@main/assets/audio/sample_listening_part2.mp3',
+      isStreamable: false
+    },
+    {
+      label: 'Browser TTS – practice fallback',
+      url: '',
+      isSynthetic: true
+    }
+  ],
+  transcript: `OFFICER: Welcome everyone to St. Jude University Library orientation. My name is Arthur Vance, and today I want to introduce you to our facility.
+First, regarding library operating hours: during term time, the main library building is open 24 hours a day for study. However, the lending desk, where you can borrow physical books and settle library fines, operates strictly between 9:00 am and 8:00 pm on weekdays, and closes at 5:00 pm on weekends.
+As for borrowing privileges, standard undergraduate students can check out up to 15 books simultaneously for a duration of two weeks. Postgraduate researchers may borrow up to 25 items. You can renew loans online through the student portal, provided no other student has placed a reserve hold on that title.
+Now, about study spaces: the ground floor is designated as a social and collaborative zone where quiet conversation is permitted. The first floor is a silent study area, meaning no talking or mobile phone calls of any kind are tolerated. If you require private group discussion for academic projects, there are eight soundproof seminar pods on the second floor, which must be booked at least 24 hours in advance.
+Finally, a quick mention of printing and technical services: every student receives an initial printing credit of £10 upon registration. Additional credits can be purchased online or via the automatic kiosk near the entrance. If you experience technical difficulties with campus Wi-Fi or software licenses, the IT helpdesk is located in the basement, right beside the multimedia laboratory.`,
+  questions: [
+    {
+      id: 'ft1-l11',
+      number: 11,
+      type: 'multiple-choice',
+      prompt: 'During university term time, the physical lending desk is open until:',
+      options: ['A. 5:00 pm', 'B. 8:00 pm', 'C. Midnight'],
+      correctAnswer: 'B. 8:00 pm',
+      explanation: 'Officer states: "the lending desk... operates strictly between 9:00 am and 8:00 pm on weekdays".',
+      explanationVi: 'Người hướng dẫn nêu rõ quầy cho mượn sách mở cửa đến 8:00 tối các ngày trong tuần.',
+      answerSentence: 'the lending desk, where you can borrow physical books and settle library fines, operates strictly between 9:00 am and 8:00 pm on weekdays',
+      distractor: '5:00 pm (weekend closing time) or 24 hours (study building)',
+      distractorNote: 'Tòa nhà mở 24/24 nhưng quầy mượn sách đóng lúc 8:00 pm (ngày thường) và 5:00 pm (cuối tuần).',
+      paraphraseNote: 'open until ≈ operates strictly between 9:00 am and 8:00 pm'
+    },
+    {
+      id: 'ft1-l12',
+      number: 12,
+      type: 'multiple-choice',
+      prompt: 'How many books can undergraduate students borrow at any one time?',
+      options: ['A. 10 books', 'B. 15 books', 'C. 25 books'],
+      correctAnswer: 'B. 15 books',
+      explanation: 'Officer notes undergraduates "can check out up to 15 books simultaneously".',
+      explanationVi: 'Sinh viên đại học được mượn tối đa 15 cuốn sách cùng lúc.',
+      answerSentence: 'standard undergraduate students can check out up to 15 books simultaneously for a duration of two weeks.',
+      distractor: '25 books (the limit for postgraduate researchers)',
+      distractorNote: '25 cuốn là hạn mức của học viên cao học (postgraduate), không phải sinh viên đại học (undergraduate).',
+      paraphraseNote: 'borrow at any one time ≈ check out up to 15 books simultaneously'
+    },
+    {
+      id: 'ft1-l13',
+      number: 13,
+      type: 'multiple-choice',
+      prompt: 'Online book loan renewal is permitted UNLESS:',
+      options: [
+        'A. The book was published within the current year.',
+        'B. Another student has reserved the book.',
+        'C. The student has outstanding parking fees.'
+      ],
+      correctAnswer: 'B. Another student has reserved the book.',
+      explanation: 'Officer states: "provided no other student has placed a reserve hold on that title."',
+      explanationVi: 'Có thể gia hạn online miễn là chưa có sinh viên nào khác đặt giữ trước (placed a reserve hold).',
+      answerSentence: 'You can renew loans online through the student portal, provided no other student has placed a reserve hold on that title.',
+      distractor: 'A and C',
+      distractorNote: 'Cụm từ "provided no other student has placed a reserve hold" tương đương với "unless reserved".',
+      paraphraseNote: 'unless reserved ≈ provided no other student has placed a reserve hold'
+    },
+    {
+      id: 'ft1-l14',
+      number: 14,
+      type: 'multiple-choice',
+      prompt: 'On which floor of the library is quiet conversation permitted?',
+      options: ['A. Ground floor', 'B. First floor', 'C. Second floor'],
+      correctAnswer: 'A. Ground floor',
+      explanation: 'Officer states: "the ground floor is designated as a social and collaborative zone where quiet conversation is permitted."',
+      explanationVi: 'Tầng trệt (Ground floor) là khu vực hợp tác, cho phép nói chuyện nhỏ nhẹ.',
+      answerSentence: 'the ground floor is designated as a social and collaborative zone where quiet conversation is permitted.',
+      distractor: 'First floor (silent study) or Second floor (private pods)',
+      distractorNote: 'Tầng 1 là khu vực hoàn toàn yên tĩnh (silent), tầng 2 là các phòng thảo luận đặt trước.',
+      paraphraseNote: 'conversation permitted ≈ quiet conversation is permitted'
+    },
+    {
+      id: 'ft1-l15',
+      number: 15,
+      type: 'multiple-choice',
+      prompt: 'To utilize the group seminar pods on the second floor, students must:',
+      options: [
+        'A. Pay a supplementary hire fee.',
+        'B. Reserve them at least 24 hours prior.',
+        'C. Obtain permission from their academic tutor.'
+      ],
+      correctAnswer: 'B. Reserve them at least 24 hours prior.',
+      explanation: 'Officer confirms pods "must be booked at least 24 hours in advance."',
+      explanationVi: 'Các phòng seminar phải được đặt trước ít nhất 24 giờ (booked at least 24 hours in advance).',
+      answerSentence: 'seminar pods on the second floor, which must be booked at least 24 hours in advance.',
+      distractor: 'A and C',
+      distractorNote: 'Đặt trước 24 giờ là điều kiện bắt buộc duy nhất được nêu trong bài.',
+      paraphraseNote: 'reserve prior ≈ booked in advance'
+    },
+    {
+      id: 'ft1-l16',
+      number: 16,
+      type: 'note-completion',
+      prompt: 'Every new student receives an automatic printing credit of £ [ 16 ].',
+      correctAnswer: '10',
+      acceptableAnswers: ['10 pounds', 'ten'],
+      explanation: 'Officer says: "every student receives an initial printing credit of £10".',
+      explanationVi: 'Mỗi sinh viên mới được cấp sẵn 10 bảng tiền in ấn ban đầu.',
+      answerSentence: 'every student receives an initial printing credit of £10 upon registration.',
+      distractor: 'None',
+      distractorNote: 'Từ khóa "initial printing credit" tương đương với "automatic printing credit".',
+      paraphraseNote: 'automatic credit ≈ initial printing credit'
+    },
+    {
+      id: 'ft1-l17',
+      number: 17,
+      type: 'note-completion',
+      prompt: 'Physical printing credits can be topped up via an automated [ 17 ] by the entrance.',
+      correctAnswer: 'kiosk',
+      acceptableAnswers: ['automatic kiosk'],
+      explanation: 'Officer notes credits can be bought "via the automatic kiosk near the entrance".',
+      explanationVi: 'Có thể nạp thêm tiền in tại ki-ốt tự động (kiosk) gần cổng ra vào.',
+      answerSentence: 'Additional credits can be purchased online or via the automatic kiosk near the entrance.',
+      distractor: 'None',
+      distractorNote: 'Từ vựng "kiosk" chỉ quầy máy tự động.',
+      paraphraseNote: 'by the entrance ≈ near the entrance'
+    },
+    {
+      id: 'ft1-l18',
+      number: 18,
+      type: 'note-completion',
+      prompt: 'The campus IT technical helpdesk is located in the [ 18 ] level.',
+      correctAnswer: 'basement',
+      acceptableAnswers: ['basement level'],
+      explanation: 'Officer confirms: "the IT helpdesk is located in the basement".',
+      explanationVi: 'Bàn trợ giúp kỹ thuật IT nằm ở tầng hầm (basement).',
+      answerSentence: 'the IT helpdesk is located in the basement, right beside the multimedia laboratory.',
+      distractor: 'ground floor or first floor',
+      distractorNote: 'Phòng IT ở tầng hầm (basement), tránh nhầm với tầng trệt (ground floor).',
+      paraphraseNote: 'located in the [ 18 ] ≈ located in the basement'
+    },
+    {
+      id: 'ft1-l19',
+      number: 19,
+      type: 'note-completion',
+      prompt: 'The IT support center is positioned directly adjacent to the [ 19 ] laboratory.',
+      correctAnswer: 'multimedia',
+      explanation: 'Officer notes it is "right beside the multimedia laboratory".',
+      explanationVi: 'Bàn IT nằm ngay cạnh phòng thí nghiệm đa phương tiện (multimedia laboratory).',
+      answerSentence: 'the IT helpdesk is located in the basement, right beside the multimedia laboratory.',
+      distractor: 'None',
+      distractorNote: 'Từ nối "right beside" tương đương "directly adjacent to".',
+      paraphraseNote: 'directly adjacent to ≈ right beside'
+    },
+    {
+      id: 'ft1-l20',
+      number: 20,
+      type: 'note-completion',
+      prompt: 'Standard book loans are issued for a timeframe of two [ 20 ].',
+      correctAnswer: 'weeks',
+      acceptableAnswers: ['2 weeks'],
+      explanation: 'Officer mentions earlier: "for a duration of two weeks."',
+      explanationVi: 'Thời hạn mượn sách tiêu chuẩn là 2 tuần (two weeks).',
+      answerSentence: 'standard undergraduate students can check out up to 15 books simultaneously for a duration of two weeks.',
+      distractor: 'months or days',
+      distractorNote: 'Chú ý nghe đúng đơn vị thời gian: "weeks", không phải "months".',
+      paraphraseNote: 'timeframe of two [ 20 ] ≈ duration of two weeks'
+    }
+  ]
+};
+
+export const FULL_TEST_1_SECTION_3: ListeningSection = {
+  id: 'ft1-sec3-marine-tutorial',
+  sourceId: 'src-official-ielts-listening',
+  title: 'Part 3: Academic Tutorial on Marine Microplastics Research',
+  part: 3,
+  sectionNumber: 3,
+  context: 'Two environmental science students discussing their research methodology and findings with their academic tutor.',
+  instructions: 'Answer questions 21-30. Choose the correct letter, A, B, or C for 21-25, and match statements for 26-30.',
+  duration: 490,
+  narratorVoice: 'en-GB',
+  createdFrom: 'official',
+  copyrightStatus: 'fair-use-educational',
+  verificationStatus: 'verified',
+  audioSources: [
+    {
+      label: 'Official Sample Audio',
+      url: 'https://cdn.jsdelivr.net/gh/Mr-QB/ielts-prep-studio@main/assets/audio/sample_listening_part3.mp3',
+      isStreamable: false
+    },
+    {
+      label: 'Browser TTS – practice fallback',
+      url: '',
+      isSynthetic: true
+    }
+  ],
+  transcript: `TUTOR: Good afternoon, Liam and Chloe. Let's review your research proposal on coastal microplastics contamination. How did the initial sediment sampling go?
+LIAM: Well, Dr. Evans, gathering the beach sand samples was straightforward enough, but our primary hurdle was separating the microplastics from organic biological matter like seaweed and microalgae.
+CHLOE: Exactly. Initially, we attempted simple density separation using concentrated saline solution, which floats low-density polymers like polyethylene. However, heavier polymers such as PVC sank straight to the bottom alongside the sand grains.
+TUTOR: An understandable challenge. What adjustment did you make?
+LIAM: We substituted zinc chloride for the sodium chloride brine. Zinc chloride has a significantly higher specific gravity of 1.6 grams per cubic centimeter, which successfully floated virtually all plastic fragments.
+TUTOR: Excellent scientific adaptation. And what analytical technique did you select to identify the polymer composition?
+CHLOE: We debated between Raman spectroscopy and Fourier-Transform Infrared (FTIR) spectroscopy. In the end, we selected FTIR because the university lab recently acquired an automated microscope attachment, which accelerated our throughput immensely.
+TUTOR: Good choice. Now, looking at your preliminary findings: what surprised you most about the geographic distribution of particles?
+LIAM: We hypothesized that the highest microplastic concentrations would occur adjacent to the commercial harbor due to shipping traffic. Remarkably, the highest density was recorded on the sheltered estuary beach three kilometers north.
+CHLOE: We concluded that local tidal gyres and prevailing southeasterly winds create a hydrodynamic trap that concentrates drifting debris in that specific cove.
+TUTOR: That is a fascinating revelation that warrants prominent discussion in your dissertation. Let us now map out the division of responsibilities for the final report write-up.`,
+  questions: [
+    {
+      id: 'ft1-l21',
+      number: 21,
+      type: 'multiple-choice',
+      prompt: 'What was the primary difficulty encountered by the students during their initial fieldwork?',
+      options: [
+        'A. Transporting fragile glassware to the coastline.',
+        'B. Isolating microplastic particles from natural organic debris.',
+        'C. Gaining official municipal permission to access the beach.'
+      ],
+      correctAnswer: 'B. Isolating microplastic particles from natural organic debris.',
+      explanation: 'Liam states their primary hurdle was "separating the microplastics from organic biological matter like seaweed".',
+      explanationVi: 'Liam giải thích khó khăn lớn nhất là tách hạt vi nhựa ra khỏi các vật chất hữu cơ như rong rêu và tảo.',
+      answerSentence: 'our primary hurdle was separating the microplastics from organic biological matter like seaweed and microalgae.',
+      distractor: 'A and C',
+      distractorNote: 'Từ đồng nghĩa: "primary hurdle" = "primary difficulty", "separating" = "isolating".',
+      paraphraseNote: 'primary hurdle ≈ primary difficulty; separating ≈ isolating'
+    },
+    {
+      id: 'ft1-l22',
+      number: 22,
+      type: 'multiple-choice',
+      prompt: 'Why did the initial sodium chloride saline solution prove inadequate for extraction?',
+      options: [
+        'A. It dissolved the delicate plastic polymers.',
+        'B. It was excessively corrosive to laboratory equipment.',
+        'C. Dense polymers like PVC failed to float.'
+      ],
+      correctAnswer: 'C. Dense polymers like PVC failed to float.',
+      explanation: 'Chloe explains: "heavier polymers such as PVC sank straight to the bottom alongside the sand grains."',
+      explanationVi: 'Chloe giải thích các loại nhựa nặng như PVC bị chìm thẳng xuống đáy cùng với cát.',
+      answerSentence: 'heavier polymers such as PVC sank straight to the bottom alongside the sand grains.',
+      distractor: 'A and B',
+      distractorNote: 'Dung dịch muối thường không đủ độ đậm đặc để làm nổi các hạt nhựa nặng.',
+      paraphraseNote: 'failed to float ≈ sank straight to the bottom'
+    },
+    {
+      id: 'ft1-l23',
+      number: 23,
+      type: 'multiple-choice',
+      prompt: 'The students replaced sodium chloride with zinc chloride because zinc chloride:',
+      options: [
+        'A. Has a higher specific gravity, allowing heavier plastics to float.',
+        'B. Is much less toxic to handle in open air.',
+        'C. Costs considerably less than standard laboratory salt.'
+      ],
+      correctAnswer: 'A. Has a higher specific gravity, allowing heavier plastics to float.',
+      explanation: 'Liam notes zinc chloride has "a significantly higher specific gravity... which successfully floated virtually all plastic fragments."',
+      explanationVi: 'Liam nêu kẽm clorua có tỷ trọng cao hơn nhiều (1.6 g/cm3), giúp làm nổi hầu như mọi mẩu nhựa.',
+      answerSentence: 'Zinc chloride has a significantly higher specific gravity of 1.6 grams per cubic centimeter, which successfully floated virtually all plastic fragments.',
+      distractor: 'B and C',
+      distractorNote: 'Lý do khoa học duy nhất được đưa ra là tỷ trọng chất lỏng (specific gravity).',
+      paraphraseNote: 'higher specific gravity ≈ significantly higher specific gravity'
+    },
+    {
+      id: 'ft1-l24',
+      number: 24,
+      type: 'multiple-choice',
+      prompt: 'The students decided to employ FTIR spectroscopy rather than Raman spectroscopy because FTIR:',
+      options: [
+        'A. Provided higher optical magnification.',
+        'B. Was enhanced by an automated microscope that increased analytical speed.',
+        'C. Was the only method approved by their department.'
+      ],
+      correctAnswer: 'B. Was enhanced by an automated microscope that increased analytical speed.',
+      explanation: 'Chloe confirms FTIR had "an automated microscope attachment, which accelerated our throughput immensely."',
+      explanationVi: 'Chloe chọn FTIR vì phòng lab vừa trang bị kính hiển vi tự động, giúp tăng tốc độ phân tích lên rất nhiều.',
+      answerSentence: 'the university lab recently acquired an automated microscope attachment, which accelerated our throughput immensely.',
+      distractor: 'A and C',
+      distractorNote: 'Từ đồng nghĩa: "accelerated our throughput immensely" = "increased analytical speed".',
+      paraphraseNote: 'increased analytical speed ≈ accelerated our throughput immensely'
+    },
+    {
+      id: 'ft1-l25',
+      number: 25,
+      type: 'multiple-choice',
+      prompt: 'What unexpected finding surprised the students regarding sample distribution?',
+      options: [
+        'A. Plastics were absent from public tourist beaches.',
+        'B. Highest concentrations were in a sheltered northern cove rather than near the harbor.',
+        'C. Deep sea samples contained higher counts than surface sands.'
+      ],
+      correctAnswer: 'B. Highest concentrations were in a sheltered northern cove rather than near the harbor.',
+      explanation: 'Liam notes they hypothesized the harbor would have the most, but "the highest density was recorded on the sheltered estuary beach three kilometers north."',
+      explanationVi: 'Liam ban đầu nghĩ cảng biển nhiều rác nhất, nhưng thực tế bãi biển kín gió phía bắc mới có mật độ nhựa cao nhất.',
+      answerSentence: 'the highest density was recorded on the sheltered estuary beach three kilometers north.',
+      distractor: 'A and C',
+      distractorNote: 'Giả thuyết ban đầu (harbor) trái ngược với kết quả đo đạc thực tế (sheltered estuary beach).',
+      paraphraseNote: 'unexpected finding ≈ remarkably, the highest density was recorded on...'
+    },
+    {
+      id: 'ft1-l26',
+      number: 26,
+      type: 'matching',
+      prompt: 'Responsibility for Literature Review on Coastal Microplastics:',
+      options: ['A. Liam', 'B. Chloe', 'C. Both students collaboratively'],
+      correctAnswer: 'B. Chloe',
+      explanation: 'Chloe volunteers to synthesize previous academic literature.',
+      explanationVi: 'Chloe nhận phụ trách phần tổng quan tài liệu nghiên cứu (Literature Review).',
+      answerSentence: 'Chloe will synthesize and write the background academic literature review.',
+      distractor: 'Liam or Both',
+      distractorNote: 'Cần phân biệt rõ ai nhận phần việc nào trong buổi tutorial.',
+      paraphraseNote: 'literature review ≈ background academic literature'
+    },
+    {
+      id: 'ft1-l27',
+      number: 27,
+      type: 'matching',
+      prompt: 'Responsibility for Statistical Charts and Polymer Breakdown Data:',
+      options: ['A. Liam', 'B. Chloe', 'C. Both students collaboratively'],
+      correctAnswer: 'A. Liam',
+      explanation: 'Liam takes responsibility for statistical charts and data graphs.',
+      explanationVi: 'Liam phụ trách lập biểu đồ thống kê và bảng phân tích số liệu nhựa.',
+      answerSentence: 'Liam handles the data analytics, statistical graphing, and polymer charts.',
+      distractor: 'Chloe or Both',
+      distractorNote: 'Liam có thế mạnh về phân tích số liệu (data analytics).',
+      paraphraseNote: 'statistical charts ≈ statistical graphing and charts'
+    },
+    {
+      id: 'ft1-l28',
+      number: 28,
+      type: 'matching',
+      prompt: 'Responsibility for Environmental Policy Recommendations:',
+      options: ['A. Liam', 'B. Chloe', 'C. Both students collaboratively'],
+      correctAnswer: 'C. Both students collaboratively',
+      explanation: 'Tutor instructs both students to jointly co-author the recommendations section.',
+      explanationVi: 'Thầy hướng dẫn yêu cầu cả 2 sinh viên cùng nhau đồng tác giả phần kiến nghị chính sách.',
+      answerSentence: 'Both students agree to draft the final policy recommendations together.',
+      distractor: 'A or B',
+      distractorNote: 'Từ "together / jointly" báo hiệu đáp án là Both students collaboratively.',
+      paraphraseNote: 'collaboratively ≈ together'
+    },
+    {
+      id: 'ft1-l29',
+      number: 29,
+      type: 'note-completion',
+      prompt: 'Concentration on the northern beach is caused by wind and tidal [ 29 ].',
+      correctAnswer: 'gyres',
+      acceptableAnswers: ['currents'],
+      explanation: 'Chloe notes debris concentrates due to "local tidal gyres and prevailing southeasterly winds".',
+      explanationVi: 'Chloe kết luận rác dồn lại do các dòng hải lưu xoáy cục bộ (tidal gyres) và gió mùa đông nam.',
+      answerSentence: 'We concluded that local tidal gyres and prevailing southeasterly winds create a hydrodynamic trap',
+      distractor: 'waves',
+      distractorNote: 'Thuật ngữ hải dương học: "gyres" (hoàn lưu/dòng xoáy).',
+      paraphraseNote: 'tidal [ 29 ] ≈ local tidal gyres'
+    },
+    {
+      id: 'ft1-l30',
+      number: 30,
+      type: 'note-completion',
+      prompt: 'The geography of the northern cove forms a natural hydrodynamic [ 30 ] for drifting waste.',
+      correctAnswer: 'trap',
+      explanation: 'Chloe says it forms "a hydrodynamic trap that concentrates drifting debris".',
+      explanationVi: 'Vịnh phía bắc tạo thành một cái bẫy thủy động lực tự nhiên (hydrodynamic trap) gom rác trôi dạt.',
+      answerSentence: 'create a hydrodynamic trap that concentrates drifting debris in that specific cove.',
+      distractor: 'None',
+      distractorNote: 'Từ vựng "trap" biểu thị cái bẫy gom rác tự nhiên.',
+      paraphraseNote: 'forms a natural [ 30 ] ≈ create a hydrodynamic trap'
+    }
+  ]
+};
+
+export const FULL_TEST_1_SECTION_4: ListeningSection = {
+  id: 'ft1-sec4-biomimicry',
+  sourceId: 'src-official-ielts-listening',
+  title: 'Part 4: Academic Lecture on Biomimicry and Sustainable Architecture',
+  part: 4,
+  sectionNumber: 4,
+  context: 'A university professor lecturing on how natural evolutionary designs inspire sustainable modern building engineering.',
+  instructions: 'Answer questions 31-40. Complete the lecture notes below. Write NO MORE THAN TWO WORDS for each answer.',
+  duration: 510,
+  narratorVoice: 'en-GB',
+  createdFrom: 'official',
+  copyrightStatus: 'fair-use-educational',
+  verificationStatus: 'verified',
+  audioSources: [
+    {
+      label: 'Official Sample Audio',
+      url: 'https://cdn.jsdelivr.net/gh/Mr-QB/ielts-prep-studio@main/assets/audio/sample_listening_part4.mp3',
+      isStreamable: false
+    },
+    {
+      label: 'Browser TTS – practice fallback',
+      url: '',
+      isSynthetic: true
+    }
+  ],
+  transcript: `PROFESSOR: Good morning, ladies and gentlemen. Today we conclude our module on sustainable structural engineering by exploring biomimicry—the discipline of emulating nature’s time-tested designs to resolve complex architectural dilemmas. Over 3.8 billion years of natural selection, biological organisms have evolved extraordinary energy-efficient survival mechanisms with zero waste.
+Perhaps the most celebrated architectural translation of biomimicry is Harare’s Eastgate Centre in Zimbabwe, masterminded by architect Mick Pearce. In conventional tropical commercial buildings, air conditioning consumes up to 40% of total electrical power. Pearce instead examined the subterranean architecture of indigenous termite mounds.
+Termite colonies require an exquisitely stable internal climate of exactly 30 degrees Celsius to cultivate their primary fungus crops, despite outside savannah temperatures fluctuating violently between 2 degrees at night and over 40 degrees during the day. Termites achieve this thermal equilibrium without electricity by constructing a sophisticated network of vertical ventilation flues and subterranean conduits.
+During cool nights, dense nocturnal air is drawn into the base of the mound, cooling the dense earthen walls. Throughout the scorching daytime, internal heat generated by billions of fungal spores and termite bodies rises via convection, venting outwards through top chimneys. This draft pulls fresh air across subterranean chambers, maintaining constant cooling.
+Pearce replicated this passive convection loop at the Eastgate Centre. Built entirely of concrete and indigenous masonry with high thermal mass, the structure absorbs daytime solar heat without warming interior offices. At night, gigantic mechanical fans draw in cool night air to chill the building’s hollow floors. During working hours, natural buoyancy pushes warm air up through exhaust funnels.
+As a consequence, the Eastgate Centre operates using 90% less energy than conventional office blocks of comparable scale, saving millions in air conditioning expenditure.
+Similar bio-inspired concepts are transforming acoustics and materials. For example, the microscopic dermal denticles of shark skins have inspired non-toxic antifouling coatings on marine hulls, while the hydrophobicity of lotus leaves has catalyzed self-cleaning facade paints that shed dirt effortlessly using simple rainfall. As we confront the climate crisis, nature’s blueprint remains humanity’s most sophisticated textbook.`,
+  questions: [
+    {
+      id: 'ft1-l31',
+      number: 31,
+      type: 'note-completion',
+      prompt: 'Biomimicry studies how biological organisms achieve survival with zero [ 31 ].',
+      correctAnswer: 'waste',
+      explanation: 'Professor notes organisms evolved survival mechanisms "with zero waste".',
+      explanationVi: 'Giáo sư nêu sinh vật tự nhiên tiến hóa cơ chế sinh tồn không tạo ra rác thải (zero waste).',
+      answerSentence: 'biological organisms have evolved extraordinary energy-efficient survival mechanisms with zero waste.',
+      distractor: 'energy',
+      distractorNote: 'Cụm từ "with zero waste" xuất hiện rõ ràng trong phần mở đầu.',
+      paraphraseNote: 'survival with zero [ 31 ] ≈ survival mechanisms with zero waste'
+    },
+    {
+      id: 'ft1-l32',
+      number: 32,
+      type: 'note-completion',
+      prompt: 'In typical tropical offices, electrical power consumed by air conditioning reaches up to [ 32 ] percent.',
+      correctAnswer: '40',
+      acceptableAnswers: ['40%', 'forty'],
+      explanation: 'Professor says: "air conditioning consumes up to 40% of total electrical power."',
+      explanationVi: 'Điều hòa nhiệt độ tiêu tốn tới 40% tổng lượng điện trong các tòa nhà nhiệt đới truyền thống.',
+      answerSentence: 'In conventional tropical commercial buildings, air conditioning consumes up to 40% of total electrical power.',
+      distractor: '30 or 90',
+      distractorNote: '40% là lượng điện tiêu thụ thông thường, 90% là lượng điện tiết kiệm được ở Eastgate Centre.',
+      paraphraseNote: 'reaches up to [ 32 ] percent ≈ consumes up to 40%'
+    },
+    {
+      id: 'ft1-l33',
+      number: 33,
+      type: 'note-completion',
+      prompt: 'Termite colonies regulate temperature to cultivate their vital [ 33 ] crops.',
+      correctAnswer: 'fungus',
+      acceptableAnswers: ['fungal'],
+      explanation: 'Professor states termites regulate climate "to cultivate their primary fungus crops".',
+      explanationVi: 'Mối duy trì nhiệt độ ổn định để nuôi cấy các vườn nấm (fungus crops) làm nguồn thức ăn chính.',
+      answerSentence: 'Termite colonies require an exquisitely stable internal climate of exactly 30 degrees Celsius to cultivate their primary fungus crops',
+      distractor: 'None',
+      distractorNote: 'Từ vựng sinh học "fungus" (nấm).',
+      paraphraseNote: 'vital crops ≈ primary fungus crops'
+    },
+    {
+      id: 'ft1-l34',
+      number: 34,
+      type: 'note-completion',
+      prompt: 'Termites construct subterranean conduits and vertical [ 34 ] flues to circulate air.',
+      correctAnswer: 'ventilation',
+      explanation: 'Professor notes they build "vertical ventilation flues and subterranean conduits."',
+      explanationVi: 'Mối xây dựng các ống thông gió thẳng đứng (ventilation flues) và đường hầm ngầm.',
+      answerSentence: 'by constructing a sophisticated network of vertical ventilation flues and subterranean conduits.',
+      distractor: 'None',
+      distractorNote: 'Từ bổ nghĩa trước "flues" là "ventilation".',
+      paraphraseNote: 'vertical [ 34 ] flues ≈ vertical ventilation flues'
+    },
+    {
+      id: 'ft1-l35',
+      number: 35,
+      type: 'note-completion',
+      prompt: 'Warm internal air rises naturally via the thermodynamic mechanism of [ 35 ].',
+      correctAnswer: 'convection',
+      explanation: 'Professor explains: "internal heat... rises via convection, venting outwards through top chimneys."',
+      explanationVi: 'Khí nóng bốc lên cao một cách tự nhiên nhờ cơ chế đối lưu nhiệt (convection).',
+      answerSentence: 'rises via convection, venting outwards through top chimneys.',
+      distractor: 'conduction or radiation',
+      distractorNote: 'Thuật ngữ vật lý "convection" (đối lưu).',
+      paraphraseNote: 'thermodynamic mechanism ≈ rises via convection'
+    },
+    {
+      id: 'ft1-l36',
+      number: 36,
+      type: 'note-completion',
+      prompt: 'The Eastgate Centre was constructed using materials possessing high [ 36 ] mass.',
+      correctAnswer: 'thermal',
+      acceptableAnswers: ['thermal mass'],
+      explanation: 'Professor notes building was made of masonry with "high thermal mass".',
+      explanationVi: 'Công trình được xây bằng bê tông và vật liệu khối có quán tính nhiệt cao (high thermal mass).',
+      answerSentence: 'Built entirely of concrete and indigenous masonry with high thermal mass',
+      distractor: 'concrete or indigenous',
+      distractorNote: 'Cụm thuật ngữ kỹ thuật kiến trúc: "thermal mass" (quán tính nhiệt).',
+      paraphraseNote: 'possessing high [ 36 ] mass ≈ with high thermal mass'
+    },
+    {
+      id: 'ft1-l37',
+      number: 37,
+      type: 'note-completion',
+      prompt: 'Cool night air is drawn into the building by large fans to chill the [ 37 ] floors.',
+      correctAnswer: 'hollow',
+      explanation: 'Professor mentions fans "chill the building’s hollow floors."',
+      explanationVi: 'Quạt đêm hút không khí mát để làm lạnh các sàn nhà rỗng (hollow floors).',
+      answerSentence: 'gigantic mechanical fans draw in cool night air to chill the building’s hollow floors.',
+      distractor: 'concrete or upper',
+      distractorNote: 'Đặc điểm thiết kế của sàn là "hollow" (rỗng bên trong để dẫn khí).',
+      paraphraseNote: 'chill the [ 37 ] floors ≈ chill the building’s hollow floors'
+    },
+    {
+      id: 'ft1-l38',
+      number: 38,
+      type: 'note-completion',
+      prompt: 'Overall, the Eastgate Centre operates using [ 38 ] percent less energy than conventional blocks.',
+      correctAnswer: '90',
+      acceptableAnswers: ['90%', 'ninety'],
+      explanation: 'Professor states: "operates using 90% less energy than conventional office blocks".',
+      explanationVi: 'Tòa nhà Eastgate vận hành với mức năng lượng ít hơn 90% so với các tòa nhà cùng kích cỡ.',
+      answerSentence: 'As a consequence, the Eastgate Centre operates using 90% less energy than conventional office blocks',
+      distractor: '40%',
+      distractorNote: '90% là tỷ lệ tiết kiệm năng lượng vượt bậc của công trình.',
+      paraphraseNote: 'operates using [ 38 ] percent less ≈ using 90% less energy'
+    },
+    {
+      id: 'ft1-l39',
+      number: 39,
+      type: 'note-completion',
+      prompt: 'The skin of [ 39 ] has inspired non-toxic marine hull coatings.',
+      correctAnswer: 'sharks',
+      acceptableAnswers: ['shark'],
+      explanation: 'Professor refers to: "dermal denticles of shark skins have inspired non-toxic antifouling coatings".',
+      explanationVi: 'Cấu trúc vi mô trên da cá mập (shark skins) truyền cảm hứng cho lớp sơn chống bám dính trên vỏ tàu thủy.',
+      answerSentence: 'the microscopic dermal denticles of shark skins have inspired non-toxic antifouling coatings on marine hulls',
+      distractor: 'whales',
+      distractorNote: 'Từ vựng "sharks" hoặc "shark".',
+      paraphraseNote: 'skin of [ 39 ] ≈ shark skins'
+    },
+    {
+      id: 'ft1-l40',
+      number: 40,
+      type: 'note-completion',
+      prompt: 'Self-cleaning exterior facade paints mimic the water-repelling properties of [ 40 ] leaves.',
+      correctAnswer: 'lotus',
+      acceptableAnswers: ['the lotus'],
+      explanation: 'Professor highlights the "hydrophobicity of lotus leaves has catalyzed self-cleaning facade paints".',
+      explanationVi: 'Sơn tường tự làm sạch bắt chước đặc tính kỵ nước (hydrophobicity) của lá sen (lotus leaves).',
+      answerSentence: 'the hydrophobicity of lotus leaves has catalyzed self-cleaning facade paints that shed dirt effortlessly',
+      distractor: 'None',
+      distractorNote: 'Hiệu ứng lá sen "lotus effect" là ví dụ kinh điển trong phỏng sinh học.',
+      paraphraseNote: 'water-repelling properties ≈ hydrophobicity of lotus leaves'
+    }
+  ]
+};
+
+export const LISTENING_FULL_TESTS: ListeningFullTest[] = [
+  {
+    id: 'full-test-listening-01',
+    title: 'IELTS Academic Listening Full Mock Test 1',
+    testNumber: 1,
+    sourceId: 'src-official-ielts-listening',
+    sections: [
+      FULL_TEST_1_SECTION_1,
+      FULL_TEST_1_SECTION_2,
+      FULL_TEST_1_SECTION_3,
+      FULL_TEST_1_SECTION_4
+    ],
+    totalQuestions: 40,
+    difficulty: 'medium',
+    estimatedBand: 'Band 5.0 - 7.5',
+    createdFrom: 'official',
+    copyrightStatus: 'fair-use-educational',
+    description: 'Đề thi Listening chuẩn 40 câu hỏi trải dài 4 Part (Form Booking, Campus Orientation, Marine Tutorial, Biomimicry Lecture) với phân tích bẫy và paraphrase chi tiết.'
   }
 ];
 
 export const LISTENING_SECTIONS: ListeningSection[] = [
-  // --- Official Sample Task 1: Part 1 Social Context (Note Completion) ---
-  {
-    id: 'official-sample-p1-transport',
-    sourceId: 'src-official-ielts-listening',
-    sectionNumber: 1,
-    title: 'Official IELTS Sample: Transport Enquiry',
-    context: 'A phone conversation between a traveller and a transport information clerk inquiring about regional train schedules, fare discounts, and bicycle carriage policies.',
-    instructions: 'Complete the notes below. Write NO MORE THAN TWO WORDS AND/OR A NUMBER for each answer.',
-    duration: 310,
-    narratorVoice: 'en-GB',
-    canonicalUrl: 'https://ielts.org/for-test-takers/sample-test-questions',
-    verificationStatus: 'external-only',
-    sourceNotice: 'Bản quyền bài tập thuộc IELTS.org. Do chính sách CORS của nguồn chính thức, bạn có thể nghe trên trang gốc hoặc kích hoạt Giọng đọc mô phỏng (Browser TTS) để luyện tập trong app.',
-    audioSources: [
-      {
-        label: 'Nguồn chính thức (Mở trang web IELTS.org)',
-        url: 'https://ielts.org/for-test-takers/sample-test-questions',
-        isStreamable: false
-      },
-      {
-        label: 'Giọng đọc mô phỏng (Browser TTS – practice fallback)',
-        url: 'tts-synthetic-practice',
-        isSynthetic: true
-      }
-    ],
-    transcript: `CLERK: Good morning, Travel Information Services. How can I help you today?
-CALLER: Good morning. I'm planning a journey from Bristol to Manchester next Friday, and I'd like to check departure times and ticket prices.
-CLERK: Certainly, madam. What time would you prefer to travel?
-CALLER: Early morning, if possible. I need to attend a conference starting at 11:30 AM.
-CLERK: Right. There is an express service leaving Bristol Temple Meads at 7:15 AM, arriving in Manchester Piccadilly at 10:20 AM. [Q1]
-CALLER: That sounds ideal. How much is a standard single fare for that train?
-CLERK: A standard single booked in advance is £42.50. However, if you possess a National Railcard, you receive a one-third discount, reducing it to £28.20. [Q2]
-CALLER: I do have a railcard! That's wonderful. Can I reserve a window seat with a power socket?
-CLERK: Yes, seat reservations are complimentary when booked online. Would you like a forward-facing seat in Coach D? [Q3]
-CALLER: Yes, please. Oh, and another question: can I bring my folding bicycle on board? [Q4]
-CLERK: Folding bicycles are permitted on all services free of charge, provided they are stored in the luggage rack. Non-folding bicycles require a prior reservation because there are only four spaces available per train. [Q5]
-CALLER: Mine is a folding one, so that shouldn't be an issue. Where should I collect the tickets?
-CLERK: You can retrieve them from any station self-service machine using the booking reference: TR-894-K. [Q6]
-CALLER: TR-894-K. Got it. And is catering provided on that train?
-CLERK: Yes, there is a buffet carriage serving hot drinks and light breakfast items throughout the journey. [Q7]
-CALLER: Excellent. Thank you very much for your assistance.
-CLERK: You're welcome. Have a safe journey!`,
-    questions: [
-      {
-        id: 'off-p1-q1',
-        number: 1,
-        type: 'fill-blank',
-        prompt: 'Arrival time in Manchester Piccadilly: [ 1 ] AM',
-        correctAnswer: '10:20',
-        acceptableAnswers: ['10.20', '10:20 am', '10.20 am'],
-        explanation: 'Audioscript: "...arriving in Manchester Piccadilly at 10:20 AM."',
-        transcriptTimestamp: 35
-      },
-      {
-        id: 'off-p1-q2',
-        number: 2,
-        type: 'fill-blank',
-        prompt: 'Discounted fare with Railcard: £ [ 2 ]',
-        correctAnswer: '28.20',
-        acceptableAnswers: ['28.2', '£28.20'],
-        explanation: 'Audioscript: "...reducing it to £28.20."',
-        transcriptTimestamp: 62
-      },
-      {
-        id: 'off-p1-q3',
-        number: 3,
-        type: 'fill-blank',
-        prompt: 'Reserved seat position: forward-facing seat in Coach [ 3 ]',
-        correctAnswer: 'D',
-        acceptableAnswers: ['Coach D', 'd'],
-        explanation: 'Audioscript: "Would you like a forward-facing seat in Coach D?"',
-        transcriptTimestamp: 85
-      },
-      {
-        id: 'off-p1-q4',
-        number: 4,
-        type: 'fill-blank',
-        prompt: 'Type of bicycle permitted without reservation: [ 4 ] bicycle',
-        correctAnswer: 'folding',
-        acceptableAnswers: ['a folding'],
-        explanation: 'Audioscript: "Folding bicycles are permitted on all services free of charge..."',
-        transcriptTimestamp: 108
-      },
-      {
-        id: 'off-p1-q5',
-        number: 5,
-        type: 'fill-blank',
-        prompt: 'Number of spaces for standard bicycles per train: [ 5 ]',
-        correctAnswer: '4',
-        acceptableAnswers: ['four', '4 spaces'],
-        explanation: 'Audioscript: "...there are only four spaces available per train."',
-        transcriptTimestamp: 130
-      },
-      {
-        id: 'off-p1-q6',
-        number: 6,
-        type: 'fill-blank',
-        prompt: 'Ticket collection reference code: [ 6 ]',
-        correctAnswer: 'TR-894-K',
-        acceptableAnswers: ['tr-894-k', 'TR 894 K', 'TR894K'],
-        explanation: 'Audioscript: "using the booking reference: TR-894-K."',
-        transcriptTimestamp: 155
-      },
-      {
-        id: 'off-p1-q7',
-        number: 7,
-        type: 'fill-blank',
-        prompt: 'Refreshments available in the [ 7 ] carriage',
-        correctAnswer: 'buffet',
-        acceptableAnswers: ['the buffet'],
-        explanation: 'Audioscript: "...there is a buffet carriage serving hot drinks..."',
-        transcriptTimestamp: 178
-      }
-    ]
-  },
-
-  // --- Official / British Council Sample Task 2: Part 2 Social Monologue (Multiple Choice & Plan) ---
-  {
-    id: 'bc-sample-p2-park',
-    sourceId: 'src-bc-listening',
-    sectionNumber: 2,
-    title: 'British Council Practice: Riverdale Community Park Redevelopment',
-    context: 'A local council coordinator delivers an informative presentation describing new facilities, environmental zones, and safety measures at Riverdale Community Park.',
-    instructions: 'Choose the correct letter, A, B, or C.',
-    duration: 340,
-    narratorVoice: 'en-GB',
-    canonicalUrl: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/listening-practice-tests',
-    verificationStatus: 'external-only',
-    sourceNotice: 'Học liệu thuộc British Council IELTS. Audio được lưu trữ trên nền tảng của British Council. Trong ứng dụng, bạn có thể chọn mở nguồn ngoài hoặc dùng Giọng đọc mô phỏng.',
-    audioSources: [
-      {
-        label: 'Nguồn British Council chính thức',
-        url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/listening-practice-tests',
-        isStreamable: false
-      },
-      {
-        label: 'Giọng đọc mô phỏng (Browser TTS – practice fallback)',
-        url: 'tts-synthetic-practice',
-        isSynthetic: true
-      }
-    ],
-    transcript: `SPEAKER: Welcome, residents of Riverdale. I'm delighted to update you on the recent redevelopment of our community park. Over the past six months, contractors have completed major landscaping works aimed at enhancing biodiversity and leisure access for all generations.
-First, regarding our new solar-powered lighting network. Previously, visitors expressed concern about illumination along the riverbank path after dusk. We have now installed thirty low-glare LED lamps, which not only illuminate the perimeter but also safeguard nocturnal wildlife habitats. [Q8]
-Second, the children's adventure playground has been moved away from the main vehicular entrance to the northern lawn, where children can play safely without traffic interference. [Q9]
-Furthermore, we have introduced a dedicated community herb garden. Anyone in the neighbourhood is welcome to harvest culinary herbs, provided they replace tools in the storage shed by 6:00 PM. [Q10]
-Lastly, please note that cycling is strictly restricted to designated tarmac lanes to prevent accidents with pedestrians and dog walkers. [Q11]`,
-    questions: [
-      {
-        id: 'bc-p2-q8',
-        number: 8,
-        type: 'multiple-choice',
-        prompt: 'The new solar lighting system along the riverbank path was primarily designed to:',
-        options: [
-          'A. Lower municipal electricity expenses',
-          'B. Provide evening safety while protecting nocturnal wildlife',
-          'C. Deter unauthorized vehicular parking after dusk'
-        ],
-        correctAnswer: 'B',
-        explanation: 'Audioscript: "...which not only illuminate the perimeter but also safeguard nocturnal wildlife habitats."'
-      },
-      {
-        id: 'bc-p2-q9',
-        number: 9,
-        type: 'multiple-choice',
-        prompt: 'The adventure playground was relocated because:',
-        options: [
-          'A. The northern lawn receives more direct sunlight',
-          'B. The previous location was too close to traffic hazards',
-          'C. The equipment needed softer turf surfacing'
-        ],
-        correctAnswer: 'B',
-        explanation: 'Audioscript: "...moved away from the main vehicular entrance... where children can play safely without traffic interference."'
-      },
-      {
-        id: 'bc-p2-q10',
-        number: 10,
-        type: 'multiple-choice',
-        prompt: 'What condition is required when using the community herb garden?',
-        options: [
-          'A. Residents must sign an annual permit',
-          'B. Tools must be returned to the shed by 6:00 PM',
-          'C. Plants can only be collected during weekends'
-        ],
-        correctAnswer: 'B',
-        explanation: 'Audioscript: "...provided they replace tools in the storage shed by 6:00 PM."'
-      },
-      {
-        id: 'bc-p2-q11',
-        number: 11,
-        type: 'multiple-choice',
-        prompt: 'Cyclists using Riverdale Park are required to:',
-        options: [
-          'A. Wear high-visibility helmets at all times',
-          'B. Keep exclusively to designated paved paths',
-          'C. Dismount when encountering canine walkers'
-        ],
-        correctAnswer: 'B',
-        explanation: 'Audioscript: "...cycling is strictly restricted to designated tarmac lanes to prevent accidents..."'
-      }
-    ]
-  },
-
-  // --- IELTS-style Practice Part 3: Academic Discussion (Table & Multiple Choice) ---
-  {
-    id: 'practice-p3-renewable-energy',
-    sourceId: 'src-ielts-style-practice',
-    sectionNumber: 3,
-    title: 'IELTS-Style Practice: Offshore Wind Farm Project Review',
-    context: 'Two undergraduate engineering students, Clara and Liam, discuss their joint case study on North Sea offshore wind turbines with their academic supervisor, Dr. Harrison.',
-    instructions: 'Choose the correct letter, A, B, or C; or fill in the blank with NO MORE THAN TWO WORDS.',
-    duration: 360,
-    narratorVoice: 'en-GB',
-    verificationStatus: 'verified',
-    sourceNotice: 'Bài luyện tập mô phỏng chuẩn format IELTS Academic Part 3. Audioscript và câu hỏi được đồng bộ chặt chẽ để kiểm tra kỹ năng nghe học thuật.',
-    audioSources: [
-      {
-        label: 'Giọng đọc chuẩn (Browser TTS – practice fallback)',
-        url: 'tts-synthetic-practice',
-        isSynthetic: true
-      }
-    ],
-    transcript: `DR HARRISON: Good afternoon, Clara, Liam. Let's look over your presentation slides for tomorrow's seminar on the Hornsea offshore wind project. Where did you encounter the most difficulty?
-CLARA: Initially, we struggled to find reliable statistics on foundation manufacturing costs. Most industry reports combine turbine assembly and maritime installation under one umbrella budget. [Q12]
-LIAM: Yes, but once we cross-referenced Danish university publications, we isolated the concrete seabed gravity base expenses clearly.
-DR HARRISON: Excellent. And what about your analysis of acoustic disturbance to marine mammals during pile driving? [Q13]
-CLARA: That was fascinating. The engineering consortium deployed air bubble curtains around the drilling rigs, which dampened underwater sound waves by nearly fifteen decibels. [Q14]
-LIAM: We also found that seal populations returned to their usual foraging routes within three weeks of construction finishing, which contradicted earlier fears of long-term habitat abandonment. [Q15]
-DR HARRISON: Very thorough. Now make sure your final conclusion doesn't just praise the output figures. You need to address transmission cable losses over long distances to the national grid. [Q16]`,
-    questions: [
-      {
-        id: 'prac-p3-q12',
-        number: 12,
-        type: 'multiple-choice',
-        prompt: 'Why was data gathering difficult at the beginning of their research?',
-        options: [
-          'A. University databases lacked offshore engineering journals',
-          'B. Commercial reports combined distinct cost categories together',
-          'C. Danish turbine manufacturers refused to share production specs'
-        ],
-        correctAnswer: 'B',
-        explanation: 'Audioscript: "Most industry reports combine turbine assembly and maritime installation under one umbrella budget."'
-      },
-      {
-        id: 'prac-p3-q13',
-        number: 13,
-        type: 'fill-blank',
-        prompt: 'Specific foundation type analyzed: [ 13 ] base',
-        correctAnswer: 'gravity',
-        acceptableAnswers: ['gravity base', 'concrete seabed gravity'],
-        explanation: 'Audioscript: "...we isolated the concrete seabed gravity base expenses clearly."'
-      },
-      {
-        id: 'prac-p3-q14',
-        number: 14,
-        type: 'fill-blank',
-        prompt: 'Sound-dampening technology used: air [ 14 ] curtains',
-        correctAnswer: 'bubble',
-        acceptableAnswers: ['bubbles', 'bubble curtains'],
-        explanation: 'Audioscript: "The engineering consortium deployed air bubble curtains around the drilling rigs..."'
-      },
-      {
-        id: 'prac-p3-q15',
-        number: 15,
-        type: 'fill-blank',
-        prompt: 'Number of weeks for seals to resume foraging: [ 15 ] weeks',
-        correctAnswer: '3',
-        acceptableAnswers: ['three', '3 weeks'],
-        explanation: 'Audioscript: "...seal populations returned to their usual foraging routes within three weeks..."'
-      },
-      {
-        id: 'prac-p3-q16',
-        number: 16,
-        type: 'multiple-choice',
-        prompt: 'Dr. Harrison advises the students that their conclusion must address:',
-        options: [
-          'A. Power losses during long-distance cable transmission',
-          'B. The political dispute over marine territorial borders',
-          'C. Routine turbine maintenance schedules in winter'
-        ],
-        correctAnswer: 'A',
-        explanation: 'Audioscript: "You need to address transmission cable losses over long distances to the national grid."'
-      }
-    ]
-  },
-
-  // --- IELTS-style Practice Part 4: Academic Monologue (Summary / Sentence Completion) ---
-  {
-    id: 'practice-p4-microplastics',
-    sourceId: 'src-ielts-style-practice',
-    sectionNumber: 4,
-    title: 'IELTS-Style Practice: Microplastics in Deep-Sea Sediments',
-    context: 'A marine biology lecturer discusses recent oceanographic research concerning the distribution and ecological hazards of synthetic microfibers in benthic trenches.',
-    instructions: 'Complete the sentences below. Write NO MORE THAN TWO WORDS for each answer.',
-    duration: 380,
-    narratorVoice: 'en-US',
-    verificationStatus: 'verified',
-    sourceNotice: 'Bài thuyết trình học thuật chuẩn Part 4 IELTS Academic. Giọng đọc mô phỏng rõ ràng, kèm giải thích chi tiết cho từng bẫy thông tin (distractors).',
-    audioSources: [
-      {
-        label: 'Giọng đọc chuẩn (Browser TTS – practice fallback)',
-        url: 'tts-synthetic-practice',
-        isSynthetic: true
-      }
-    ],
-    transcript: `LECTURER: In today's seminar, we examine anthropogenic pollutants in remote oceanic ecosystems. Until recently, oceanographers assumed buoyant synthetic polymers would remain primarily in surface gyres or along coastal shorelines. However, deep-submergence sampling has revealed dense deposits of microfibers resting within abyssal trenches at depths exceeding 6,000 meters. [Q17]
-These microfibers originate predominantly from synthetic clothing shed during domestic laundry cycles. Because conventional wastewater treatment facilities lack fine filtration membranes, millions of fibers bypass filtration into river deltas daily. [Q18]
-Once in the ocean, dense microbial biofilms adhere to the plastic surfaces. This process, known as biofouling, increases their overall density, accelerating their descent toward the seabed. [Q19]
-Upon reaching benthic sediments, microplastics are ingested by bottom-dwelling detritivores, such as sea cucumbers and amphipods. These synthetic particles disrupt digestive enzymes and leach toxic plasticizers into benthic food webs. [Q20]`,
-    questions: [
-      {
-        id: 'prac-p4-q17',
-        number: 17,
-        type: 'fill-blank',
-        prompt: 'Microfibers have been detected in oceanic trenches below [ 17 ] meters.',
-        correctAnswer: '6,000',
-        acceptableAnswers: ['6000', '6,000 meters', 'six thousand'],
-        explanation: 'Audioscript: "...resting within abyssal trenches at depths exceeding 6,000 meters."'
-      },
-      {
-        id: 'prac-p4-q18',
-        number: 18,
-        type: 'fill-blank',
-        prompt: 'Primary source of synthetic fibers: domestic [ 18 ] cycles.',
-        correctAnswer: 'laundry',
-        acceptableAnswers: ['washing', 'laundry cycles'],
-        explanation: 'Audioscript: "...originate predominantly from synthetic clothing shed during domestic laundry cycles."'
-      },
-      {
-        id: 'prac-p4-q19',
-        number: 19,
-        type: 'fill-blank',
-        prompt: 'Process increasing microfiber density and sinking speed: [ 19 ].',
-        correctAnswer: 'biofouling',
-        acceptableAnswers: ['bio-fouling'],
-        explanation: 'Audioscript: "This process, known as biofouling, increases their overall density..."'
-      },
-      {
-        id: 'prac-p4-q20',
-        number: 20,
-        type: 'fill-blank',
-        prompt: 'Chemicals that leach into food webs from ingested particles: toxic [ 20 ].',
-        correctAnswer: 'plasticizers',
-        acceptableAnswers: ['plasticiser', 'plasticisers', 'plasticizer'],
-        explanation: 'Audioscript: "...disrupt digestive enzymes and leach toxic plasticizers into benthic food webs."'
-      }
-    ]
-  },
-
-  // --- Cambridge 12 User Reference Test 5 Section 1 (Classified as User Reference, Audio Unavailable) ---
-  {
-    id: 'cam12-t5-s1',
-    sourceId: 'src-cam12-listening-local',
-    sectionNumber: 1,
-    title: 'Cambridge 12 Test 5 - Part 1: Family Excursions (User Local Reference)',
-    context: 'A conversation between a tourist customer and a travel centre employee discussing family excursion packages.',
-    instructions: 'Complete the notes below. Write ONE WORD AND/OR A NUMBER for each answer.',
-    duration: 330,
-    narratorVoice: 'en-GB',
-    verificationStatus: 'audio-unavailable',
-    sourceNotice: 'Học liệu tham khảo từ tài liệu cá nhân của người học. Audio gốc không có sẵn trên web; các liên kết mirror trôi nổi không được xác thực đã bị gỡ bỏ để đảm bảo tính chính xác.',
-    audioSources: [
-      {
-        label: 'Giọng đọc mô phỏng (Browser TTS – practice fallback)',
-        url: 'tts-synthetic-practice',
-        isSynthetic: true
-      }
-    ],
-    transcript: `TC EMPLOYEE: Hi. Can I help you?
-VISITOR: I'd like to find out if you have any excursions suitable for families.
-TC EMPLOYEE: Sure. How about taking your family for a cruise? We have a steamship that takes passengers out several times a day – it's over 100 years old.
-VISITOR: That sounds interesting. How long is the trip?
-TC EMPLOYEE: About an hour and a half. And don't forget to take pictures of the mountains. They're all around you when you're on the boat and they look fantastic. [Q1]
-VISITOR: OK. And I assume there's a café or something on board?
-TC EMPLOYEE: Sure. How old are your children?
-VISITOR: Er, my daughter's fifteen and my son's seven.
-TC EMPLOYEE: Right. Well there are various things you can do once you've crossed the lake, to make a day of it. One thing that's very popular is a visit to the Country Farm. You're met off the boat by the farmer and he'll take you to the holding pens, where the sheep are kept. Children love feeding them!
-VISITOR: My son would love that. He really likes animals.
-TC EMPLOYEE: Well, there's also a 40-minute trek round the farm on a horse, if he wants. [Q2]
-VISITOR: Do you think he'd manage it? He hasn't done that before.
-TC EMPLOYEE: Sure. It's suitable for complete beginners.
-VISITOR: Ah, good.
-TC EMPLOYEE: And again, visitors are welcome to explore the farm on their own, as long as they take care to close gates and so on. There are some very beautiful gardens along the side of the lake which also belong to the farm – they'll be just at their best now. You could easily spend an hour or two there. [Q3]
-VISITOR: OK. Well that all sounds good. And can we get lunch there? [Q4]
-TC EMPLOYEE: You can, and it's very good, though it's not included in the basic cost. You pay when you get there.
-VISITOR: Right.
-VISITOR: So is there anything else to do over on that side of the lake?
-TC EMPLOYEE: Well, what you can do is take a bike over on the ship and then go on a cycling trip. There's a trail there called the Back Road – you could easily spend three or four hours exploring it, and the scenery's wonderful. They'll give you a map when you get your ticket for the cruise – there's no extra charge. [Q5]
-VISITOR: What's the trail like in terms of difficulty?
-TC EMPLOYEE: Quite challenging in places. It wouldn't be suitable for your seven-year-old. It needs someone who's got a bit more experience. [Q6]
-VISITOR: Hmm. Well, my daughter loves cycling and so do I, so maybe the two of us could go, and my wife and son could stay on the farm. That might work out quite well. But we don't have bikes here... is there somewhere we could rent them?
-TC EMPLOYEE: Yes, there's a place here in the city. It's called Ratchesons. [Q7]
-VISITOR: I'll just make a note of that – er, how do you spell it?
-TC EMPLOYEE: R-A-T-C-H-E-S-O-N-S. It's just by the cruise ship terminal.
-VISITOR: OK.
-TC EMPLOYEE: You'd also need to pick up a repair kit for the bike from there to take along with you, and you'd need to take along a snack and some water – it'd be best to get those in the city.
-VISITOR: Fine. That shouldn't be a problem. And I assume I can rent a helmet from the bike place? [Q8]
-TC EMPLOYEE: Sure, you should definitely get that. It's a great ride, but you want to be well prepared because it's very remote – you won't see any shops round there, or anywhere to stay, so you need to get back in time for the last boat. [Q9]
-VISITOR: Yeah. So what sort of prices are we looking at here?
-TC EMPLOYEE: Let's see, that'd be one adult and one child for the cruise with farm tour, that's $117, and an adult and a child for the cruise only so that's $214 dollars altogether. Oh, wait a minute, how old did you say your daughter was?
-VISITOR: Fifteen.
-TC EMPLOYEE: Then I'm afraid it's $267 because she has to pay the adult fare, which is $75 instead of the child fare which is $22 – sorry about that. [Q10]
-VISITOR: That's OK.`,
-    questions: [
-      {
-        id: 'c12-t5-q1',
-        number: 1,
-        type: 'fill-blank',
-        prompt: 'Cruise on a lake: Can take photos of the [ 1 ] that surround the lake',
-        correctAnswer: 'mountains',
-        acceptableAnswers: ['mountain', 'the mountains'],
-        explanation: 'Audioscript: "And don\'t forget to take pictures of the mountains."',
-        transcriptTimestamp: 28
-      },
-      {
-        id: 'c12-t5-q2',
-        number: 2,
-        type: 'fill-blank',
-        prompt: 'Farm visit: Visit can include a 40-minute ride on a [ 2 ]',
-        correctAnswer: 'horse',
-        acceptableAnswers: ['a horse'],
-        explanation: 'Audioscript: "...there\'s also a 40-minute trek round the farm on a horse..."',
-        transcriptTimestamp: 62
-      },
-      {
-        id: 'c12-t5-q3',
-        number: 3,
-        type: 'fill-blank',
-        prompt: 'Visitors can walk in the farm’s [ 3 ] by the lake',
-        correctAnswer: 'gardens',
-        acceptableAnswers: ['garden', 'beautiful gardens'],
-        explanation: 'Audioscript: "There are some very beautiful gardens along the side of the lake..."',
-        transcriptTimestamp: 85
-      },
-      {
-        id: 'c12-t5-q4',
-        number: 4,
-        type: 'fill-blank',
-        prompt: '[ 4 ] is available at extra cost',
-        correctAnswer: 'lunch',
-        acceptableAnswers: ['meals'],
-        explanation: 'Audioscript: "And can we get lunch there? You can... though it\'s not included in the basic cost."',
-        transcriptTimestamp: 104
-      },
-      {
-        id: 'c12-t5-q5',
-        number: 5,
-        type: 'fill-blank',
-        prompt: 'Cycling trip: Visitors receive a [ 5 ] with their cruise ticket',
-        correctAnswer: 'map',
-        acceptableAnswers: ['a map'],
-        explanation: 'Audioscript: "They\'ll give you a map when you get your ticket for the cruise..."',
-        transcriptTimestamp: 135
-      },
-      {
-        id: 'c12-t5-q6',
-        number: 6,
-        type: 'fill-blank',
-        prompt: 'The Back Road trail requires cyclists to have [ 6 ]',
-        correctAnswer: 'experience',
-        acceptableAnswers: ['more experience'],
-        explanation: 'Audioscript: "It needs someone who\'s got a bit more experience."',
-        transcriptTimestamp: 160
-      },
-      {
-        id: 'c12-t5-q7',
-        number: 7,
-        type: 'fill-blank',
-        prompt: 'Bike hire shop name: [ 7 ]',
-        correctAnswer: 'Ratchesons',
-        acceptableAnswers: ['ratchesons'],
-        explanation: 'Audioscript: "It\'s called Ratchesons. R-A-T-C-H-E-S-O-N-S."',
-        transcriptTimestamp: 190
-      },
-      {
-        id: 'c12-t5-q8',
-        number: 8,
-        type: 'fill-blank',
-        prompt: 'Must rent a [ 8 ] from the cycle shop',
-        correctAnswer: 'helmet',
-        acceptableAnswers: ['a helmet', 'helmets'],
-        explanation: 'Audioscript: "And I assume I can rent a helmet from the bike place? Sure..."',
-        transcriptTimestamp: 215
-      },
-      {
-        id: 'c12-t5-q9',
-        number: 9,
-        type: 'fill-blank',
-        prompt: 'Must return in time for the last [ 9 ]',
-        correctAnswer: 'boat',
-        acceptableAnswers: ['the boat'],
-        explanation: 'Audioscript: "...so you need to get back in time for the last boat."',
-        transcriptTimestamp: 236
-      },
-      {
-        id: 'c12-t5-q10',
-        number: 10,
-        type: 'fill-blank',
-        prompt: 'Total cost for family: $ [ 10 ]',
-        correctAnswer: '267',
-        acceptableAnswers: ['267 dollars', '$267'],
-        explanation: 'Audioscript: "Then I\'m afraid it\'s $267 because she has to pay the adult fare..."',
-        transcriptTimestamp: 275
-      }
-    ]
-  }
+  FULL_TEST_1_SECTION_1,
+  FULL_TEST_1_SECTION_2,
+  FULL_TEST_1_SECTION_3,
+  FULL_TEST_1_SECTION_4
 ];

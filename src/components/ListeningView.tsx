@@ -1,441 +1,805 @@
 import React, { useState, useEffect } from 'react';
-import { LISTENING_SECTIONS, LISTENING_SOURCES } from '../data/listeningData';
+import { LISTENING_FULL_TESTS, LISTENING_SECTIONS, LISTENING_SOURCES } from '../data/listeningData';
+import { LISTENING_PRACTICE_SECTIONS } from '../data/listeningPracticeData';
+import { ListeningQuestion, ListeningSection, MistakeTagType, TestAttempt } from '../types';
 import { AudioPlayer } from './AudioPlayer';
-import { ExamMode, TestAttempt } from '../types';
-import { recordAttempt } from '../utils/db';
-import { Flag, Eye, EyeOff, RotateCcw, Check, X, ChevronRight, ChevronLeft } from 'lucide-react';
+import { recordAttempt, addWordToVocabDeck } from '../utils/db';
+import { calculateListeningBand, formatTime } from '../utils/ieltsScoring';
+import {
+  RotateCcw, Eye, EyeOff, Flag, Check, X, Award,
+  Clock, AlertTriangle, Plus, ChevronRight, ChevronLeft, Volume2
+} from 'lucide-react';
 
 interface ListeningViewProps {
-  examMode?: ExamMode;
+  examMode?: 'study' | 'simulation';
 }
 
-export const ListeningView: React.FC<ListeningViewProps> = ({ examMode = 'study' }) => {
-  // Library filter states
-  const [selectedSourceId, setSelectedSourceId] = useState<string>('all');
-  const [selectedPart, setSelectedPart] = useState<number | 'all'>('all');
+const MISTAKE_TAG_OPTIONS: { id: MistakeTagType; label: string }[] = [
+  { id: 'distractor', label: 'Bị bẫy đổi ý (Distractor)' },
+  { id: 'spelling', label: 'Sai chính tả (Spelling)' },
+  { id: 'plural-singular', label: 'Số ít / số nhiều (Plural/Singular)' },
+  { id: 'number', label: 'Nghe nhầm số (Number)' },
+  { id: 'missed-keyword', label: 'Lỡ từ khóa (Missed keyword)' },
+  { id: 'synonym-paraphrase', label: 'Không bắt được từ đồng nghĩa' },
+  { id: 'lost-concentration', label: 'Mất tập trung (Lost focus)' },
+  { id: 'unknown-vocabulary', label: 'Từ vựng lạ chưa biết' }
+];
+
+export const ListeningView: React.FC<ListeningViewProps> = () => {
+  const [activeMode, setActiveMode] = useState<'section' | 'full-test'>('section');
+
+  // SECTION PRACTICE STATES
+  const allAvailableSections = [...LISTENING_SECTIONS, ...LISTENING_PRACTICE_SECTIONS];
   const [selectedSectionId, setSelectedSectionId] = useState<string>(LISTENING_SECTIONS[0].id);
+  const currentSection = allAvailableSections.find(s => s.id === selectedSectionId) || LISTENING_SECTIONS[0];
 
-  // User input states
-  const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
-  const [flaggedQuestions, setFlaggedQuestions] = useState<Record<string, boolean>>({});
-  const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
+  const [sectionAnswers, setSectionAnswers] = useState<Record<string, string>>({});
+  const [sectionSubmitted, setSectionSubmitted] = useState<boolean>(false);
   const [showTranscript, setShowTranscript] = useState<boolean>(false);
-  const [activeQuestionIndex, setActiveQuestionIndex] = useState<number>(0);
+  const [mistakeTagSelections, setMistakeTagSelections] = useState<Record<string, MistakeTagType>>({});
+  const [addedVocabWords, setAddedVocabWords] = useState<Record<string, boolean>>({});
 
-  const filteredSections = LISTENING_SECTIONS.filter(sec => {
-    if (selectedSourceId !== 'all' && sec.sourceId !== selectedSourceId) return false;
-    if (selectedPart !== 'all' && sec.sectionNumber !== selectedPart) return false;
-    return true;
-  });
+  // FULL TEST STATES
+  const fullTest = LISTENING_FULL_TESTS[0];
+  const [activePartIndex, setActivePartIndex] = useState<number>(0);
+  const [fullTestAnswers, setFullTestAnswers] = useState<Record<string, string>>({});
+  const [flaggedQuestions, setFlaggedQuestions] = useState<Record<number, boolean>>({});
+  const [isTestSubmitted, setIsTestSubmitted] = useState<boolean>(false);
+  const [showSubmitConfirmModal, setShowSubmitConfirmModal] = useState<boolean>(false);
 
-  const currentSection = LISTENING_SECTIONS.find(s => s.id === selectedSectionId) || LISTENING_SECTIONS[0];
-  const questions = currentSection.questions;
-  const currentQuestion = questions[activeQuestionIndex] || questions[0];
-  const currentSource = LISTENING_SOURCES.find(s => s.id === currentSection.sourceId);
+  // Flatten all 40 questions of Full Test
+  const allFullTestQuestions: { question: ListeningQuestion; partIndex: number }[] = fullTest.sections.flatMap((s, sIdx) =>
+    s.questions.map(q => ({ question: q, partIndex: sIdx }))
+  );
 
-  // Reset states on section switch
+  const activePartSection = fullTest.sections[activePartIndex];
+
+  // Reset answers when section changes
   useEffect(() => {
-    setUserAnswers({});
-    setFlaggedQuestions({});
-    setIsSubmitted(false);
+    setSectionAnswers({});
+    setSectionSubmitted(false);
     setShowTranscript(false);
-    setActiveQuestionIndex(0);
+    setMistakeTagSelections({});
   }, [selectedSectionId]);
 
-  const handleAnswerChange = (questionId: string, value: string) => {
-    if (isSubmitted && examMode === 'simulation') return;
-    setUserAnswers(prev => ({
-      ...prev,
-      [questionId]: value
-    }));
+  // -------------------------------------------------------------
+  // SECTION PRACTICE HANDLERS
+  // -------------------------------------------------------------
+  const handleSectionAnswerChange = (qId: string, val: string) => {
+    setSectionAnswers(prev => ({ ...prev, [qId]: val }));
   };
 
-  const toggleFlag = (questionId: string) => {
-    setFlaggedQuestions(prev => ({
-      ...prev,
-      [questionId]: !prev[questionId]
-    }));
-  };
-
-  const handleReset = () => {
-    setUserAnswers({});
-    setFlaggedQuestions({});
-    setIsSubmitted(false);
-    setShowTranscript(false);
-    setActiveQuestionIndex(0);
-  };
-
-  const calculateScore = () => {
-    let correctCount = 0;
-    questions.forEach(q => {
-      const userAns = (userAnswers[q.id] || '').trim().toLowerCase();
-      const target = q.correctAnswer.trim().toLowerCase();
-      const acceptable = (q.acceptableAnswers || []).map(a => a.trim().toLowerCase());
-      if (userAns === target || acceptable.includes(userAns)) {
-        correctCount += 1;
-      }
-    });
-    return correctCount;
-  };
-
-  const handleSubmit = () => {
-    setIsSubmitted(true);
+  const handleSectionSubmit = () => {
+    setSectionSubmitted(true);
     setShowTranscript(true);
 
-    const score = calculateScore();
-    const incorrects: number[] = [];
-    const mistakes: TestAttempt['mistakeTags'] = [];
-
-    questions.forEach(q => {
-      const userAns = (userAnswers[q.id] || '').trim();
+    const incorrects: TestAttempt['mistakeTags'] = [];
+    currentSection.questions.forEach(q => {
+      const userAns = (sectionAnswers[q.id] || '').trim();
       const target = q.correctAnswer.trim();
       const acceptable = (q.acceptableAnswers || []).map(a => a.trim().toLowerCase());
       const isCorrect = userAns.toLowerCase() === target.toLowerCase() || acceptable.includes(userAns.toLowerCase());
 
       if (!isCorrect) {
+        incorrects.push({
+          questionNumber: q.number,
+          type: q.type,
+          userAnswer: userAns || '(chưa trả lời)',
+          correctAnswer: target,
+          distractorNote: q.distractorNote,
+          paraphraseNote: q.paraphraseNote
+        });
+      }
+    });
+
+    if (incorrects.length > 0) {
+      recordAttempt({
+        id: `practice-listen-${Date.now()}`,
+        skill: 'listening',
+        sectionId: currentSection.id,
+        sectionTitle: currentSection.title,
+        date: new Date().toISOString(),
+        score: currentSection.questions.length - incorrects.length,
+        total: currentSection.questions.length,
+        durationSeconds: 300,
+        mode: 'study',
+        userAnswers: sectionAnswers,
+        incorrectQuestionNumbers: incorrects.map(m => m.questionNumber),
+        mistakeTags: incorrects
+      });
+    }
+  };
+
+  const handleAssignMistakeTag = (qId: string, tag: MistakeTagType) => {
+    setMistakeTagSelections(prev => ({ ...prev, [qId]: tag }));
+  };
+
+  const handleAddWordToVocab = async (word: string, defVi: string, sentence: string) => {
+    const res = await addWordToVocabDeck({
+      word,
+      definitionVi: defVi,
+      sourceContext: sentence,
+      source: 'Listening Context Practice'
+    });
+    if (res.success) {
+      setAddedVocabWords(prev => ({ ...prev, [word]: true }));
+    }
+  };
+
+  // -------------------------------------------------------------
+  // FULL TEST HANDLERS
+  // -------------------------------------------------------------
+  const handleFullTestAnswerChange = (qId: string, val: string) => {
+    if (isTestSubmitted) return;
+    setFullTestAnswers(prev => ({ ...prev, [qId]: val }));
+  };
+
+  const toggleFlagQuestion = (qNum: number) => {
+    setFlaggedQuestions(prev => ({ ...prev, [qNum]: !prev[qNum] }));
+  };
+
+  const handleFinalSubmitFullTest = () => {
+    setShowSubmitConfirmModal(false);
+    setIsTestSubmitted(true);
+
+    let rawScore = 0;
+    const passageScores = fullTest.sections.map((s, idx) => ({
+      passageIndex: idx,
+      score: 0,
+      total: s.questions.length
+    }));
+
+    const typeStats: Record<string, { correct: number; total: number }> = {};
+    const incorrects: number[] = [];
+    const mistakes: TestAttempt['mistakeTags'] = [];
+
+    allFullTestQuestions.forEach(({ question: q, partIndex: pIdx }) => {
+      const userAns = (fullTestAnswers[q.id] || '').trim();
+      const target = q.correctAnswer.trim();
+      const acceptable = (q.acceptableAnswers || []).map(a => a.trim().toLowerCase());
+      const isCorrect = userAns.toLowerCase() === target.toLowerCase() || acceptable.includes(userAns.toLowerCase());
+
+      if (!typeStats[q.type]) {
+        typeStats[q.type] = { correct: 0, total: 0 };
+      }
+      typeStats[q.type].total += 1;
+
+      if (isCorrect) {
+        rawScore += 1;
+        passageScores[pIdx].score += 1;
+        typeStats[q.type].correct += 1;
+      } else {
         incorrects.push(q.number);
         mistakes.push({
           questionNumber: q.number,
           type: q.type,
           userAnswer: userAns || '(chưa trả lời)',
-          correctAnswer: target
+          correctAnswer: target,
+          distractorNote: q.distractorNote,
+          paraphraseNote: q.paraphraseNote
         });
       }
     });
 
-    const attempt: TestAttempt = {
-      id: `attempt-${Date.now()}`,
+    recordAttempt({
+      id: `full-listening-${Date.now()}`,
       skill: 'listening',
-      sectionId: currentSection.id,
-      sectionTitle: currentSection.title,
+      sectionId: fullTest.id,
+      sectionTitle: fullTest.title,
       date: new Date().toISOString(),
-      score,
-      total: questions.length,
-      durationSeconds: currentSection.duration,
-      mode: examMode,
-      userAnswers,
+      score: rawScore,
+      total: 40,
+      durationSeconds: 1800,
+      mode: 'simulation',
+      userAnswers: fullTestAnswers,
       incorrectQuestionNumbers: incorrects,
-      mistakeTags: mistakes
-    };
-
-    recordAttempt(attempt);
+      mistakeTags: mistakes,
+      passageScores,
+      questionTypeStats: typeStats
+    });
   };
 
-  const score = calculateScore();
-  const total = questions.length;
+  const handleResetFullTest = () => {
+    setFullTestAnswers({});
+    setFlaggedQuestions({});
+    setIsTestSubmitted(false);
+    setActivePartIndex(0);
+  };
+
+  const fullTestRawScore = isTestSubmitted
+    ? allFullTestQuestions.filter(({ question: q }) => {
+        const userAns = (fullTestAnswers[q.id] || '').trim().toLowerCase();
+        const target = q.correctAnswer.trim().toLowerCase();
+        const acceptable = (q.acceptableAnswers || []).map(a => a.trim().toLowerCase());
+        return userAns === target || acceptable.includes(userAns);
+      }).length
+    : 0;
+
+  const estimatedBandScore = calculateListeningBand(fullTestRawScore);
 
   return (
-    <div className="space-y-6 pb-16">
-      {/* Content Selector Bar (Source -> Part -> Lesson) */}
-      <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+    <div className="space-y-6 pb-20">
+      {/* Top Banner & Mode Switcher */}
+      <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block font-mono">
-              LISTENING LIBRARY • ACADEMIC FOCUS
-            </span>
-            <h1 className="text-lg font-bold text-slate-900 tracking-tight">
-              Luyện Nghe IELTS 4 Parts Chuẩn Format
+            <div className="flex items-center gap-2 mb-1">
+              <span className="font-mono text-xs font-bold text-slate-500 uppercase tracking-wider">
+                IELTS ACADEMIC LISTENING STUDIO
+              </span>
+              <span className="text-slate-300">•</span>
+              <span className="text-xs text-slate-600 font-medium">Bẫy Thông Tin & Phân Tích Transcript</span>
+            </div>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+              Luyện Nghe Chi Tiết & Nhận Diện Bẫy Distractor
             </h1>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Filter by Source */}
-            <select
-              value={selectedSourceId}
-              onChange={(e) => setSelectedSourceId(e.target.value)}
-              className="bg-slate-50 border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 font-medium cursor-pointer"
+          {/* Mode Switcher */}
+          <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200 self-start md:self-auto">
+            <button
+              type="button"
+              onClick={() => setActiveMode('section')}
+              className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                activeMode === 'section'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
             >
-              <option value="all">Tất cả nguồn học liệu</option>
-              {LISTENING_SOURCES.map(s => (
-                <option key={s.id} value={s.id}>{s.provider} ({s.title})</option>
-              ))}
-            </select>
-
-            {/* Filter by Part */}
-            <select
-              value={selectedPart}
-              onChange={(e) => setSelectedPart(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-              className="bg-slate-50 border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-800 font-medium cursor-pointer"
+              1. Luyện Từng Part (Section Practice)
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveMode('full-test')}
+              className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeMode === 'full-test'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
             >
-              <option value="all">Tất cả các Part (1-4)</option>
-              <option value={1}>Part 1: Hội thoại đời thường</option>
-              <option value={2}>Part 2: Độc thoại đời sống</option>
-              <option value={3}>Part 3: Thảo luận học thuật</option>
-              <option value={4}>Part 4: Bài giảng học thuật</option>
-            </select>
+              <Clock className="w-3.5 h-3.5" />
+              <span>2. Thi Thử Chuẩn (Full Test 4 Parts / 40 Câu)</span>
+            </button>
           </div>
         </div>
 
-        {/* Compact Lesson List Tabs */}
-        <div className="flex flex-wrap gap-2 pt-1">
-          {filteredSections.map(sec => {
-            const isSelected = sec.id === selectedSectionId;
-            return (
+        {/* Section Practice: Part pills */}
+        {activeMode === 'section' && (
+          <div className="pt-3 border-t border-slate-100 flex items-center gap-2 overflow-x-auto pb-1">
+            <span className="text-[11px] font-bold text-slate-500 uppercase font-mono mr-1">CHỌN PHẦN LUYỆN:</span>
+            {allAvailableSections.map(sec => (
               <button
                 key={sec.id}
                 type="button"
                 onClick={() => setSelectedSectionId(sec.id)}
-                className={`px-3 py-1.5 rounded text-xs text-left transition-colors cursor-pointer border ${
-                  isSelected
+                className={`px-3 py-1.5 rounded text-xs whitespace-nowrap transition-colors cursor-pointer border ${
+                  selectedSectionId === sec.id
                     ? 'bg-slate-900 text-white border-slate-900 font-semibold'
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                 }`}
               >
-                <div className="flex items-center gap-1.5">
-                  <span className={`px-1 rounded text-[10px] font-mono ${
-                    isSelected ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-600'
-                  }`}>
-                    P{sec.sectionNumber}
-                  </span>
-                  <span className="truncate max-w-[200px]">{sec.title}</span>
-                </div>
+                Part {sec.part}: {sec.title.split(':')[1] || sec.title}
               </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Active Section Header & Provenance Badge */}
-      <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded text-[11px] font-semibold font-mono bg-slate-100 text-slate-700 border border-slate-200">
-              Part {currentSection.sectionNumber}
-            </span>
-
-            {/* Source Provenance Badge */}
-            <span className={`px-2 py-0.5 rounded text-[11px] font-medium border ${
-              currentSource?.isOfficial
-                ? 'bg-blue-50 text-blue-800 border-blue-200'
-                : currentSource?.sourceType === 'user-reference'
-                ? 'bg-amber-50 text-amber-800 border-amber-200'
-                : 'bg-slate-50 text-slate-700 border-slate-200'
-            }`}>
-              {currentSource?.provider || 'Học liệu tự học'}
-            </span>
-
-            {currentSection.verificationStatus === 'audio-unavailable' && (
-              <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-rose-50 text-rose-700 border border-rose-200">
-                Audio unavailable on web
-              </span>
-            )}
-          </div>
-
-          <span className="text-xs text-slate-500 font-mono">
-            {questions.length} câu hỏi • Thời lượng: ~{Math.round(currentSection.duration / 60)} phút
-          </span>
-        </div>
-
-        <h2 className="text-base font-bold text-slate-900">{currentSection.title}</h2>
-        <p className="text-xs text-slate-600 leading-relaxed">{currentSection.context}</p>
-
-        {currentSection.sourceNotice && (
-          <div className="p-2.5 bg-slate-50 border border-slate-200 rounded text-xs text-slate-600">
-            {currentSection.sourceNotice}
+            ))}
           </div>
         )}
-
-        {/* Minimal Audio Player */}
-        <AudioPlayer
-          transcript={currentSection.transcript}
-          narratorVoice={currentSection.narratorVoice}
-          audioSources={currentSection.audioSources}
-          canonicalUrl={currentSection.canonicalUrl}
-          examMode={examMode}
-        />
       </div>
 
-      {/* Question Pane & Answers */}
-      <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-          <div className="text-xs font-semibold text-slate-800">
-            <span>{currentSection.instructions}</span>
+      {/* ========================================================================= */}
+      {/* 1. SECTION PRACTICE VIEW                                                  */}
+      {/* ========================================================================= */}
+      {activeMode === 'section' && (
+        <div className="space-y-6">
+          {/* Section Audio Player Card */}
+          <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <div>
+                <span className="px-2 py-0.5 bg-blue-50 text-blue-800 border border-blue-200 rounded font-mono text-[10px] font-semibold">
+                  Part {currentSection.part}
+                </span>
+                <h2 className="text-lg font-bold text-slate-900 mt-1">{currentSection.title}</h2>
+                <p className="text-xs text-slate-500 mt-0.5">{currentSection.context}</p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowTranscript(!showTranscript)}
+                  className="px-3 py-1.5 rounded border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 flex items-center gap-1.5 cursor-pointer"
+                >
+                  {showTranscript ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  <span>{showTranscript ? 'Ẩn Transcript' : 'Xem Transcript'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setSectionAnswers({}); setSectionSubmitted(false); }}
+                  className="px-3 py-1.5 rounded border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 flex items-center gap-1 cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Làm lại</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Audio Player Component */}
+            <AudioPlayer
+              audioSources={currentSection.audioSources}
+              transcript={currentSection.transcript}
+              narratorVoice={currentSection.narratorVoice}
+            />
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Reveal Transcript Button */}
-            <button
-              type="button"
-              onClick={() => setShowTranscript(prev => !prev)}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded border border-slate-300 hover:bg-slate-50 text-slate-700 cursor-pointer font-medium"
-            >
-              {showTranscript ? <EyeOff className="w-3.5 h-3.5 text-slate-500" /> : <Eye className="w-3.5 h-3.5 text-slate-500" />}
-              <span>{showTranscript ? 'Ẩn Transcript' : 'Xem Transcript'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleReset}
-              title="Làm lại bài tập"
-              className="p-1.5 rounded text-slate-500 hover:text-slate-800 hover:bg-slate-100 cursor-pointer"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Question List */}
-        <div className="space-y-4">
-          {questions.map((q, idx) => {
-            const userAns = userAnswers[q.id] || '';
-            const isFlagged = Boolean(flaggedQuestions[q.id]);
-            const isAnswered = Boolean(userAns.trim());
-            const isCorrect = isSubmitted && (
-              userAns.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase() ||
-              (q.acceptableAnswers || []).map(a => a.trim().toLowerCase()).includes(userAns.trim().toLowerCase())
-            );
-
-            return (
-              <div
-                key={q.id}
-                className={`p-4 rounded-lg border transition-all ${
-                  isSubmitted
-                    ? isCorrect
-                      ? 'bg-emerald-50/40 border-emerald-300'
-                      : 'bg-rose-50/40 border-rose-300'
-                    : isFlagged
-                    ? 'bg-amber-50/30 border-amber-300'
-                    : 'bg-slate-50/50 border-slate-200'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3 mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-slate-200 text-slate-800 text-xs font-bold font-mono flex items-center justify-center">
-                      {q.number}
-                    </span>
-                    <span className="text-xs font-semibold text-slate-500 uppercase font-mono">
-                      {q.type}
-                    </span>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => toggleFlag(q.id)}
-                    title={isFlagged ? 'Bỏ đánh dấu' : 'Đánh dấu xem lại'}
-                    className={`p-1 rounded cursor-pointer ${
-                      isFlagged ? 'text-amber-600' : 'text-slate-400 hover:text-slate-700'
-                    }`}
-                  >
-                    <Flag className="w-3.5 h-3.5" />
-                  </button>
+          {/* Split Content: Questions Left / Transcript & Distractor Review Right */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Left: Questions List (60%) */}
+            <div className="lg:col-span-7 bg-white border border-slate-200 rounded-lg p-6 shadow-xs space-y-5">
+              <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold text-slate-900 uppercase font-mono">
+                    CÂU HỎI ({currentSection.questions.length} CÂU)
+                  </span>
+                  <p className="text-[11px] text-slate-500 mt-0.5">{currentSection.instructions}</p>
                 </div>
-
-                <p className="text-sm font-medium text-slate-900 mb-3">{q.prompt}</p>
-
-                {/* Question Input / Option Selection */}
-                {q.type === 'multiple-choice' && q.options ? (
-                  <div className="space-y-1.5 ml-1">
-                    {q.options.map(opt => {
-                      const letter = opt.charAt(0);
-                      const isSelected = userAns.toUpperCase() === letter.toUpperCase();
-                      return (
-                        <label
-                          key={opt}
-                          className={`flex items-center gap-2 text-xs p-2 rounded cursor-pointer border transition-colors ${
-                            isSelected
-                              ? 'bg-slate-900 text-white border-slate-900 font-medium'
-                              : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-100'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name={`q-${q.id}`}
-                            value={letter}
-                            checked={isSelected}
-                            disabled={isSubmitted && examMode === 'simulation'}
-                            onChange={() => handleAnswerChange(q.id, letter)}
-                            className="hidden"
-                          />
-                          <span>{opt}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={userAns}
-                      placeholder="Nhập câu trả lời..."
-                      disabled={isSubmitted && examMode === 'simulation'}
-                      onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                      className="max-w-xs w-full bg-white border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-900 focus:border-blue-600"
-                    />
-                  </div>
-                )}
-
-                {/* Explanation and Mistake feedback upon submit */}
-                {isSubmitted && (
-                  <div className="mt-3 pt-3 border-t border-slate-200 text-xs space-y-1">
-                    <div className="flex items-center gap-1.5 font-semibold">
-                      {isCorrect ? (
-                        <span className="text-emerald-700 flex items-center gap-1">
-                          <Check className="w-3.5 h-3.5" /> Đúng: {q.correctAnswer}
-                        </span>
-                      ) : (
-                        <span className="text-rose-700 flex items-center gap-1">
-                          <X className="w-3.5 h-3.5" /> Sai. Đáp án đúng: {q.correctAnswer}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-slate-600 font-mono text-[11px]">{q.explanation}</p>
-                  </div>
+                {sectionSubmitted && (
+                  <span className="text-xs font-bold text-emerald-700 font-mono">
+                    Đã nộp bài
+                  </span>
                 )}
               </div>
-            );
-          })}
-        </div>
 
-        {/* Submit Bar & Score Summary */}
-        <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4">
-          <div className="text-xs text-slate-600">
-            {isSubmitted ? (
-              <span className="font-bold text-slate-900 text-sm">
-                Kết quả: {score} / {total} câu đúng ({Math.round((score / total) * 100)}%)
-              </span>
-            ) : (
-              <span>Đã làm: {Object.keys(userAnswers).length} / {questions.length} câu</span>
-            )}
+              <div className="space-y-5">
+                {currentSection.questions.map(q => {
+                  const userVal = (sectionAnswers[q.id] || '').trim();
+                  const target = q.correctAnswer.trim();
+                  const acceptable = (q.acceptableAnswers || []).map(a => a.trim().toLowerCase());
+                  const isCorrect = userVal.toLowerCase() === target.toLowerCase() || acceptable.includes(userVal.toLowerCase());
+                  const currentMistakeTag = mistakeTagSelections[q.id];
+
+                  return (
+                    <div key={q.id} className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-3 text-xs">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="font-bold text-slate-900">
+                          Câu {q.number}. {q.prompt}
+                        </span>
+                        {sectionSubmitted && (
+                          isCorrect ? (
+                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold text-[10px] shrink-0">
+                              ĐÚNG ✓
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 bg-rose-100 text-rose-800 rounded font-bold text-[10px] shrink-0">
+                              SAI ✗
+                            </span>
+                          )
+                        )}
+                      </div>
+
+                      {/* Options or Text field */}
+                      {q.options && q.options.length > 0 ? (
+                        <div className="space-y-1.5">
+                          {q.options.map(opt => (
+                            <label key={opt} className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                name={q.id}
+                                value={opt}
+                                checked={userVal === opt || userVal === opt[0]}
+                                onChange={(e) => handleSectionAnswerChange(q.id, e.target.value)}
+                                disabled={sectionSubmitted}
+                                className="text-slate-900 focus:ring-slate-900"
+                              />
+                              <span className="text-slate-800">{opt}</span>
+                            </label>
+                          ))}
+                        </div>
+                      ) : (
+                        <div>
+                          <input
+                            type="text"
+                            value={userVal}
+                            onChange={(e) => handleSectionAnswerChange(q.id, e.target.value)}
+                            placeholder="Điền câu trả lời nghe được..."
+                            disabled={sectionSubmitted}
+                            className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded text-slate-900 text-xs font-sans focus:outline-hidden focus:ring-1 focus:ring-slate-900"
+                          />
+                        </div>
+                      )}
+
+                      {/* ======================================================= */}
+                      {/* CRITICAL: POST-SUBMIT DISTRACTOR & TRANSCRIPT ANALYSIS   */}
+                      {/* ======================================================= */}
+                      {sectionSubmitted && (
+                        <div className="mt-3 pt-3 border-t border-slate-200 space-y-2.5 text-xs">
+                          {/* Answer comparison */}
+                          <div className="p-2.5 bg-white rounded border border-slate-200 flex justify-between text-[11px]">
+                            <span>Bạn nghe: <strong className={isCorrect ? 'text-emerald-700' : 'text-rose-700'}>{userVal || '(chưa điền)'}</strong></span>
+                            <span>Đáp án chuẩn: <strong className="text-emerald-700">{q.correctAnswer}</strong></span>
+                          </div>
+
+                          {/* Distractor Warning Block */}
+                          {q.distractor && q.distractor !== 'None' && (
+                            <div className="p-3 bg-amber-50/80 border border-amber-200 rounded text-xs space-y-1">
+                              <div className="flex items-center gap-1.5 font-bold text-amber-900">
+                                <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                                <span>BẪY GÂY NHIỄU (DISTRACTOR TRONG BÀI THI):</span>
+                              </div>
+                              <p className="text-amber-950">
+                                Thông tin làm bạn nghe nhầm: <strong className="underline">{q.distractor}</strong>
+                              </p>
+                              {q.distractorNote && (
+                                <p className="text-[11px] text-amber-900 pt-1">
+                                  <strong>Giải thích thủ thuật:</strong> {q.distractorNote}
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Answer sentence in audio */}
+                          {q.answerSentence && (
+                            <div className="p-2.5 bg-emerald-50/60 rounded border border-emerald-100 text-[11px] text-emerald-950 font-sans">
+                              <span className="font-bold text-emerald-900 block font-mono text-[10px] uppercase">
+                                Câu chứa đáp án trong bài nghe:
+                              </span>
+                              <p className="italic mt-0.5">"{q.answerSentence}"</p>
+                            </div>
+                          )}
+
+                          {/* Mistake Tagging Selector */}
+                          {!isCorrect && (
+                            <div className="p-2.5 bg-slate-100 rounded space-y-1.5">
+                              <span className="text-[10px] font-bold text-slate-700 uppercase font-mono block">
+                                Gắn thẻ lỗi sai để hệ thống theo dõi điểm yếu:
+                              </span>
+                              <select
+                                value={currentMistakeTag || ''}
+                                onChange={(e) => handleAssignMistakeTag(q.id, e.target.value as MistakeTagType)}
+                                className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded text-xs text-slate-800"
+                              >
+                                <option value="">-- Chọn nguyên nhân mắc lỗi --</option>
+                                {MISTAKE_TAG_OPTIONS.map(opt => (
+                                  <option key={opt.id} value={opt.id}>{opt.label}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+
+                          {/* Target vocab */}
+                          {q.targetVocab && q.targetVocab.length > 0 && (
+                            <div className="pt-1 flex flex-wrap gap-2">
+                              {q.targetVocab.map(tv => (
+                                <button
+                                  key={tv.word}
+                                  type="button"
+                                  onClick={() => handleAddWordToVocab(tv.word, tv.definitionVi, tv.contextSentence)}
+                                  disabled={!!addedVocabWords[tv.word]}
+                                  className="px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-300 rounded text-[11px] font-semibold text-slate-800 flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
+                                >
+                                  {addedVocabWords[tv.word] ? (
+                                    <>
+                                      <Check className="w-3 h-3 text-emerald-600" />
+                                      <span>Đã thêm: "{tv.word}"</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Plus className="w-3 h-3 text-slate-500" />
+                                      <span>Lưu từ "{tv.word}" vào SRS</span>
+                                    </>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {!sectionSubmitted && (
+                <button
+                  type="button"
+                  onClick={handleSectionSubmit}
+                  className="w-full py-2.5 bg-slate-900 text-white rounded-md text-xs font-bold hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  Nộp bài & Xem phân tích bẫy Distractor
+                </button>
+              )}
+            </div>
+
+            {/* Right: Collapsible Transcript with Answer Highlights (40%) */}
+            <div className="lg:col-span-5 bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-4 max-h-[750px] overflow-y-auto">
+              <div className="border-b border-slate-100 pb-2 flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-900 uppercase font-mono">
+                  TRANSCRIPT BÀI NGHE (LỜI THOẠI)
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono">
+                  {showTranscript ? 'Đang mở' : 'Đang ẩn'}
+                </span>
+              </div>
+
+              {showTranscript ? (
+                <div className="text-xs text-slate-700 leading-relaxed font-sans space-y-3 whitespace-pre-line">
+                  {currentSection.transcript}
+                </div>
+              ) : (
+                <div className="p-8 text-center bg-slate-50 rounded border border-dashed border-slate-200 text-xs text-slate-500 space-y-2">
+                  <p>Transcript được ẩn trong lúc làm bài để rèn luyện kỹ năng nghe thật.</p>
+                  <p className="text-[11px] text-slate-400">Transcript sẽ tự động mở sau khi bạn bấm "Nộp bài".</p>
+                </div>
+              )}
+            </div>
           </div>
-
-          <div className="flex items-center gap-3">
-            {!isSubmitted ? (
-              <button
-                type="button"
-                onClick={handleSubmit}
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-semibold cursor-pointer shadow-xs"
-              >
-                Chấm Điểm & Xem Giải Thích
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleReset}
-                className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 rounded text-xs font-semibold cursor-pointer"
-              >
-                Luyện Tập Lại Bài Này
-              </button>
-            )}
-          </div>
         </div>
+      )}
 
-        {/* Collapsible Transcript Section */}
-        {showTranscript && (
-          <div className="mt-6 pt-6 border-t border-slate-200 space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-slate-800 uppercase font-mono tracking-wider">
-                AUDIOSCRIPT (Kèm đánh dấu đáp án [Q])
-              </h3>
-              <span className="text-[11px] text-slate-400 font-mono">
-                {currentSection.narratorVoice}
+      {/* ========================================================================= */}
+      {/* 2. FULL TEST MODE VIEW (4 PARTS = 40 QUESTIONS)                           */}
+      {/* ========================================================================= */}
+      {activeMode === 'full-test' && (
+        <div className="space-y-6">
+          {/* Top Bar for Full Test */}
+          <div className="bg-white border border-slate-200 rounded-lg p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sticky top-16 z-20 shadow-xs">
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-xs font-bold text-slate-700">
+                FULL MOCK TEST: 4 PARTS (40 QUESTIONS)
               </span>
             </div>
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded text-xs font-mono text-slate-700 whitespace-pre-line leading-relaxed max-h-96 overflow-y-auto">
-              {currentSection.transcript}
+
+            {/* Part 1 / 2 / 3 / 4 Tabs */}
+            <div className="flex items-center bg-slate-100 p-0.5 rounded border border-slate-200 text-xs">
+              {fullTest.sections.map((s, idx) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setActivePartIndex(idx)}
+                  className={`px-3 py-1 rounded text-xs font-bold transition-all cursor-pointer ${
+                    activePartIndex === idx
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Part {idx + 1}
+                </button>
+              ))}
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center gap-2">
+              {!isTestSubmitted ? (
+                <button
+                  type="button"
+                  onClick={() => setShowSubmitConfirmModal(true)}
+                  className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-bold cursor-pointer transition-colors shadow-xs"
+                >
+                  Nộp bài thi Listening
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleResetFullTest}
+                  className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 rounded text-xs font-semibold hover:bg-slate-50 cursor-pointer flex items-center gap-1.5"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Làm lại đề thi</span>
+                </button>
+              )}
             </div>
           </div>
-        )}
-      </div>
+
+          {/* Results Summary if submitted */}
+          {isTestSubmitted && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-emerald-600 text-white rounded-lg">
+                    <Award className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-emerald-800 uppercase font-mono">
+                      KẾT QUẢ THI THỬ LISTENING
+                    </span>
+                    <h2 className="text-2xl font-bold text-slate-900">
+                      Điểm thô: {fullTestRawScore} / 40 • Ước tính: Band {estimatedBandScore.toFixed(1)}
+                    </h2>
+                  </div>
+                </div>
+              </div>
+
+              {/* Breakdown by Part */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-emerald-200 text-xs">
+                {fullTest.sections.map((sec, idx) => {
+                  const sQuestions = sec.questions;
+                  const sCorrect = sQuestions.filter(q => {
+                    const ans = (fullTestAnswers[q.id] || '').trim().toLowerCase();
+                    return ans === q.correctAnswer.toLowerCase() || (q.acceptableAnswers || []).map(a => a.toLowerCase()).includes(ans);
+                  }).length;
+                  return (
+                    <div key={sec.id} className="p-3 bg-white rounded border border-emerald-100">
+                      <span className="text-slate-500 block text-[11px]">Part {idx + 1}</span>
+                      <strong className="text-base font-bold text-slate-900 font-mono">
+                        {sCorrect} / {sQuestions.length} đúng
+                      </strong>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Active Part Audio Player */}
+          <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs">
+            <h3 className="text-sm font-bold text-slate-900 mb-3">{activePartSection.title}</h3>
+            <AudioPlayer
+              audioSources={activePartSection.audioSources}
+              transcript={activePartSection.transcript}
+              narratorVoice={activePartSection.narratorVoice}
+            />
+          </div>
+
+          {/* Questions of Active Part */}
+          <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs space-y-5">
+            <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-900 uppercase font-mono">
+                CÂU HỎI PART {activePartIndex + 1} ({activePartSection.questions.length} CÂU)
+              </span>
+              <span className="text-xs text-slate-400 font-mono">
+                Q{activePartSection.questions[0].number} – Q{activePartSection.questions[activePartSection.questions.length - 1].number}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {activePartSection.questions.map(q => {
+                const userVal = (fullTestAnswers[q.id] || '').trim();
+                const target = q.correctAnswer.trim();
+                const acceptable = (q.acceptableAnswers || []).map(a => a.trim().toLowerCase());
+                const isCorrect = userVal.toLowerCase() === target.toLowerCase() || acceptable.includes(userVal.toLowerCase());
+                const isFlagged = !!flaggedQuestions[q.number];
+
+                return (
+                  <div key={q.id} className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-3 text-xs">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-bold text-slate-900">
+                        Câu {q.number}. {q.prompt}
+                      </span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => toggleFlagQuestion(q.number)}
+                          className={`p-1 rounded cursor-pointer ${
+                            isFlagged ? 'text-amber-600 bg-amber-50' : 'text-slate-400 hover:text-slate-600'
+                          }`}
+                          title="Gắn cờ xem lại"
+                        >
+                          <Flag className="w-3.5 h-3.5" />
+                        </button>
+                        {isTestSubmitted && (
+                          isCorrect ? (
+                            <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold text-[10px]">Đúng ✓</span>
+                          ) : (
+                            <span className="px-1.5 py-0.5 bg-rose-100 text-rose-800 rounded font-bold text-[10px]">Sai ✗</span>
+                          )
+                        )}
+                      </div>
+                    </div>
+
+                    {q.options && q.options.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {q.options.map(opt => (
+                          <label key={opt} className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name={q.id}
+                              value={opt}
+                              checked={userVal === opt || userVal === opt[0]}
+                              onChange={(e) => handleFullTestAnswerChange(q.id, e.target.value)}
+                              disabled={isTestSubmitted}
+                              className="text-slate-900 focus:ring-slate-900"
+                            />
+                            <span className="text-slate-800">{opt}</span>
+                          </label>
+                        ))}
+                      </div>
+                    ) : (
+                      <div>
+                        <input
+                          type="text"
+                          value={userVal}
+                          onChange={(e) => handleFullTestAnswerChange(q.id, e.target.value)}
+                          placeholder="Điền đáp án..."
+                          disabled={isTestSubmitted}
+                          className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded text-slate-900 text-xs font-sans focus:outline-hidden focus:ring-1 focus:ring-slate-900"
+                        />
+                      </div>
+                    )}
+
+                    {isTestSubmitted && (
+                      <div className="mt-2 pt-2 border-t border-slate-200 text-[11px] space-y-1">
+                        <div className="flex justify-between">
+                          <span>Bạn chọn: <strong className={isCorrect ? 'text-emerald-700' : 'text-rose-700'}>{userVal || '(chưa điền)'}</strong></span>
+                          <span>Đáp án đúng: <strong className="text-emerald-700">{q.correctAnswer}</strong></span>
+                        </div>
+                        {q.distractor && q.distractor !== 'None' && (
+                          <p className="text-amber-800">
+                            <strong>Bẫy distractor:</strong> {q.distractor} - {q.distractorNote}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Bottom Fixed Q1-Q40 Palette */}
+          <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-bold text-slate-800 font-mono">BẢNG ĐIỀU HƯỚNG LISTENING Q1 – Q40</span>
+              <div className="flex items-center gap-3 text-[11px] text-slate-500 font-mono">
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-slate-900"></span> Đã điền</span>
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-slate-200"></span> Chưa điền</span>
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-amber-400"></span> Gắn cờ</span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {allFullTestQuestions.map(({ question: q, partIndex: pIdx }) => {
+                const hasAnswer = !!(fullTestAnswers[q.id] || '').trim();
+                const isFlagged = !!flaggedQuestions[q.number];
+                const isCurrentPart = pIdx === activePartIndex;
+
+                return (
+                  <button
+                    key={q.id}
+                    type="button"
+                    onClick={() => setActivePartIndex(pIdx)}
+                    className={`w-7 h-7 rounded text-[11px] font-mono font-bold flex items-center justify-center cursor-pointer transition-colors border ${
+                      isFlagged
+                        ? 'bg-amber-100 text-amber-900 border-amber-400'
+                        : hasAnswer
+                        ? 'bg-slate-900 text-white border-slate-900'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    } ${isCurrentPart ? 'ring-2 ring-blue-500 ring-offset-1' : ''}`}
+                  >
+                    {q.number}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Submit Confirmation Modal */}
+      {showSubmitConfirmModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
+            <h3 className="text-base font-bold text-slate-900">Xác Nhận Nộp Bài Thi Listening</h3>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Bạn đã hoàn thành {Object.keys(fullTestAnswers).filter(k => (fullTestAnswers[k] || '').trim() !== '').length} / 40 câu hỏi.
+              Bạn có chắc chắn muốn nộp bài để xem kết quả và phân tích chi tiết bẫy distractor?
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowSubmitConfirmModal(false)}
+                className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded cursor-pointer"
+              >
+                Tiếp tục kiểm tra
+              </button>
+              <button
+                type="button"
+                onClick={handleFinalSubmitFullTest}
+                className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded cursor-pointer"
+              >
+                Xác nhận nộp bài
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

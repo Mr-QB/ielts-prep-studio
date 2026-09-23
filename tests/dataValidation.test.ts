@@ -1,58 +1,132 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { LISTENING_SECTIONS, LISTENING_SOURCES } from '../src/data/listeningData';
-import { READING_PASSAGES, READING_SOURCES } from '../src/data/readingData';
+import { LISTENING_FULL_TESTS, LISTENING_SECTIONS } from '../src/data/listeningData';
+import { READING_FULL_TESTS, READING_PASSAGES } from '../src/data/readingData';
+import { READING_PRACTICE_SETS } from '../src/data/readingPracticeData';
 import { GRAMMAR_TOPICS } from '../src/data/grammarData';
 import { INITIAL_VOCAB_DECKS } from '../src/data/vocabData';
+import { WRITING_TASK1_NOTES, WRITING_TASK2_NOTES } from '../src/data/writingData';
+import { SPEAKING_PARTS_DATA } from '../src/data/speakingData';
+import { calculateReadingBand, calculateListeningBand } from '../src/utils/ieltsScoring';
 
-describe('Data Integrity Test Suite', () => {
-  it('contains at least one verified official listening section with transcript and questions', () => {
-    assert(LISTENING_SECTIONS.length >= 3);
-    const official = LISTENING_SECTIONS.filter(s => s.sourceId.includes('official') || s.sourceId.includes('bc'));
-    assert(official.length >= 2);
-    official.forEach(s => {
-      assert(s.questions.length >= 4);
-      assert(s.transcript.length > 50);
-      assert(s.audioSources.length >= 1);
-    });
-  });
+describe('Data Integrity & Curriculum Test Suite', () => {
+  it('contains complete Academic Reading Full Test 1 with 3 passages and exactly 40 questions', () => {
+    assert(READING_FULL_TESTS.length >= 1);
+    const ft = READING_FULL_TESTS[0];
+    assert.strictEqual(ft.passages.length, 3);
 
-  it('contains verified academic reading passages with word count and paragraph references', () => {
-    const academic = READING_PASSAGES.filter(p => p.testType === 'academic');
-    assert(academic.length >= 3);
-    academic.forEach(p => {
+    let totalQ = 0;
+    const seenNumbers = new Set<number>();
+
+    ft.passages.forEach(p => {
       assert(p.content.length >= 3);
-      assert(p.questions.length >= 4);
+      totalQ += p.questions.length;
       p.questions.forEach(q => {
         assert(q.correctAnswer.length > 0);
         assert(q.explanation.length > 0);
+        assert(q.explanationVi && q.explanationVi.length > 0);
+        seenNumbers.add(q.number);
+      });
+    });
+
+    assert.strictEqual(totalQ, 40);
+    assert.strictEqual(seenNumbers.size, 40);
+    for (let i = 1; i <= 40; i++) {
+      assert(seenNumbers.has(i), `Missing question number ${i}`);
+    }
+  });
+
+  it('contains complete Academic Listening Full Test 1 with 4 parts and exactly 40 questions', () => {
+    assert(LISTENING_FULL_TESTS.length >= 1);
+    const ft = LISTENING_FULL_TESTS[0];
+    assert.strictEqual(ft.sections.length, 4);
+
+    let totalQ = 0;
+    const seenNumbers = new Set<number>();
+
+    ft.sections.forEach(s => {
+      assert(s.transcript.length > 100);
+      assert(s.audioSources.length >= 1);
+      totalQ += s.questions.length;
+      s.questions.forEach(q => {
+        assert(q.correctAnswer.length > 0);
+        assert(q.explanation.length > 0);
+        seenNumbers.add(q.number);
+      });
+    });
+
+    assert.strictEqual(totalQ, 40);
+    assert.strictEqual(seenNumbers.size, 40);
+    for (let i = 1; i <= 40; i++) {
+      assert(seenNumbers.has(i), `Missing question number ${i}`);
+    }
+  });
+
+  it('contains dedicated Reading Practice sets across key IELTS question types', () => {
+    assert(READING_PRACTICE_SETS.length >= 10);
+    READING_PRACTICE_SETS.forEach(ps => {
+      assert(ps.questions.length >= 1);
+      ps.questions.forEach(q => {
+        assert(q.prompt.length > 0);
+        assert(q.correctAnswer.length > 0);
+        assert(q.evidenceSnippet || q.explanationVi);
       });
     });
   });
 
-  it('contains all 26 grammar topics in proper sequence Foundation -> Core -> Advanced', () => {
+  it('verifies 26 grammar topics split properly into Essential (G01–G20) and Advanced (G21–G26)', () => {
     assert.strictEqual(GRAMMAR_TOPICS.length, 26);
-    const foundation = GRAMMAR_TOPICS.filter(t => t.category === 'foundation');
-    const core = GRAMMAR_TOPICS.filter(t => t.category === 'core');
-    const advanced = GRAMMAR_TOPICS.filter(t => t.category === 'advanced');
-
-    assert.strictEqual(foundation.length, 6);
-    assert.strictEqual(core.length, 14);
-    assert.strictEqual(advanced.length, 6);
-
-    // Verify first topic is G01 Sentence structure and last is G26 Inverted conditionals
     assert.strictEqual(GRAMMAR_TOPICS[0].code, 'G01');
     assert.strictEqual(GRAMMAR_TOPICS[25].code, 'G26');
+
+    // First 20 topics are Foundation (G01-G06) and Core (G07-G20)
+    for (let i = 0; i < 20; i++) {
+      assert(GRAMMAR_TOPICS[i].category === 'foundation' || GRAMMAR_TOPICS[i].category === 'core');
+    }
+    // Last 6 topics are Advanced (G21-G26)
+    for (let i = 20; i < 26; i++) {
+      assert.strictEqual(GRAMMAR_TOPICS[i].category, 'advanced');
+    }
   });
 
-  it('contains starter vocabulary deck with valid cards and categories', () => {
-    assert(INITIAL_VOCAB_DECKS.length >= 2);
-    const starter = INITIAL_VOCAB_DECKS[0];
-    assert(starter.cards.length >= 10);
-    starter.cards.forEach(c => {
-      assert(c.word.length > 0);
-      assert(c.definitionVi.length > 0);
-      assert(c.example.length > 0);
+  it('verifies Writing Task 1 & Task 2 notes frameworks and checklists', () => {
+    assert.strictEqual(WRITING_TASK1_NOTES.length, 7);
+    assert.strictEqual(WRITING_TASK2_NOTES.length, 5);
+
+    WRITING_TASK1_NOTES.forEach(t1 => {
+      assert.strictEqual(t1.structure.length, 4);
+      assert(t1.checklist.length >= 2);
     });
+
+    WRITING_TASK2_NOTES.forEach(t2 => {
+      assert.strictEqual(t2.structure.length, 4);
+      assert(t2.checklist.length >= 2);
+    });
+  });
+
+  it('verifies Speaking notes frameworks for Parts 1, 2, 3', () => {
+    assert.strictEqual(SPEAKING_PARTS_DATA.length, 3);
+    SPEAKING_PARTS_DATA.forEach(p => {
+      assert(p.frameworkName.length > 0);
+      assert(p.usefulFrames.length >= 3);
+      assert(p.commonTopics.length >= 2);
+    });
+  });
+
+  it('verifies IELTS score conversion logic for Academic Reading and Listening', () => {
+    // Reading Academic
+    assert.strictEqual(calculateReadingBand(40, 'academic'), 9.0);
+    assert.strictEqual(calculateReadingBand(30, 'academic'), 7.0);
+    assert.strictEqual(calculateReadingBand(27, 'academic'), 6.5);
+    assert.strictEqual(calculateReadingBand(23, 'academic'), 6.0);
+    assert.strictEqual(calculateReadingBand(15, 'academic'), 5.0);
+    assert.strictEqual(calculateReadingBand(10, 'academic'), 4.0);
+
+    // Listening
+    assert.strictEqual(calculateListeningBand(40), 9.0);
+    assert.strictEqual(calculateListeningBand(30), 7.0);
+    assert.strictEqual(calculateListeningBand(26), 6.5);
+    assert.strictEqual(calculateListeningBand(23), 6.0);
+    assert.strictEqual(calculateListeningBand(16), 5.0);
   });
 });

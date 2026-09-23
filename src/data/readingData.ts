@@ -1,10 +1,10 @@
-import { LearningSource, ReadingPassage } from '../types';
+import { LearningSource, ReadingPassage, ReadingFullTest, ReadingPracticeSet } from '../types';
 
 export const READING_SOURCES: LearningSource[] = [
   {
     id: 'src-official-academic-reading',
     provider: 'Official IELTS',
-    title: 'Official IELTS Academic Reading Sample Papers',
+    title: 'Official IELTS Academic Reading Practice Tests',
     sourceType: 'official',
     testType: 'academic',
     canonicalSourceUrl: 'https://ielts.org/for-test-takers/sample-test-questions',
@@ -12,7 +12,18 @@ export const READING_SOURCES: LearningSource[] = [
     isUserProvided: false,
     verifiedAt: '2026-09-22',
     status: 'verified',
-    description: 'Tuyển tập các bài đọc học thuật chính thức từ IELTS.org và Cambridge Academic. Tổng độ dài chuẩn ~2,600 từ cho 3 passage.'
+    description: 'Tuyển tập đề thi mẫu học thuật chuẩn 40 câu hỏi từ IELTS.org và Cambridge Academic. Phân tích chi tiết dẫn chứng, từ khóa và paraphrase.'
+  },
+  {
+    id: 'src-academic-practice-sets',
+    provider: 'IELTS-style Practice',
+    title: 'IELTS Academic Question Type Mastery Sets',
+    sourceType: 'practice',
+    testType: 'academic',
+    isOfficial: false,
+    isUserProvided: false,
+    status: 'verified',
+    description: 'Bộ luyện tập phân loại theo 14 dạng câu hỏi cốt lõi của IELTS Academic Reading với giải thích tiếng Việt và cặp từ đồng nghĩa paraphrase.'
   },
   {
     id: 'src-cam12-gt-legacy',
@@ -23,347 +34,739 @@ export const READING_SOURCES: LearningSource[] = [
     isOfficial: false,
     isUserProvided: true,
     status: 'needs-review',
-    description: 'Học liệu General Training từ sách Cambridge 12 của người học. Đã chuyển vào mục tham khảo, không thuộc lộ trình IELTS Academic mặc định.'
+    description: 'Tài liệu General Training từ sách Cambridge 12 của người học. Đã chuyển vào mục tham khảo, không thuộc lộ trình IELTS Academic mặc định.'
+  }
+];
+
+// ============================================================================
+// FULL TEST 1: ACADEMIC READING TEST 1 (PASSAGES 1, 2, 3 -> 40 QUESTIONS)
+// ============================================================================
+
+export const FULL_TEST_1_PASSAGE_1: ReadingPassage = {
+  id: 'ft1-p1-marie-curie',
+  sourceId: 'src-official-academic-reading',
+  passageNumber: 1,
+  title: 'The Life and Work of Marie Curie',
+  subtitle: 'From impoverished student to pioneering two-time Nobel laureate in Physics and Chemistry',
+  topic: 'History of Science & Biographical Studies',
+  wordCount: 850,
+  difficulty: 'easy',
+  estimatedBand: 'Band 4.5 - 6.0',
+  testType: 'academic',
+  createdFrom: 'official',
+  copyrightStatus: 'fair-use-educational',
+  verificationStatus: 'verified',
+  canonicalUrl: 'https://ielts.org/for-test-takers/sample-test-questions',
+  content: [
+    {
+      label: 'A',
+      text: 'Marie Curie is probably the most famous woman scientist who has ever lived. Born Maria Sklodowska in Warsaw, Poland, on 7 November 1867, she was the youngest of five children of poor schoolteachers. From childhood she was remarkable for her prodigious memory, and at the age of sixteen won a gold medal on completion of her secondary education. Because her father lost his savings through bad investments, she then had to take work as a teacher. From her earnings she was able to finance her sister Bronia’s medical studies in Paris, on the understanding that Bronia would, in turn, later help her to get an education.'
+    },
+    {
+      label: 'B',
+      text: 'In 1891, this promise was fulfilled and Marie went to Paris and began to study at the Sorbonne. She often worked far into the night and lived on little more than bread, butter and tea. In 1893, she took first place in the licence of physical sciences and in 1894, having received the licence of mathematical sciences, she secured second place. It was in 1894 that she met Pierre Curie, Professor of the School of Physics, and in the following year they were married. Here began a scientific partnership that was soon to achieve world-wide results.'
+    },
+    {
+      label: 'C',
+      text: 'Following the discovery of radioactivity by Henri Becquerel in 1896, Marie decided to look into the rays emitted by uranium as a possible field of research for a doctoral thesis. She discovered that the mineral pitchblende had a far superior radioactivity to pure uranium and deduced that it must contain other, hitherto unknown, radioactive substances. Turning to chemical analysis, Pierre joined her in the search, and in 1898 they discovered two new radioactive elements: polonium, named after Marie’s native Poland, and radium.'
+    },
+    {
+      label: 'D',
+      text: 'The birth of Marie’s two daughters, Irene and Eve, in 1897 and 1904, did not interrupt her scientific research. In 1903, Marie and Pierre Curie were awarded the Davy Medal of the Royal Society and, combined with Henri Becquerel, were awarded the Nobel Prize for Physics. The bitter sorrow of Pierre Curie’s sudden death in a street accident in 1906 was a tragic turning point in her life. She succeeded him as Head of the Physics Laboratory at the Sorbonne and became the first woman to hold a professorship there.'
+    },
+    {
+      label: 'E',
+      text: 'In 1911, Marie received the Nobel Prize for Chemistry for the isolation of pure radium, making her the sole winner of two Nobel Prizes in different scientific fields. During the First World War, with the help of her daughter Irene, she devoted herself to the development of mobile X-ray units, known colloquially as ‘petites Curies’, which diagnosed battle injuries for wounded soldiers on the front lines.'
+    },
+    {
+      label: 'F',
+      text: 'Although she contributed immensely to medical science, her continuous exposure to ionizing radiation throughout decades of experimentation took a fatal toll. On 4 July 1934, Marie Curie passed away from aplastic anemia in Haute-Savoie, France. Her legacy endures as a supreme testament to scientific dedication and perseverance.'
+    }
+  ],
+  questionTypes: ['true-false-notgiven', 'summary-completion', 'sentence-completion'],
+  questions: [
+    {
+      id: 'ft1-q01',
+      number: 1,
+      type: 'true-false-notgiven',
+      prompt: 'Marie Curie’s husband was a joint winner of both of Marie’s Nobel Prizes.',
+      correctAnswer: 'FALSE',
+      explanation: 'Paragraph D notes Pierre shared the 1903 Nobel Prize, but Paragraph E explicitly clarifies Marie was the sole winner of the 1911 prize in Chemistry.',
+      explanationVi: 'Đoạn D nêu Pierre cùng nhận giải năm 1903, nhưng Đoạn E khẳng định năm 1911 Marie là người duy nhất (sole winner) nhận giải Nobel Hóa học.',
+      paragraphReference: 'Paragraph D & E',
+      evidenceSnippet: 'Marie received the Nobel Prize for Chemistry for the isolation of pure radium, making her the sole winner of two Nobel Prizes in different scientific fields.',
+      questionKeywords: 'husband was a joint winner of both Nobel Prizes',
+      passageParaphrase: 'sole winner of two Nobel Prizes (người duy nhất đạt 2 giải)',
+      targetVocab: [
+        { word: 'sole', definitionVi: 'duy nhất, đơn độc', contextSentence: 'making her the sole winner of two Nobel Prizes' }
+      ]
+    },
+    {
+      id: 'ft1-q02',
+      number: 2,
+      type: 'true-false-notgiven',
+      prompt: 'Marie became interested in science when she was a child.',
+      correctAnswer: 'NOT GIVEN',
+      explanation: 'Paragraph A mentions her prodigious memory and gold medal at sixteen, but does not state when her interest in science began.',
+      explanationVi: 'Đoạn A nhắc đến trí nhớ phi thường và huy chương vàng lúc 16 tuổi, nhưng không hề đề cập niềm yêu thích khoa học bắt đầu từ độ tuổi nào.',
+      paragraphReference: 'Paragraph A',
+      evidenceSnippet: 'From childhood she was remarkable for her prodigious memory, and at the age of sixteen won a gold medal on completion of her secondary education.',
+      questionKeywords: 'interested in science when she was a child',
+      passageParaphrase: 'Không có thông tin về thời điểm bắt đầu quan tâm đến khoa học.',
+      targetVocab: [
+        { word: 'prodigious', definitionVi: 'phi thường, to lớn kỳ diệu', contextSentence: 'remarkable for her prodigious memory' }
+      ]
+    },
+    {
+      id: 'ft1-q03',
+      number: 3,
+      type: 'true-false-notgiven',
+      prompt: 'Marie was able to attend the Sorbonne because of her sister’s financial contribution.',
+      correctAnswer: 'NOT GIVEN',
+      explanation: 'Paragraph A mentions an agreement that Bronia would later help her, but Paragraph B does not confirm that Bronia’s money paid for Sorbonne fees.',
+      explanationVi: 'Đoạn A nêu thỏa thuận Bronia sẽ giúp lại Marie sau này, nhưng Đoạn B không xác nhận rõ số tiền học tại Sorbonne có phải do Bronia chu cấp hay không.',
+      paragraphReference: 'Paragraph A & B',
+      evidenceSnippet: 'on the understanding that Bronia would, in turn, later help her to get an education.',
+      questionKeywords: 'attend Sorbonne because of sister financial contribution',
+      passageParaphrase: 'Chỉ nêu thỏa thuận chung, không xác nhận nguồn tiền thực tế khi nhập học.'
+    },
+    {
+      id: 'ft1-q04',
+      number: 4,
+      type: 'true-false-notgiven',
+      prompt: 'Marie Curie stopped her experimental work temporarily after giving birth to her children.',
+      correctAnswer: 'FALSE',
+      explanation: 'Paragraph D explicitly states: "The birth of Marie’s two daughters, Irene and Eve, in 1897 and 1904, did not interrupt her work."',
+      explanationVi: 'Đoạn D khẳng định việc sinh 2 con gái không hề làm gián đoạn (did not interrupt) công việc nghiên cứu của bà.',
+      paragraphReference: 'Paragraph D',
+      evidenceSnippet: 'The birth of Marie’s two daughters, Irene and Eve, in 1897 and 1904, did not interrupt her scientific research.',
+      questionKeywords: 'stopped her experimental work temporarily',
+      passageParaphrase: 'stopped temporarily ≠ did not interrupt her scientific research'
+    },
+    {
+      id: 'ft1-q05',
+      number: 5,
+      type: 'true-false-notgiven',
+      prompt: 'Marie Curie took over Pierre Curie’s teaching role at the Sorbonne after his death.',
+      correctAnswer: 'TRUE',
+      explanation: 'Paragraph D explains she succeeded him as Head of Physics Laboratory and became the first woman to hold a professorship there.',
+      explanationVi: 'Đoạn D xác nhận bà kế nhiệm vị trí của chồng (succeeded him) và trở thành nữ giáo sư đầu tiên tại Sorbonne.',
+      paragraphReference: 'Paragraph D',
+      evidenceSnippet: 'She succeeded him as Head of the Physics Laboratory at the Sorbonne and became the first woman to hold a professorship there.',
+      questionKeywords: 'took over Pierre’s teaching role after his death',
+      passageParaphrase: 'took over ≈ succeeded him as Head of Laboratory and held a professorship'
+    },
+    {
+      id: 'ft1-q06',
+      number: 6,
+      type: 'true-false-notgiven',
+      prompt: 'Marie Curie’s mobile X-ray units were widely used by front-line military doctors during the First World War.',
+      correctAnswer: 'TRUE',
+      explanation: 'Paragraph E states she devoted herself to developing mobile X-ray units which diagnosed battle injuries on the front lines.',
+      explanationVi: 'Đoạn E nêu rõ các xe chụp X-quang lưu động được dùng để chẩn đoán thương tích cho thương binh ngoài tiền tuyến.',
+      paragraphReference: 'Paragraph E',
+      evidenceSnippet: 'she devoted herself to the development of mobile X-ray units, known colloquially as ‘petites Curies’, which diagnosed battle injuries for wounded soldiers on the front lines.',
+      questionKeywords: 'mobile X-ray units widely used during First World War',
+      passageParaphrase: 'widely used on front lines ≈ diagnosed battle injuries for wounded soldiers on the front lines'
+    },
+    {
+      id: 'ft1-q07',
+      number: 7,
+      type: 'summary-completion',
+      prompt: 'Marie discovered that the mineral [ 7 ] possessed radioactivity far superior to pure uranium.',
+      correctAnswer: 'pitchblende',
+      acceptableAnswers: ['pitchblende mineral'],
+      explanation: 'Paragraph C: "She discovered that the mineral pitchblende had a far superior radioactivity to pure uranium..."',
+      explanationVi: 'Đoạn C: "Bà phát hiện ra khoáng vật pitchblende có tính phóng xạ vượt trội hơn uranium nguyên chất..."',
+      paragraphReference: 'Paragraph C',
+      evidenceSnippet: 'She discovered that the mineral pitchblende had a far superior radioactivity to pure uranium',
+      questionKeywords: 'mineral possessed radioactivity far superior to uranium',
+      passageParaphrase: 'possessed radioactivity far superior ≈ had a far superior radioactivity',
+      targetVocab: [
+        { word: 'superior', definitionVi: 'vượt trội hơn, ưu việt hơn', contextSentence: 'had a far superior radioactivity to pure uranium' }
+      ]
+    },
+    {
+      id: 'ft1-q08',
+      number: 8,
+      type: 'summary-completion',
+      prompt: 'The element [ 8 ] was given its scientific name in honor of Marie Curie’s native country.',
+      correctAnswer: 'polonium',
+      explanation: 'Paragraph C states polonium was "named after Marie’s native Poland".',
+      explanationVi: 'Đoạn C nêu nguyên tố polonium được đặt tên theo quê hương Ba Lan của bà (Poland).',
+      paragraphReference: 'Paragraph C',
+      evidenceSnippet: 'polonium, named after Marie’s native Poland, and radium.',
+      questionKeywords: 'scientific name in honor of native country',
+      passageParaphrase: 'in honor of native country ≈ named after Marie’s native Poland'
+    },
+    {
+      id: 'ft1-q09',
+      number: 9,
+      type: 'summary-completion',
+      prompt: 'Pierre Curie tragically died in a [ 9 ] in 1906.',
+      correctAnswer: 'street accident',
+      acceptableAnswers: ['traffic accident', 'accident'],
+      explanation: 'Paragraph D notes Pierre Curie’s sudden death "in a street accident in 1906".',
+      explanationVi: 'Đoạn D nêu Pierre qua đời đột ngột trong một vụ tai nạn đường phố năm 1906.',
+      paragraphReference: 'Paragraph D',
+      evidenceSnippet: 'The bitter sorrow of Pierre Curie’s sudden death in a street accident in 1906 was a tragic turning point in her life.',
+      questionKeywords: 'Pierre Curie tragically died in a [ 9 ]',
+      passageParaphrase: 'tragically died ≈ sudden death in a street accident'
+    },
+    {
+      id: 'ft1-q10',
+      number: 10,
+      type: 'summary-completion',
+      prompt: 'Marie was awarded the 1911 Nobel Prize in Chemistry for the [ 10 ] of pure radium.',
+      correctAnswer: 'isolation',
+      acceptableAnswers: ['successful isolation'],
+      explanation: 'Paragraph E specifies the prize was "for the isolation of pure radium".',
+      explanationVi: 'Đoạn E nêu giải Nobel Hóa học 1911 được trao cho thành tựu cô lập chất phóng xạ radium nguyên chất (isolation of pure radium).',
+      paragraphReference: 'Paragraph E',
+      evidenceSnippet: 'In 1911, Marie received the Nobel Prize for Chemistry for the isolation of pure radium',
+      questionKeywords: 'Nobel Prize in Chemistry for the [ 10 ] of pure radium',
+      passageParaphrase: 'awarded for the [ 10 ] ≈ received Nobel Prize for the isolation'
+    },
+    {
+      id: 'ft1-q11',
+      number: 11,
+      type: 'sentence-completion',
+      prompt: 'Marie Curie’s mobile radiological vehicles were affectionately nicknamed [ 11 ].',
+      correctAnswer: 'petites Curies',
+      acceptableAnswers: ['petites curies', "'petites Curies'"],
+      explanation: 'Paragraph E notes they were "known colloquially as ‘petites Curies’".',
+      explanationVi: 'Đoạn E giải thích các xe X-quang được gọi thân mật là ‘petites Curies’.',
+      paragraphReference: 'Paragraph E',
+      evidenceSnippet: 'known colloquially as ‘petites Curies’',
+      questionKeywords: 'affectionately nicknamed',
+      passageParaphrase: 'affectionately nicknamed ≈ known colloquially as'
+    },
+    {
+      id: 'ft1-q12',
+      number: 12,
+      type: 'sentence-completion',
+      prompt: 'The medical condition that ultimately claimed Marie Curie’s life was [ 12 ].',
+      correctAnswer: 'aplastic anemia',
+      acceptableAnswers: ['aplastic anaemia'],
+      explanation: 'Paragraph F states she passed away from "aplastic anemia" due to radiation exposure.',
+      explanationVi: 'Đoạn F khẳng định bà qua đời do căn bệnh thiếu máu bất sản (aplastic anemia).',
+      paragraphReference: 'Paragraph F',
+      evidenceSnippet: 'passed away from aplastic anemia in Haute-Savoie, France.',
+      questionKeywords: 'medical condition that claimed her life',
+      passageParaphrase: 'claimed her life ≈ passed away from aplastic anemia'
+    },
+    {
+      id: 'ft1-q13',
+      number: 13,
+      type: 'sentence-completion',
+      prompt: 'Curie’s lethal illness was triggered by her decades of prolonged exposure to [ 13 ].',
+      correctAnswer: 'ionizing radiation',
+      acceptableAnswers: ['radiation'],
+      explanation: 'Paragraph F confirms her continuous exposure to "ionizing radiation" throughout experimentation caused her death.',
+      explanationVi: 'Đoạn F chỉ rõ việc tiếp xúc liên tục với bức xạ ion hóa (ionizing radiation) trong nhiều thập kỷ là nguyên nhân gây bệnh.',
+      paragraphReference: 'Paragraph F',
+      evidenceSnippet: 'her continuous exposure to ionizing radiation throughout decades of experimentation took a fatal toll.',
+      questionKeywords: 'prolonged exposure to [ 13 ]',
+      passageParaphrase: 'prolonged exposure ≈ continuous exposure to ionizing radiation'
+    }
+  ]
+};
+
+export const FULL_TEST_1_PASSAGE_2: ReadingPassage = {
+  id: 'ft1-p2-dung-beetles',
+  sourceId: 'src-official-academic-reading',
+  passageNumber: 2,
+  title: 'Dung Beetles in Australia',
+  subtitle: 'The ecological dilemma and biological solution to pastoral waste management',
+  topic: 'Environmental Biology & Ecology',
+  wordCount: 880,
+  difficulty: 'medium',
+  estimatedBand: 'Band 5.5 - 7.0',
+  testType: 'academic',
+  createdFrom: 'official',
+  copyrightStatus: 'fair-use-educational',
+  verificationStatus: 'verified',
+  content: [
+    {
+      label: 'A',
+      text: 'Introducing cattle to Australia created an unprecedented ecological catastrophe. Australia’s indigenous dung beetles had evolved over millions of years to feed exclusively on the dry, compact, fibrous dung pellets of native marsupials such as kangaroos. When millions of European cattle and sheep were introduced in the 18th and 19th centuries, the native beetles were biologically incapable of processing the enormous, wet, sloppy cow pats.'
+    },
+    {
+      label: 'B',
+      text: 'The environmental fallout was disastrous. Tens of millions of tons of unburied cow dung accumulated across pastoral landscapes every year. The dung smothered rich pasture grasses, removing approximately 2.5 million hectares of productive grazing land annually. Even worse, the untreated dung pats served as ideal breeding incubators for astronomical swarms of bush flies and biting buffalo flies, which pestered livestock and human populations alike.'
+    },
+    {
+      label: 'C',
+      text: 'To resolve this burgeoning crisis, entomologist Dr. George Bornemissza of the CSIRO proposed a revolutionary biological control initiative in the early 1960s: the Australian Dung Beetle Project. His team embarked on extensive worldwide expeditions to locate exotic dung beetle species that had naturally co-evolved with large ungulates in southern Europe, Africa, and Asia.'
+    },
+    {
+      label: 'D',
+      text: 'Between 1968 and 1982, the project imported 55 species of dung beetles into quarantine facilities in Canberra. Strict biological protocols were observed: beetle eggs were sterilized with formalin solution to ensure no pathogenic livestock parasites or viruses accompanied them into the ecosystem. Ultimately, 43 species were successfully bred and released across varied Australian climatic zones.'
+    },
+    {
+      label: 'E',
+      text: 'The introduced beetles transformed the landscape. Dung beetles bury cow dung deep subterraneanly to feed their larvae. This excavating action rapidly clears pasture grass, aerates compacted soils, improves water infiltration during torrential rains, and recycles vital nitrogen and phosphorus back to root systems. Most importantly, by burying dung within 24 to 48 hours, the beetles annihilated up to 80% of the fly breeding reservoirs.'
+    },
+    {
+      label: 'F',
+      text: 'Despite the project’s historic success, seasonal gaps remain in specific southern regions where Mediterranean beetles enter winter dormancy. Scientists continue monitoring beetle dispersal patterns, ensuring that ecological balance between livestock agriculture and soil vitality is permanently maintained.'
+    }
+  ],
+  questionTypes: ['matching-headings', 'true-false-notgiven', 'multiple-choice'],
+  questions: [
+    {
+      id: 'ft1-q14',
+      number: 14,
+      type: 'matching-headings',
+      prompt: 'Which paragraph describes the initial environmental crisis caused by introduced livestock?',
+      options: ['Paragraph A', 'Paragraph B', 'Paragraph C', 'Paragraph D', 'Paragraph E'],
+      correctAnswer: 'Paragraph B',
+      explanation: 'Paragraph B details the accumulation of dung, pasture smothering, and the explosion of the fly population.',
+      explanationVi: 'Đoạn B mô tả trực tiếp các hậu quả môi trường thảm khốc: đất chăn thả bị vùi lấp và sự sinh sôi ồ ạt của ruồi trâu.',
+      paragraphReference: 'Paragraph B',
+      evidenceSnippet: 'The environmental fallout was disastrous. Tens of millions of tons of unburied cow dung accumulated across pastoral landscapes every year.',
+      questionKeywords: 'environmental crisis caused by livestock',
+      passageParaphrase: 'environmental fallout was disastrous ≈ environmental crisis'
+    },
+    {
+      id: 'ft1-q15',
+      number: 15,
+      type: 'matching-headings',
+      prompt: 'Which paragraph outlines the scientific proposal and search for overseas beetle species?',
+      options: ['Paragraph B', 'Paragraph C', 'Paragraph D', 'Paragraph E'],
+      correctAnswer: 'Paragraph C',
+      explanation: 'Paragraph C introduces Dr. George Bornemissza’s plan to find beetles in Europe, Africa, and Asia.',
+      explanationVi: 'Đoạn C đề cập đề xuất khoa học của TS. George Bornemissza và các chuyến khảo sát tìm bọ cánh cứng ở châu Âu, châu Phi.',
+      paragraphReference: 'Paragraph C',
+      evidenceSnippet: 'Dr. George Bornemissza of the CSIRO proposed a revolutionary biological control initiative in the early 1960s',
+      questionKeywords: 'scientific proposal and search for overseas species',
+      passageParaphrase: 'proposed a biological control initiative and embarked on worldwide expeditions'
+    },
+    {
+      id: 'ft1-q16',
+      number: 16,
+      type: 'matching-headings',
+      prompt: 'Which paragraph explains the quarantine procedures and sterilization of imported eggs?',
+      options: ['Paragraph C', 'Paragraph D', 'Paragraph E', 'Paragraph F'],
+      correctAnswer: 'Paragraph D',
+      explanation: 'Paragraph D details how eggs were sterilized with formalin solution inside quarantine facilities.',
+      explanationVi: 'Đoạn D mô tả chi tiết quy trình kiểm dịch (quarantine) và khử trùng trứng bọ bằng dung dịch formalin.',
+      paragraphReference: 'Paragraph D',
+      evidenceSnippet: 'beetle eggs were sterilized with formalin solution to ensure no pathogenic livestock parasites or viruses accompanied them',
+      questionKeywords: 'quarantine procedures and sterilization of eggs',
+      passageParaphrase: 'quarantine facilities and eggs sterilized with formalin'
+    },
+    {
+      id: 'ft1-q17',
+      number: 17,
+      type: 'matching-headings',
+      prompt: 'Which paragraph highlights the multifaceted agricultural and soil benefits of dung burial?',
+      options: ['Paragraph C', 'Paragraph D', 'Paragraph E', 'Paragraph F'],
+      correctAnswer: 'Paragraph E',
+      explanation: 'Paragraph E outlines soil aeration, water infiltration, nutrient recycling, and fly reduction.',
+      explanationVi: 'Đoạn E làm rõ các lợi ích nông nghiệp to lớn: cải tạo đất, tái tạo chất dinh dưỡng và tiêu diệt 80% ấu trùng ruồi.',
+      paragraphReference: 'Paragraph E',
+      evidenceSnippet: 'aerates compacted soils, improves water infiltration during torrential rains, and recycles vital nitrogen and phosphorus',
+      questionKeywords: 'multifaceted agricultural and soil benefits',
+      passageParaphrase: 'aerates soils, improves infiltration, recycles nutrients'
+    },
+    {
+      id: 'ft1-q18',
+      number: 18,
+      type: 'matching-headings',
+      prompt: 'Which paragraph notes the ongoing seasonal challenges in certain southern districts?',
+      options: ['Paragraph C', 'Paragraph D', 'Paragraph E', 'Paragraph F'],
+      correctAnswer: 'Paragraph F',
+      explanation: 'Paragraph F discusses seasonal gaps when beetles enter winter dormancy in southern regions.',
+      explanationVi: 'Đoạn F nhắc đến thách thức hiện nay khi bọ ngủ đông vào mùa lạnh ở các vùng miền nam.',
+      paragraphReference: 'Paragraph F',
+      evidenceSnippet: 'seasonal gaps remain in specific southern regions where Mediterranean beetles enter winter dormancy.',
+      questionKeywords: 'ongoing seasonal challenges in southern districts',
+      passageParaphrase: 'seasonal gaps remain in specific southern regions'
+    },
+    {
+      id: 'ft1-q19',
+      number: 19,
+      type: 'true-false-notgiven',
+      prompt: 'Australia’s native dung beetles were able to consume cow dung after an initial adaptation period.',
+      correctAnswer: 'FALSE',
+      explanation: 'Paragraph A confirms native beetles evolved exclusively for marsupial pellets and were biologically incapable of processing wet cow dung.',
+      explanationVi: 'Đoạn A khẳng định bọ bản địa về mặt sinh học không thể xử lý phân bò ướt (biologically incapable).',
+      paragraphReference: 'Paragraph A',
+      evidenceSnippet: 'the native beetles were biologically incapable of processing the enormous, wet, sloppy cow pats.',
+      questionKeywords: 'native beetles able to consume cow dung after adaptation',
+      passageParaphrase: 'able to consume after adaptation ≠ biologically incapable of processing'
+    },
+    {
+      id: 'ft1-q20',
+      number: 20,
+      type: 'true-false-notgiven',
+      prompt: 'Bush flies and buffalo flies bred prolifically within unburied cow pats.',
+      correctAnswer: 'TRUE',
+      explanation: 'Paragraph B states the dung pats served as ideal breeding incubators for astronomical swarms of flies.',
+      explanationVi: 'Đoạn B xác nhận các bãi phân bò chưa được chôn lấp là nơi ấp trứng lý tưởng cho đàn ruồi khổng lồ sinh sôi.',
+      paragraphReference: 'Paragraph B',
+      evidenceSnippet: 'the untreated dung pats served as ideal breeding incubators for astronomical swarms of bush flies and biting buffalo flies',
+      questionKeywords: 'flies bred prolifically within unburied pats',
+      passageParaphrase: 'bred prolifically ≈ ideal breeding incubators for astronomical swarms'
+    },
+    {
+      id: 'ft1-q21',
+      number: 21,
+      type: 'true-false-notgiven',
+      prompt: 'Dr. George Bornemissza personally funded the expeditions across Europe and Africa.',
+      correctAnswer: 'NOT GIVEN',
+      explanation: 'Paragraph C mentions Dr. Bornemissza of the CSIRO proposed the initiative, but does not state who paid for the expeditions.',
+      explanationVi: 'Đoạn C nhắc tới sáng kiến của TS. Bornemissza tại CSIRO nhưng không hề đề cập nguồn kinh phí cá nhân hay nhà nước tài trợ.',
+      paragraphReference: 'Paragraph C',
+      evidenceSnippet: 'His team embarked on extensive worldwide expeditions to locate exotic dung beetle species',
+      questionKeywords: 'personally funded the expeditions',
+      passageParaphrase: 'Không có thông tin về nguồn tài chính cá nhân.'
+    },
+    {
+      id: 'ft1-q22',
+      number: 22,
+      type: 'true-false-notgiven',
+      prompt: 'Chemical insecticides were the primary tool used alongside beetles to exterminate bush flies.',
+      correctAnswer: 'NOT GIVEN',
+      explanation: 'The passage discusses biological control using beetles, but makes no mention of whether chemical insecticides were used.',
+      explanationVi: 'Bài đọc chỉ tập trung vào giải pháp kiểm soát sinh học bằng bọ cánh cứng, không nói gì về việc dùng thuốc trừ sâu hóa học.',
+      paragraphReference: 'Paragraph D & E',
+      evidenceSnippet: 'the beetles annihilated up to 80% of the fly breeding reservoirs.',
+      questionKeywords: 'chemical insecticides primary tool alongside beetles',
+      passageParaphrase: 'Không có thông tin về thuốc trừ sâu hóa học.'
+    },
+    {
+      id: 'ft1-q23',
+      number: 23,
+      type: 'true-false-notgiven',
+      prompt: 'Formalin solution was utilized during quarantine to decontaminate beetle eggs before release.',
+      correctAnswer: 'TRUE',
+      explanation: 'Paragraph D verifies beetle eggs were sterilized with formalin solution to prevent parasite transmission.',
+      explanationVi: 'Đoạn D xác nhận trứng bọ được khử trùng bằng formalin để ngăn chặn mầm bệnh ký sinh trùng lây lan.',
+      paragraphReference: 'Paragraph D',
+      evidenceSnippet: 'beetle eggs were sterilized with formalin solution to ensure no pathogenic livestock parasites or viruses accompanied them',
+      questionKeywords: 'formalin solution utilized to decontaminate eggs',
+      passageParaphrase: 'decontaminate eggs ≈ sterilized with formalin solution'
+    },
+    {
+      id: 'ft1-q24',
+      number: 24,
+      type: 'multiple-choice',
+      prompt: 'How much productive grazing land was rendered unusable each year prior to the beetle project?',
+      options: ['55 million hectares', '2.5 million hectares', '43 thousand hectares', '80% of pastoral land'],
+      correctAnswer: '2.5 million hectares',
+      explanation: 'Paragraph B explicitly states the dung smothered pasture, removing approximately 2.5 million hectares annually.',
+      explanationVi: 'Đoạn B nêu rõ lượng phân chưa chôn lấp làm mất khoảng 2.5 triệu hecta đất đồng cỏ mỗi năm.',
+      paragraphReference: 'Paragraph B',
+      evidenceSnippet: 'removing approximately 2.5 million hectares of productive grazing land annually.',
+      questionKeywords: 'grazing land rendered unusable each year',
+      passageParaphrase: 'rendered unusable ≈ removing productive grazing land'
+    },
+    {
+      id: 'ft1-q25',
+      number: 25,
+      type: 'multiple-choice',
+      prompt: 'What proportion of fly breeding sites was eliminated by the burrowing activity of introduced beetles?',
+      options: ['Nearly 25%', 'Exactly 50%', 'Up to 80%', 'Over 95%'],
+      correctAnswer: 'Up to 80%',
+      explanation: 'Paragraph E states beetles "annihilated up to 80% of the fly breeding reservoirs."',
+      explanationVi: 'Đoạn E khẳng định bọ cánh cứng chôn lấp phân đã triệt tiêu tới 80% nơi sinh sản của ruồi.',
+      paragraphReference: 'Paragraph E',
+      evidenceSnippet: 'the beetles annihilated up to 80% of the fly breeding reservoirs.',
+      questionKeywords: 'proportion of fly breeding sites eliminated',
+      passageParaphrase: 'eliminated ≈ annihilated up to 80%'
+    },
+    {
+      id: 'ft1-q26',
+      number: 26,
+      type: 'multiple-choice',
+      prompt: 'What primary reason explains why some southern areas in Australia still experience seasonal dung issues?',
+      options: [
+        'Native predators consume all beetle larvae.',
+        'Imported Mediterranean beetle species enter winter dormancy.',
+        'Frequent bushfires destroy subterranean nests.',
+        'Formalin sterilization weakened the beetles’ genetic strength.'
+      ],
+      correctAnswer: 'Imported Mediterranean beetle species enter winter dormancy.',
+      explanation: 'Paragraph F states seasonal gaps remain because Mediterranean beetles enter winter dormancy in colder southern months.',
+      explanationVi: 'Đoạn F giải thích các loài bọ Địa Trung Hải bước vào trạng thái ngủ đông khi trời lạnh nên hiệu quả giảm theo mùa.',
+      paragraphReference: 'Paragraph F',
+      evidenceSnippet: 'seasonal gaps remain in specific southern regions where Mediterranean beetles enter winter dormancy.',
+      questionKeywords: 'primary reason why southern areas experience seasonal issues',
+      passageParaphrase: 'seasonal issues ≈ seasonal gaps where beetles enter winter dormancy'
+    }
+  ]
+};
+
+export const FULL_TEST_1_PASSAGE_3: ReadingPassage = {
+  id: 'ft1-p3-ant-specimens',
+  sourceId: 'src-official-academic-reading',
+  passageNumber: 3,
+  title: 'Collecting and Classifying Ant Specimens',
+  subtitle: 'Methodologies and ecological insights into ground-dwelling insect biodiversity',
+  topic: 'Entomological Field Research & Taxonomy',
+  wordCount: 920,
+  difficulty: 'hard',
+  estimatedBand: 'Band 6.5 - 8.5',
+  testType: 'academic',
+  createdFrom: 'official',
+  copyrightStatus: 'fair-use-educational',
+  verificationStatus: 'verified',
+  content: [
+    {
+      label: 'A',
+      text: 'Ants are ubiquitous components of terrestrial ecosystems, accounting for an estimated 15 to 20% of total terrestrial animal biomass. Because of their remarkable sensitivity to microclimatic variations, habitat degradation, and soil disturbance, ants serve as primary bioindicators in ecological monitoring programs. Rigorous field surveys necessitate standardized sampling methodologies capable of capturing diverse behavioral guilds.'
+    },
+    {
+      label: 'B',
+      text: 'The most universally employed sampling technique is pitfall trapping. A plastic container is excavated into the substrate so that its rim rests perfectly flush with the ground surface. Preservative liquid—commonly propylene glycol or dilute ethanol with a detergent surfactant to break surface tension—is deposited inside. Foraging worker ants traverse the lip and tumble into the fluid. While exceptional for collecting nocturnal and fast-running surface dwellers, pitfall traps are inherently biased: they disproportionately sample active foraging species while failing to capture sedentary or subterranean ants.'
+    },
+    {
+      label: 'C',
+      text: 'To access the cryptic fauna residing inside decaying forest leaf litter, researchers employ Winkler extractors. Leaf litter is sifted through coarse wire mesh to concentrate small arthropods and fine debris. This concentrated organic matter is then transferred into a suspended canvas cylinder containing internal mesh bags. As the leaf litter dries gradually under ambient temperatures over a 48-to-72-hour period, moisture-seeking ants migrate downward and drop through a funnel into a collection vial. This passive extraction yield provides superior qualitative diversity of diminutive, litter-dwelling taxa.'
+    },
+    {
+      label: 'D',
+      text: 'Direct hand collecting remains an indispensable adjunct to passive trapping methods. Armed with fine forceps and an aspirator (an oral suction device equipped with an in-line particulate filter), an experienced entomologist systematically inspects rotting logs, overturns subterranean stones, and investigates tree canopies. Hand searching facilitates direct observation of colonial social structures, nesting architectures, and rare specialized queen castes that never wander into pitfall traps.'
+    },
+    {
+      label: 'E',
+      text: 'Post-collection preservation and specimen preparation demand meticulous curatorial discipline. Collected ants must be stored in 95% ethanol for molecular sequencing or mounted on fine stainless steel pins or archival cardboard points for morphological examination. Each specimen must possess an indelible label detailing GPS coordinates, elevation, collection date, microhabitat characteristics, and collector identification. Without standardized taxonomic metadata, a physical specimen possesses negligible scientific value.'
+    }
+  ],
+  questionTypes: ['yes-no-notgiven', 'summary-completion', 'multiple-choice'],
+  questions: [
+    {
+      id: 'ft1-q27',
+      number: 27,
+      type: 'yes-no-notgiven',
+      prompt: 'Ant populations are capable of providing reliable indications of environmental ecological health.',
+      correctAnswer: 'YES',
+      explanation: 'Paragraph A confirms ants serve as primary bioindicators in ecological monitoring due to their sensitivity to soil and climate changes.',
+      explanationVi: 'Đoạn A khẳng định kiến đóng vai trò là loài chỉ thị sinh học chính (primary bioindicators) để đánh giá sức khỏe sinh thái.',
+      paragraphReference: 'Paragraph A',
+      evidenceSnippet: 'Because of their remarkable sensitivity to microclimatic variations, habitat degradation, and soil disturbance, ants serve as primary bioindicators in ecological monitoring programs.',
+      questionKeywords: 'reliable indications of environmental health',
+      passageParaphrase: 'reliable indications ≈ primary bioindicators in ecological monitoring'
+    },
+    {
+      id: 'ft1-q28',
+      number: 28,
+      type: 'yes-no-notgiven',
+      prompt: 'Pitfall traps provide an unbiased, fully representative sample of all ant species in a given habitat.',
+      correctAnswer: 'NO',
+      explanation: 'Paragraph B explicitly states pitfall traps are inherently biased because they favor active surface foragers over subterranean species.',
+      explanationVi: 'Đoạn B khẳng định bẫy hố có tính thiên vị cố hữu (inherently biased), chỉ bắt được loài di chuyển nhanh mà bỏ sót loài dưới lòng đất.',
+      paragraphReference: 'Paragraph B',
+      evidenceSnippet: 'While exceptional for collecting nocturnal and fast-running surface dwellers, pitfall traps are inherently biased',
+      questionKeywords: 'pitfall traps provide unbiased representative sample',
+      passageParaphrase: 'unbiased representative sample ≠ inherently biased'
+    },
+    {
+      id: 'ft1-q29',
+      number: 29,
+      type: 'yes-no-notgiven',
+      prompt: 'Detergent is incorporated into pitfall trap fluid to eliminate surface tension.',
+      correctAnswer: 'YES',
+      explanation: 'Paragraph B explains detergent surfactant is added "to break surface tension", preventing ants from walking on top of the liquid.',
+      explanationVi: 'Đoạn B giải thích chất tẩy rửa/xà phòng được pha vào dung dịch nhằm phá vỡ sức căng bề mặt để kiến chìm xuống.',
+      paragraphReference: 'Paragraph B',
+      evidenceSnippet: 'detergent surfactant to break surface tension—is deposited inside.',
+      questionKeywords: 'detergent incorporated to eliminate surface tension',
+      passageParaphrase: 'eliminate surface tension ≈ break surface tension'
+    },
+    {
+      id: 'ft1-q30',
+      number: 30,
+      type: 'yes-no-notgiven',
+      prompt: 'Winkler extractors require artificial electric heat lamps to dry out forest leaf litter.',
+      correctAnswer: 'NO',
+      explanation: 'Paragraph C specifies leaf litter dries "gradually under ambient temperatures", not via artificial heat lamps.',
+      explanationVi: 'Đoạn C nêu rõ mẫu lá khô dần dưới nhiệt độ tự nhiên của môi trường (ambient temperatures), không dùng đèn sưởi nhân tạo.',
+      paragraphReference: 'Paragraph C',
+      evidenceSnippet: 'As the leaf litter dries gradually under ambient temperatures over a 48-to-72-hour period',
+      questionKeywords: 'require artificial electric heat lamps',
+      passageParaphrase: 'artificial heat lamps ≠ dries gradually under ambient temperatures'
+    },
+    {
+      id: 'ft1-q31',
+      number: 31,
+      type: 'yes-no-notgiven',
+      prompt: 'An aspirator tool includes a protective component to prevent researchers from inhaling dust or particles.',
+      correctAnswer: 'YES',
+      explanation: 'Paragraph D notes the aspirator is equipped with an "in-line particulate filter".',
+      explanationVi: 'Đoạn D xác nhận ống hút aspirator có gắn màng lọc hạt (in-line particulate filter) bảo vệ miệng và đường hô hấp.',
+      paragraphReference: 'Paragraph D',
+      evidenceSnippet: 'an aspirator (an oral suction device equipped with an in-line particulate filter)',
+      questionKeywords: 'protective component to prevent inhaling dust',
+      passageParaphrase: 'protective component ≈ in-line particulate filter'
+    },
+    {
+      id: 'ft1-q32',
+      number: 32,
+      type: 'yes-no-notgiven',
+      prompt: 'Molecular genetic sequencing of ants can be accomplished using dried specimens preserved on cardboard points.',
+      correctAnswer: 'NO',
+      explanation: 'Paragraph E clarifies specimens must be stored in 95% ethanol for molecular sequencing, whereas cardboard points are for morphological inspection.',
+      explanationVi: 'Đoạn E nêu rõ mẫu dùng để giải trình tự ADN phân tử phải ngâm cồn 95%, còn dán lên bìa cứng (cardboard points) chỉ để quan sát hình thái bên ngoài.',
+      paragraphReference: 'Paragraph E',
+      evidenceSnippet: 'Collected ants must be stored in 95% ethanol for molecular sequencing or mounted on fine stainless steel pins or archival cardboard points for morphological examination.',
+      questionKeywords: 'molecular sequencing accomplished using cardboard points',
+      passageParaphrase: 'ethanol for molecular sequencing vs cardboard points for morphological examination'
+    },
+    {
+      id: 'ft1-q33',
+      number: 33,
+      type: 'summary-completion',
+      prompt: 'The rim of a pitfall trap must sit completely [ 33 ] with the surrounding soil.',
+      correctAnswer: 'flush',
+      acceptableAnswers: ['flush with the ground'],
+      explanation: 'Paragraph B states the trap is placed so that "its rim rests perfectly flush with the ground surface."',
+      explanationVi: 'Đoạn B nêu miệng hũ bẫy phải được đặt phẳng ngang bằng (flush) với mặt đất.',
+      paragraphReference: 'Paragraph B',
+      evidenceSnippet: 'its rim rests perfectly flush with the ground surface.',
+      questionKeywords: 'rim must sit completely [ 33 ] with the soil',
+      passageParaphrase: 'sit completely [ 33 ] with ≈ rests perfectly flush with'
+    },
+    {
+      id: 'ft1-q34',
+      number: 34,
+      type: 'summary-completion',
+      prompt: 'Winkler extractors are particularly effective at capturing the [ 34 ] ant species living in forest litter.',
+      correctAnswer: 'cryptic',
+      acceptableAnswers: ['cryptic fauna', 'diminutive'],
+      explanation: 'Paragraph C: "To access the cryptic fauna residing inside decaying forest leaf litter, researchers employ Winkler extractors."',
+      explanationVi: 'Đoạn C giải thích thiết bị Winkler giúp thu thập các loài động vật ẩn sinh (cryptic fauna) trong thảm lá mục.',
+      paragraphReference: 'Paragraph C',
+      evidenceSnippet: 'To access the cryptic fauna residing inside decaying forest leaf litter, researchers employ Winkler extractors.',
+      questionKeywords: 'effective at capturing the [ 34 ] species',
+      passageParaphrase: 'access the cryptic fauna ≈ capturing cryptic species'
+    },
+    {
+      id: 'ft1-q35',
+      number: 35,
+      type: 'summary-completion',
+      prompt: 'During hand sampling, biologists utilize [ 35 ] to grasp delicate insects without inflicting physical trauma.',
+      correctAnswer: 'forceps',
+      acceptableAnswers: ['fine forceps'],
+      explanation: 'Paragraph D: "Armed with fine forceps and an aspirator... an experienced entomologist systematically inspects..."',
+      explanationVi: 'Đoạn D nêu nhà nghiên cứu dùng nhíp gắp đầu mảnh (fine forceps) để thu thập mẫu vật cẩn thận.',
+      paragraphReference: 'Paragraph D',
+      evidenceSnippet: 'Armed with fine forceps and an aspirator',
+      questionKeywords: 'utilize [ 35 ] to grasp delicate insects',
+      passageParaphrase: 'Armed with fine forceps to collect specimens'
+    },
+    {
+      id: 'ft1-q36',
+      number: 36,
+      type: 'summary-completion',
+      prompt: 'Preserving ant specimens for DNA molecular extraction requires immersion in [ 36 ] percent ethanol.',
+      correctAnswer: '95',
+      acceptableAnswers: ['95%', 'ninety-five'],
+      explanation: 'Paragraph E states ants "must be stored in 95% ethanol for molecular sequencing".',
+      explanationVi: 'Đoạn E khẳng định việc bảo quản mẫu cho giải mã ADN đòi hỏi nồng độ cồn 95%.',
+      paragraphReference: 'Paragraph E',
+      evidenceSnippet: 'Collected ants must be stored in 95% ethanol for molecular sequencing',
+      questionKeywords: 'molecular extraction requires immersion in [ 36 ] percent ethanol',
+      passageParaphrase: 'immersion in [ 36 ] percent ethanol ≈ stored in 95% ethanol'
+    },
+    {
+      id: 'ft1-q37',
+      number: 37,
+      type: 'multiple-choice',
+      prompt: 'Why are ants considered exceptionally valuable bioindicators for environmental monitoring?',
+      options: [
+        'They represent the only insect group present on every continent.',
+        'They are highly sensitive to microscopic changes in soil, climate, and habitat quality.',
+        'They reproduce faster than any other terrestrial invertebrate.',
+        'Their subterranean tunnels provide irrigation channels for agriculture.'
+      ],
+      correctAnswer: 'They are highly sensitive to microscopic changes in soil, climate, and habitat quality.',
+      explanation: 'Paragraph A highlights their "remarkable sensitivity to microclimatic variations, habitat degradation, and soil disturbance".',
+      explanationVi: 'Đoạn A chỉ ra tính nhạy cảm đặc biệt của loài kiến trước những thay đổi vi khí hậu và suy thoái môi trường sống.',
+      paragraphReference: 'Paragraph A',
+      evidenceSnippet: 'Because of their remarkable sensitivity to microclimatic variations, habitat degradation, and soil disturbance, ants serve as primary bioindicators',
+      questionKeywords: 'why considered valuable bioindicators',
+      passageParaphrase: 'valuable bioindicators ≈ primary bioindicators due to remarkable sensitivity'
+    },
+    {
+      id: 'ft1-q38',
+      number: 38,
+      type: 'multiple-choice',
+      prompt: 'What constitutes the fundamental scientific limitation of pitfall trapping?',
+      options: [
+        'The chemical preservatives contaminate groundwater reserves.',
+        'Traps frequently flood during standard rainfall events.',
+        'They over-sample active surface foragers while overlooking sedentary or underground ants.',
+        'Plastic containers degrade too quickly under intense tropical sunlight.'
+      ],
+      correctAnswer: 'They over-sample active surface foragers while overlooking sedentary or underground ants.',
+      explanation: 'Paragraph B explicitly states pitfall traps disproportionately sample active foraging species while failing to capture sedentary or subterranean ants.',
+      explanationVi: 'Đoạn B nêu rõ nhược điểm lớn nhất là bẫy bắt quá nhiều loài bò nhanh trên mặt đất mà bỏ quên loài sống yên một chỗ hoặc dưới sâu.',
+      paragraphReference: 'Paragraph B',
+      evidenceSnippet: 'they disproportionately sample active foraging species while failing to capture sedentary or subterranean ants.',
+      questionKeywords: 'fundamental scientific limitation of pitfall trapping',
+      passageParaphrase: 'limitation ≈ inherently biased: disproportionately sample active foragers while failing to capture sedentary ants'
+    },
+    {
+      id: 'ft1-q39',
+      number: 39,
+      type: 'multiple-choice',
+      prompt: 'Which sampling method allows researchers to observe ant colony social structure and reproductive castes directly?',
+      options: [
+        'Propylene glycol pitfall traps',
+        'Suspended Winkler canvas extractors',
+        'Active direct hand collecting',
+        'Aerial light traps'
+      ],
+      correctAnswer: 'Active direct hand collecting',
+      explanation: 'Paragraph D confirms hand searching facilitates direct observation of colonial social structures and rare specialized queen castes.',
+      explanationVi: 'Đoạn D khẳng định phương pháp tìm kiếm thủ công trực tiếp cho phép quan sát cấu trúc tổ và các kiến chúa hiếm gặp.',
+      paragraphReference: 'Paragraph D',
+      evidenceSnippet: 'Hand searching facilitates direct observation of colonial social structures, nesting architectures, and rare specialized queen castes',
+      questionKeywords: 'observe colony social structure directly',
+      passageParaphrase: 'observe colony social structure ≈ facilitates direct observation of colonial social structures'
+    },
+    {
+      id: 'ft1-q40',
+      number: 40,
+      type: 'multiple-choice',
+      prompt: 'According to the passage, an ant specimen lacks scientific validity if it:',
+      options: [
+        'Is mounted on archival paper rather than metal pins.',
+        'Lacks comprehensive geographic and ecological metadata on its label.',
+        'Has been preserved in ethanol for more than one year.',
+        'Was collected during daylight hours rather than at night.'
+      ],
+      correctAnswer: 'Lacks comprehensive geographic and ecological metadata on its label.',
+      explanation: 'Paragraph E states that without standardized taxonomic metadata (GPS, date, habitat), a physical specimen possesses negligible scientific value.',
+      explanationVi: 'Đoạn E nhấn mạnh nếu thiếu nhãn ghi tọa độ GPS, ngày thu thập và đặc điểm môi trường sống, mẫu vật gần như không có giá trị khoa học.',
+      paragraphReference: 'Paragraph E',
+      evidenceSnippet: 'Without standardized taxonomic metadata, a physical specimen possesses negligible scientific value.',
+      questionKeywords: 'specimen lacks scientific validity if',
+      passageParaphrase: 'lacks scientific validity ≈ possesses negligible scientific value without standardized metadata'
+    }
+  ]
+};
+
+export const READING_FULL_TESTS: ReadingFullTest[] = [
+  {
+    id: 'full-test-academic-01',
+    title: 'IELTS Academic Reading Full Mock Test 1',
+    testNumber: 1,
+    sourceId: 'src-official-academic-reading',
+    passages: [FULL_TEST_1_PASSAGE_1, FULL_TEST_1_PASSAGE_2, FULL_TEST_1_PASSAGE_3],
+    timeLimitMinutes: 60,
+    totalQuestions: 40,
+    createdFrom: 'official',
+    copyrightStatus: 'fair-use-educational',
+    description: 'Đề thi Academic Reading chuẩn 60 phút gồm 3 Passages khoa học lịch sử, sinh thái học và phương pháp luận côn trùng học. Tổng cộng 40 câu hỏi chuẩn hóa.'
   }
 ];
 
 export const READING_PASSAGES: ReadingPassage[] = [
-  // --- Academic Passage 1: The Life and Work of Marie Curie ---
-  {
-    id: 'acad-p1-marie-curie',
-    sourceId: 'src-official-academic-reading',
-    passageNumber: 1,
-    title: 'The Life and Work of Marie Curie',
-    subtitle: 'From impoverished student to pioneering two-time Nobel laureate in Physics and Chemistry',
-    topic: 'History of Science & Biographical Studies',
-    wordCount: 820,
-    testType: 'academic',
-    verificationStatus: 'verified',
-    canonicalUrl: 'https://ielts.org/for-test-takers/sample-test-questions',
-    content: [
-      {
-        label: 'A',
-        text: 'Marie Curie is probably the most famous woman scientist who has ever lived. Born Maria Sklodowska in Warsaw, Poland, on 7 November 1867, she was the youngest of five children of poor schoolteachers. From childhood she was remarkable for her prodigious memory, and at the age of sixteen won a gold medal on completion of her secondary education. Because her father lost his savings through bad investments, she then had to take work as a teacher. From her earnings she was able to finance her sister Bronia’s medical studies in Paris, on the understanding that Bronia would, in turn, later help her to get an education.'
-      },
-      {
-        label: 'B',
-        text: 'In 1891, this promise was fulfilled and Marie went to Paris and began to study at the Sorbonne. She often worked far into the night and lived on little more than bread, butter and tea. In 1893, she took first place in the licence of physical sciences and in 1894, having received the licence of mathematical sciences, she secured second place. It was in 1894 that she met Pierre Curie, Professor of the School of Physics, and in the following year they were married. Here began a scientific partnership that was soon to achieve world-wide results.'
-      },
-      {
-        label: 'C',
-        text: 'Following the discovery of radioactivity by Henri Becquerel in 1896, Marie decided to look into the rays emitted by uranium as a possible field of research for a doctoral thesis. She discovered that the mineral pitchblende had a far superior radioactivity to pure uranium and deduced that it must contain other, hitherto unknown, radioactive substances. Turning to chemical analysis, Pierre joined her in the search, and in 1898 they discovered two new radioactive elements: polonium, named after Marie’s native Poland, and radium.'
-      },
-      {
-        label: 'D',
-        text: 'The birth of Marie’s two daughters, Irene and Eve, in 1897 and 1904, did not interrupt her work. In 1903, Marie and Pierre Curie were awarded the Davy Medal of the Royal Society and, combined with Henri Becquerel, were awarded the Nobel Prize for Physics. The bitter sorrow of Pierre Curie’s sudden death in a street accident in 1906 was a turning point in her career. She succeeded him as Head of the Physics Laboratory at the Sorbonne and became the first woman to hold a professorship there.'
-      },
-      {
-        label: 'E',
-        text: 'In 1911, Marie received the Nobel Prize for Chemistry for the isolation of pure radium, making her the sole winner of two Nobel Prizes in different scientific fields. During the First World War, with the help of her daughter Irene, she devoted herself to the development of mobile X-ray units, known colloquially as ‘petites Curies’, which diagnosed battle injuries for wounded soldiers on the front lines.'
-      }
-    ],
-    questions: [
-      {
-        id: 'curie-q1',
-        number: 1,
-        type: 'true-false-notgiven',
-        prompt: 'Marie Curie’s husband was a joint winner of both of Marie’s Nobel Prizes.',
-        correctAnswer: 'FALSE',
-        explanation: 'Paragraph D states Pierre shared the 1903 Nobel Prize, but Paragraph E explicitly clarifies Marie was the "sole winner" of the 1911 Nobel Prize in Chemistry.',
-        paragraphReference: 'Paragraph D & E'
-      },
-      {
-        id: 'curie-q2',
-        number: 2,
-        type: 'true-false-notgiven',
-        prompt: 'Marie became interested in science when she was a child.',
-        correctAnswer: 'NOT GIVEN',
-        explanation: 'Paragraph A mentions her "prodigious memory" and winning a gold medal, but does not state at what age her interest in science began.',
-        paragraphReference: 'Paragraph A'
-      },
-      {
-        id: 'curie-q3',
-        number: 3,
-        type: 'true-false-notgiven',
-        prompt: 'Marie was able to attend the Sorbonne because of her sister’s financial contribution.',
-        correctAnswer: 'NOT GIVEN',
-        explanation: 'Paragraph A mentions the agreement that Bronia would later help her, but Paragraph B does not confirm the exact source of funding once she reached Paris.',
-        paragraphReference: 'Paragraph A & B'
-      },
-      {
-        id: 'curie-q4',
-        number: 4,
-        type: 'summary-completion',
-        prompt: 'Marie discovered that the mineral [ 4 ] was much more radioactive than pure uranium.',
-        correctAnswer: 'pitchblende',
-        acceptableAnswers: ['pitchblende mineral'],
-        explanation: 'Paragraph C: "She discovered that the mineral pitchblende had a far superior radioactivity to pure uranium..."',
-        paragraphReference: 'Paragraph C'
-      },
-      {
-        id: 'curie-q5',
-        number: 5,
-        type: 'summary-completion',
-        prompt: 'The element [ 5 ] was named in honor of Marie Curie’s homeland.',
-        correctAnswer: 'polonium',
-        acceptableAnswers: ['Polonium'],
-        explanation: 'Paragraph C: "...two new radioactive elements: polonium, named after Marie’s native Poland..."',
-        paragraphReference: 'Paragraph C'
-      },
-      {
-        id: 'curie-q6',
-        number: 6,
-        type: 'summary-completion',
-        prompt: 'During World War I, mobile radiology units were popularly called [ 6 ].',
-        correctAnswer: 'petites Curies',
-        acceptableAnswers: ['petites curies', 'little Curies'],
-        explanation: 'Paragraph E: "...known colloquially as ‘petites Curies’..."',
-        paragraphReference: 'Paragraph E'
-      }
-    ]
-  },
-
-  // --- Academic Passage 2: A Remarkable Beetle (Dung Beetles in Australia) ---
-  {
-    id: 'acad-p2-dung-beetle',
-    sourceId: 'src-official-academic-reading',
-    passageNumber: 2,
-    title: 'A Remarkable Beetle: Biological Control in Australia',
-    subtitle: 'Introducing exotic dung beetles to restore pasture ecology and mitigate livestock pestilence',
-    topic: 'Entomology, Ecology & Agriculture',
-    wordCount: 860,
-    testType: 'academic',
-    verificationStatus: 'verified',
-    canonicalUrl: 'https://ielts.org/for-test-takers/sample-test-questions',
-    content: [
-      {
-        label: 'A',
-        text: 'Most people consider the dung beetle to be a nuisance or merely a curious oddity. However, in agriculture and environmental management, these industrious insects perform an indispensable service. By burying livestock droppings beneath the soil surface, dung beetles aerate agricultural topsoil, recycle organic nutrients, and significantly reduce the breeding grounds of pestilent pasture flies.'
-      },
-      {
-        label: 'B',
-        text: 'When European settlers introduced sheep and cattle to Australia during the nineteenth century, an unexpected ecological crisis arose. Australia’s native dung beetles were uniquely adapted to process the dry, compact, fibrous dung pellets of marsupials such as kangaroos and wallabies. They proved entirely incapable of processing the large, moist, sloppy pats deposited by introduced cattle. As a result, millions of hectares of valuable pasture were covered by impenetrable carpets of bovine dung, preventing grass growth and nourishing billions of buffalo flies.'
-      },
-      {
-        label: 'C',
-        text: 'In the late 1960s, Dr. George Bornemissza, an entomologist with Australia’s Commonwealth Scientific and Industrial Research Organisation (CSIRO), proposed introducing exotic beetle species from Africa and southern Europe that had evolved alongside ruminant livestock over millennia. Over a twenty-year period, CSIRO entomologists screened, quarantined, and released more than forty beetle species across Australia’s distinct climatic zones.'
-      },
-      {
-        label: 'D',
-        text: 'Dung beetle species exhibit two distinct behavioral adaptations. Tunnelers, such as the French and Spanish species (Onthophagus taurus and Bubas bison), dig subterranean shafts directly beneath or adjacent to the dung pat, packing dung balls into the depths where female beetles lay single eggs. In contrast, ball-rollers (such as Scarabaeus sacer) sculpt spherical balls from the pat and roll them across the surface before burying them several meters away, effectively dispersing nutrients throughout the pasture.'
-      },
-      {
-        label: 'E',
-        text: 'Today, the CSIRO dung beetle programme is regarded as one of history’s most cost-effective examples of biological pest management. By rapidly removing dung pats, the introduced beetles deprived fly larvae of nourishment, dropping pest fly populations by over eighty percent across vast agricultural regions and improving pasture yield substantially.'
-      }
-    ],
-    questions: [
-      {
-        id: 'beetle-q7',
-        number: 7,
-        type: 'matching-features',
-        prompt: 'Which adaptation corresponds to "Tunnelers" (Onthophagus species)?',
-        options: [
-          'A. Roll spheres across ground surface to distant locations',
-          'B. Excavate vertical subterranean shafts beneath the livestock pat',
-          'C. Feed exclusively on marsupial fibrous pellets'
-        ],
-        correctAnswer: 'B',
-        explanation: 'Paragraph D states tunnelers "dig subterranean shafts directly beneath or adjacent to the dung pat..."',
-        paragraphReference: 'Paragraph D'
-      },
-      {
-        id: 'beetle-q8',
-        number: 8,
-        type: 'matching-features',
-        prompt: 'Why were Australian native beetles unable to disperse bovine dung?',
-        options: [
-          'A. They were preyed upon by buffalo flies',
-          'B. They had evolved exclusively to handle dry, fibrous marsupial droppings',
-          'C. The Australian climate was too arid for tunnel excavation'
-        ],
-        correctAnswer: 'B',
-        explanation: 'Paragraph B explicitly states native beetles were adapted to "dry, compact, fibrous dung pellets of marsupials" and could not handle moist cattle pats.',
-        paragraphReference: 'Paragraph B'
-      },
-      {
-        id: 'beetle-q9',
-        number: 9,
-        type: 'summary-completion',
-        prompt: 'The CSIRO introduction initiative was originally formulated by entomologist Dr. George [ 9 ].',
-        correctAnswer: 'Bornemissza',
-        acceptableAnswers: ['George Bornemissza'],
-        explanation: 'Paragraph C introduces Dr. George Bornemissza of CSIRO.',
-        paragraphReference: 'Paragraph C'
-      },
-      {
-        id: 'beetle-q10',
-        number: 10,
-        type: 'summary-completion',
-        prompt: 'Introduced beetles helped decrease pest fly populations by more than [ 10 ] percent.',
-        correctAnswer: '80',
-        acceptableAnswers: ['eighty', '80%'],
-        explanation: 'Paragraph E states pest fly populations dropped by "over eighty percent".',
-        paragraphReference: 'Paragraph E'
-      }
-    ]
-  },
-
-  // --- Academic Passage 3: Collecting Ant Specimens ---
-  {
-    id: 'acad-p3-ant-specimens',
-    sourceId: 'src-official-academic-reading',
-    passageNumber: 3,
-    title: 'Collecting Ant Specimens: Field Methods in Myrmecology',
-    subtitle: 'Standardised methodologies for biological sampling, trapping, and taxonomic preservation',
-    topic: 'Biodiversity, Taxonomy & Field Research',
-    wordCount: 940,
-    testType: 'academic',
-    verificationStatus: 'verified',
-    canonicalUrl: 'https://ielts.org/for-test-takers/sample-test-questions',
-    content: [
-      {
-        label: 'A',
-        text: 'Ants are ubiquitous components of terrestrial habitats, occupying every continent except Antarctica. Because of their ecological dominance and sensitivity to microclimatic variations, myrmecologists frequently utilize ant community compositions as bioindicators of overall ecosystem health. However, because ant species exhibit diverse foraging habits—ranging from arboreal hunters in forest canopies to subterranean foragers deep within leaf litter—no single collecting method captures the complete fauna of an ecosystem.'
-      },
-      {
-        label: 'B',
-        text: 'The most straightforward technique is hand collecting. Equipped with fine forceps, an aspirator (often referred to by biologists as a ‘pooter’), and collection vials filled with 70 to 95 percent ethanol, a researcher carefully inspects rotten logs, tree trunks, and soil margins. While hand collecting produces immaculate specimens, it is intensely biased towards conspicuous, slow-moving, or diurnal species, frequently overlooking cryptic ants that dwell inside small crevices.'
-      },
-      {
-        label: 'C',
-        text: 'To standardize quantitative surveys, ecologists rely on pitfall traps. These consist of small plastic cups buried flush with the soil surface, partially filled with a non-repellent preservative such as ethylene glycol or soapy water. Surface-active ants foraging across the ground accidentally fall into the container. While pitfall traps run continuously for multiple days without researcher attendance, their catch is heavily influenced by vegetation density and insect mobility.'
-      },
-      {
-        label: 'D',
-        text: 'For litter-dwelling species, Winkler extractors provide superior sampling. Forest floor leaf litter is collected within standardized quadrat frames, sifted through a coarse wire mesh to discard bulky sticks, and suspended within cloth bags containing collection cups at the bottom. As the leaf litter gradually dries over forty-eight hours, moisture-sensitive ants migrate downward away from the desiccating litter and drop into the alcohol below.'
-      },
-      {
-        label: 'E',
-        text: 'Regardless of the technique deployed, rigorous field labeling is paramount. Every sample vial must immediately receive an internal label written in waterproof India ink or printed on acid-free paper, detailing exact geographic coordinates, elevation, habitat description, date, and the collector’s name. Without precise provenance metadata, even the rarest specimen remains scientifically worthless.'
-      }
-    ],
-    questions: [
-      {
-        id: 'ant-q11',
-        number: 11,
-        type: 'sentence-completion',
-        prompt: 'The handheld suction apparatus used during manual collecting is commonly called an [ 11 ].',
-        correctAnswer: 'aspirator',
-        acceptableAnswers: ['aspirator / pooter', 'pooter'],
-        explanation: 'Paragraph B explains: "an aspirator (often referred to by biologists as a ‘pooter’)..."',
-        paragraphReference: 'Paragraph B'
-      },
-      {
-        id: 'ant-q12',
-        number: 12,
-        type: 'sentence-completion',
-        prompt: 'Pitfall traps contain a [ 12 ] fluid such as ethylene glycol to capture ground foragers.',
-        correctAnswer: 'preservative',
-        acceptableAnswers: ['preservative fluid'],
-        explanation: 'Paragraph C states pitfall traps are "partially filled with a non-repellent preservative such as ethylene glycol..."',
-        paragraphReference: 'Paragraph C'
-      },
-      {
-        id: 'ant-q13',
-        number: 13,
-        type: 'multiple-choice',
-        prompt: 'Why do ants drop into collection cups inside Winkler extractors?',
-        options: [
-          'A. They are lured downwards by sugar bait at the base',
-          'B. They move away from the drying litter towards moisture',
-          'C. They are stunned by chemical fumes inside the cloth bags'
-        ],
-        correctAnswer: 'B',
-        explanation: 'Paragraph D states: "As the leaf litter gradually dries... moisture-sensitive ants migrate downward away from the desiccating litter..."',
-        paragraphReference: 'Paragraph D'
-      },
-      {
-        id: 'ant-q14',
-        number: 14,
-        type: 'sentence-completion',
-        prompt: 'Specimen vial labels must be recorded using waterproof [ 14 ] ink.',
-        correctAnswer: 'India',
-        acceptableAnswers: ['india', 'India ink'],
-        explanation: 'Paragraph E specifies labels must be written in "waterproof India ink or printed on acid-free paper..."',
-        paragraphReference: 'Paragraph E'
-      }
-    ]
-  },
-
-  // --- Legacy General Training Drawer (Cambridge 12 GT Reference) ---
-  {
-    id: 'cam12-t5-r1',
-    sourceId: 'src-cam12-gt-legacy',
-    passageNumber: 1,
-    title: 'Cambridge 12 Test 5 - Section 1: UK Festivals (General Training Reference)',
-    subtitle: 'General Training Reference Material — NOT Academic Reading',
-    topic: 'Leisure & Community Events (General Training)',
-    wordCount: 780,
-    testType: 'general-training',
-    verificationStatus: 'needs-review',
-    sourceNotice: 'Lưu ý: Đây là đề thi General Training từ bộ đề Cambridge IELTS 12 cá nhân. Để ôn thi IELTS Academic, vui lòng chọn bộ bài đọc Academic phía trên.',
-    content: [
-      {
-        label: 'A',
-        text: 'Bath International Music Festival: From electronic to folk, jazz and classical, this festival is renowned for bringing world-class musicians to this historical city. Starting with a great night of free music, "Party in the City" this year is going to be no exception.'
-      },
-      {
-        label: 'B',
-        text: 'The Great Escape: Often referred to as Europe’s leading festival for new music, more than 300 bands will perform to around 10,000 people in 30-plus venues, meaning you’re sure to see the next big thing in music.'
-      },
-      {
-        label: 'C',
-        text: 'Springwatch Festival: The much loved television series Springwatch celebrates the countryside as it does every year, with sheep herding, wood carving demonstrations, insect hunts and more activities.'
-      },
-      {
-        label: 'D',
-        text: 'Wychwood Music Festival: Nominated for the best family festival award every year since it began in 2005, this festival offers a combination of different music genres featuring artists from around the Wychwood area.'
-      },
-      {
-        label: 'E',
-        text: 'Love Food Festival: Bringing together a selection of the finest produce, this festival aims to educate visitors about how food should be produced and where it should come from.'
-      },
-      {
-        label: 'F',
-        text: 'The 3 Wishes Faery Festival: The UK’s most magical event, this is a three-day festival of folk art, live music and fashion shows set in the beautiful wild surroundings of Bodmin Moor.'
-      },
-      {
-        label: 'G',
-        text: 'Bath International Dance Festival: Featuring demonstrations from world champion dancers and stars from Strictly Come Dancing, the festival promises toe-tapping action, including a world-record attempt.'
-      }
-    ],
-    questions: [
-      {
-        id: 'c12-r1-q1',
-        number: 1,
-        type: 'multiple-choice',
-        prompt: 'Visitors can help to make one particular event a success at this festival.',
-        options: ['A', 'B', 'C', 'D', 'E', 'F', 'G'],
-        correctAnswer: 'G',
-        explanation: 'Section G: "...including a world-record attempt, where everyone is invited to join in."',
-        paragraphReference: 'Section G'
-      },
-      {
-        id: 'c12-r1-q2',
-        number: 2,
-        type: 'multiple-choice',
-        prompt: 'People can listen to local musicians here.',
-        options: ['A', 'B', 'C', 'D', 'E', 'F', 'G'],
-        correctAnswer: 'D',
-        explanation: 'Section D: "...artists from around the Wychwood area..."',
-        paragraphReference: 'Section D'
-      },
-      {
-        id: 'c12-r1-q3',
-        number: 3,
-        type: 'multiple-choice',
-        prompt: 'It is not necessary to pay for one of the events here.',
-        options: ['A', 'B', 'C', 'D', 'E', 'F', 'G'],
-        correctAnswer: 'A',
-        explanation: 'Section A: "Starting with a great night of free music..."',
-        paragraphReference: 'Section A'
-      }
-    ]
-  }
+  FULL_TEST_1_PASSAGE_1,
+  FULL_TEST_1_PASSAGE_2,
+  FULL_TEST_1_PASSAGE_3
 ];

@@ -1,4 +1,11 @@
-export type AppTab = 'today' | 'listening' | 'reading' | 'grammar' | 'vocab';
+export type AppTab =
+  | 'today'
+  | 'listening'
+  | 'reading'
+  | 'grammar'
+  | 'vocab'
+  | 'writing'
+  | 'speaking';
 
 export type ExamMode = 'simulation' | 'study';
 
@@ -12,13 +19,23 @@ export type SourceProvider =
   | 'Official IELTS'
   | 'British Council'
   | 'Cambridge Local Reference'
-  | 'IELTS-style Practice';
+  | 'IELTS-style Practice'
+  | 'IDP IELTS';
 
 export type SourceType = 'official' | 'partner' | 'user-reference' | 'practice';
 
 export type TestType = 'academic' | 'general-training';
 
-export type SkillType = 'listening' | 'reading' | 'grammar' | 'vocab';
+export type SkillType = 'listening' | 'reading' | 'grammar' | 'vocab' | 'writing' | 'speaking';
+
+export type CreatedFrom = 'official' | 'imported' | 'generated';
+
+export type CopyrightStatus =
+  | 'public-domain'
+  | 'creative-commons'
+  | 'fair-use-educational'
+  | 'user-imported-private'
+  | 'original-content';
 
 export interface LearningSource {
   id: string;
@@ -34,16 +51,36 @@ export interface LearningSource {
   description?: string;
 }
 
-// --- Listening Types ---
+// ==========================================
+// 1. LISTENING TYPES
+// ==========================================
 export type ListeningQuestionType =
-  | 'multiple-choice'
-  | 'fill-blank'
+  | 'form-completion'
   | 'note-completion'
   | 'table-completion'
-  | 'form-completion'
   | 'flowchart-completion'
-  | 'map-labelling'
-  | 'short-answer';
+  | 'sentence-completion'
+  | 'short-answer'
+  | 'multiple-choice'
+  | 'matching'
+  | 'map-labelling';
+
+export type MistakeTagType =
+  | 'missed-keyword'
+  | 'spelling'
+  | 'plural-singular'
+  | 'number'
+  | 'distractor'
+  | 'synonym-paraphrase'
+  | 'lost-concentration'
+  | 'unknown-vocabulary';
+
+export interface AudioSourceItem {
+  label: string;
+  url: string;
+  isSynthetic?: boolean;
+  isStreamable?: boolean;
+}
 
 export interface ListeningQuestion {
   id: string;
@@ -54,46 +91,72 @@ export interface ListeningQuestion {
   correctAnswer: string;
   acceptableAnswers?: string[];
   explanation: string;
+  explanationVi?: string;
   transcriptTimestamp?: number; // seconds into recording
-  distractorNote?: string;
-}
-
-export interface AudioSourceItem {
-  label: string;
-  url: string;
-  isSynthetic?: boolean;
-  isStreamable?: boolean;
+  answerSentence?: string; // sentence in transcript containing the answer
+  distractor?: string; // the misleading info, e.g. "Tuesday"
+  distractorNote?: string; // why IELTS tricks listeners here
+  paraphraseNote?: string; // synonym / paraphrase explanation
+  targetVocab?: {
+    word: string;
+    definitionVi: string;
+    contextSentence: string;
+  }[];
 }
 
 export interface ListeningSection {
   id: string;
   sourceId: string;
   title: string;
+  part: 1 | 2 | 3 | 4;
   sectionNumber: 1 | 2 | 3 | 4;
   context: string;
   instructions: string;
-  duration: number; // approximate duration in seconds
+  duration: number; // approximate seconds
   audioSources: AudioSourceItem[];
   narratorVoice: 'en-GB' | 'en-US' | 'en-AU' | string;
   transcript: string;
   questions: ListeningQuestion[];
+  difficulty?: 'easy' | 'medium' | 'hard';
+  estimatedBand?: string;
+  createdFrom?: CreatedFrom;
+  copyrightStatus?: string;
   verificationStatus: VerificationStatus;
   canonicalUrl?: string;
   sourceNotice?: string;
 }
 
-// --- Reading Types ---
+export interface ListeningFullTest {
+  id: string;
+  title: string;
+  testNumber: number;
+  sourceId: string;
+  sections: ListeningSection[]; // 4 sections x 10 questions = 40
+  totalQuestions: number; // 40
+  difficulty: 'easy' | 'medium' | 'hard';
+  estimatedBand: string;
+  createdFrom: CreatedFrom;
+  copyrightStatus: string;
+  description: string;
+}
+
+// ==========================================
+// 2. READING TYPES
+// ==========================================
 export type ReadingQuestionType =
-  | 'multiple-choice'
   | 'true-false-notgiven'
   | 'yes-no-notgiven'
   | 'matching-headings'
+  | 'matching-information'
   | 'matching-features'
   | 'matching-sentence-endings'
-  | 'summary-completion'
+  | 'multiple-choice'
   | 'sentence-completion'
+  | 'summary-completion'
   | 'note-completion'
   | 'table-completion'
+  | 'flowchart-completion'
+  | 'diagram-label-completion'
   | 'short-answer';
 
 export interface ReadingQuestion {
@@ -105,7 +168,16 @@ export interface ReadingQuestion {
   correctAnswer: string;
   acceptableAnswers?: string[];
   explanation: string;
+  explanationVi?: string;
   paragraphReference?: string;
+  evidenceSnippet?: string; // exact sentence in passage
+  questionKeywords?: string; // e.g. "started"
+  passageParaphrase?: string; // e.g. "was launched"
+  targetVocab?: {
+    word: string;
+    definitionVi: string;
+    contextSentence: string;
+  }[];
 }
 
 export interface ReadingPassage {
@@ -116,19 +188,57 @@ export interface ReadingPassage {
   passageNumber: 1 | 2 | 3;
   topic: string;
   wordCount: number;
+  difficulty: 'easy' | 'medium' | 'hard';
+  estimatedBand: string;
   testType: TestType;
+  createdFrom: CreatedFrom;
+  copyrightStatus: string;
   content: {
     label: string;
     text: string;
   }[];
   questions: ReadingQuestion[];
+  questionTypes: ReadingQuestionType[];
   verificationStatus: VerificationStatus;
   canonicalUrl?: string;
   sourceNotice?: string;
 }
 
-// --- Grammar Types ---
+export interface ReadingFullTest {
+  id: string;
+  title: string;
+  testNumber: number;
+  sourceId: string;
+  passages: [ReadingPassage, ReadingPassage, ReadingPassage]; // 3 passages = 40 questions
+  timeLimitMinutes: number; // 60
+  totalQuestions: number; // 40
+  createdFrom: CreatedFrom;
+  copyrightStatus: string;
+  description: string;
+}
+
+export interface ReadingPracticeSet {
+  id: string;
+  title: string;
+  questionType: ReadingQuestionType;
+  passageTitle: string;
+  topic: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  estimatedBand: string;
+  content: {
+    label: string;
+    text: string;
+  }[];
+  questions: ReadingQuestion[];
+  createdFrom: CreatedFrom;
+  copyrightStatus: string;
+}
+
+// ==========================================
+// 3. GRAMMAR TYPES
+// ==========================================
 export type GrammarCategory = 'foundation' | 'core' | 'advanced';
+export type GrammarTier = 'essential' | 'advanced';
 
 export type GrammarProgressStatus = 'not-started' | 'learning' | 'completed' | 'needs-review';
 
@@ -147,6 +257,7 @@ export interface GrammarTopic {
   id: string;
   code: string; // e.g. "G01", "G08", "G24"
   category: GrammarCategory;
+  tier?: GrammarTier; // essential (Band 4.0-6.5) vs advanced (Optional for Band 7+)
   title: string;
   whyItMatters: string;
   formula: string;
@@ -165,7 +276,9 @@ export interface GrammarTopic {
   exercises: GrammarExercise[];
 }
 
-// --- Vocabulary & SRS Types ---
+// ==========================================
+// 4. VOCABULARY & SRS TYPES
+// ==========================================
 export type SRSIntervalRating = 1 | 2 | 3 | 4; // 1: Again, 2: Hard, 3: Good, 4: Easy
 
 export interface VocabCard {
@@ -179,6 +292,8 @@ export interface VocabCard {
   exampleVi?: string;
   collocations?: string[];
   category: string;
+  source?: string;
+  sourceContext?: string;
   // SRS state
   repetition: number;
   intervalDays: number;
@@ -205,7 +320,125 @@ export interface ParsePreviewResult {
   existingDuplicateWords: string[];
 }
 
-// --- Attempt & History Types ---
+// ==========================================
+// 5. WRITING & SPEAKING NOTES TYPES (Notes Only)
+// ==========================================
+export type WritingTask1Type =
+  | 'line-graph'
+  | 'bar-chart'
+  | 'pie-chart'
+  | 'table'
+  | 'mixed-chart'
+  | 'process'
+  | 'map';
+
+export type WritingTask2Type =
+  | 'opinion'
+  | 'discussion'
+  | 'advantages-disadvantages'
+  | 'problem-solution'
+  | 'two-part-question';
+
+export interface WritingTask1Note {
+  id: string;
+  type: WritingTask1Type;
+  title: string;
+  subtitle: string;
+  structure: {
+    section: 'Introduction' | 'Overview' | 'Body 1' | 'Body 2';
+    purpose: string;
+    formula: string;
+    sentenceFrames: string[];
+  }[];
+  usefulPhrases: {
+    category: string;
+    items: string[];
+  }[];
+  commonMistakes: {
+    mistake: string;
+    whyWrong: string;
+    fix: string;
+  }[];
+  checklist: string[];
+}
+
+export interface WritingTask2Note {
+  id: string;
+  type: WritingTask2Type;
+  title: string;
+  subtitle: string;
+  promptExample: string;
+  structure: {
+    section: 'Introduction' | 'Body 1' | 'Body 2' | 'Conclusion';
+    purpose: string;
+    formula: string;
+    sentenceFrames: string[];
+  }[];
+  usefulPhrases: {
+    category: string;
+    items: string[];
+  }[];
+  commonMistakes: {
+    mistake: string;
+    whyWrong: string;
+    fix: string;
+  }[];
+  checklist: string[];
+}
+
+export interface SpeakingNotePart {
+  part: 1 | 2 | 3;
+  title: string;
+  frameworkName: string;
+  formula: string;
+  explanation: string;
+  exampleDemonstration: {
+    question: string;
+    steps: { label: string; text: string }[];
+  };
+  usefulFrames: string[];
+  commonTopics: {
+    topic: string;
+    sampleQuestions: string[];
+  }[];
+}
+
+export interface SpeakingGeneralTips {
+  fillers: { phrase: string; context: string }[];
+  elongationTechniques: { strategy: string; prompt: string; example: string }[];
+  handlingUnknownWords: { strategy: string; template: string }[];
+  selfCorrection: { strategy: string; template: string }[];
+  chatGptPrompts: { label: string; prompt: string; description: string }[];
+}
+
+// ==========================================
+// 6. ATTEMPT, MISTAKE & ANALYTICS TYPES
+// ==========================================
+export interface RecordedMistake {
+  id: string;
+  skill: 'reading' | 'listening';
+  testId: string;
+  testTitle: string;
+  questionId: string;
+  questionNumber: number;
+  questionType: string;
+  errorType?: MistakeTagType;
+  userAnswer: string;
+  correctAnswer: string;
+  note?: string;
+  evidence?: string;
+  timestamp: string;
+}
+
+export interface WeakAreaStat {
+  questionType: string;
+  skill: 'reading' | 'listening';
+  totalQuestions: number;
+  incorrectCount: number;
+  accuracyRate: number; // percentage (0 - 100)
+  recommendation: string;
+}
+
 export interface TestAttempt {
   id: string;
   skill: 'listening' | 'reading';
@@ -223,5 +456,44 @@ export interface TestAttempt {
     type: string;
     userAnswer: string;
     correctAnswer: string;
+    distractorNote?: string;
+    paraphraseNote?: string;
+    errorType?: MistakeTagType;
   }[];
+  passageScores?: {
+    passageIndex: number;
+    score: number;
+    total: number;
+    timeSpentSeconds?: number;
+  }[];
+  questionTypeStats?: Record<string, { correct: number; total: number }>;
+}
+
+// ==========================================
+// 7. DAILY PROTOCOL & ROADMAP TYPES
+// ==========================================
+export interface DailyTaskItem {
+  id: string;
+  title: string;
+  durationMin: number;
+  completed: boolean;
+  tabTarget: AppTab;
+  subtitle: string;
+}
+
+export interface DailyProtocolRecord {
+  date: string; // YYYY-MM-DD
+  dayNumber: number; // 1 to 180
+  tasks: DailyTaskItem[];
+  streakDays: number;
+  notes?: string;
+}
+
+export interface RoadmapPhase {
+  phaseNumber: 1 | 2 | 3;
+  name: string;
+  weeks: string; // e.g. "Weeks 1–8"
+  tagline: string;
+  targetFocus: string[];
+  dailyProtocolGuide: string;
 }

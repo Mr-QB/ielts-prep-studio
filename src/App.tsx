@@ -5,6 +5,8 @@ import { ListeningView } from './components/ListeningView';
 import { ReadingView } from './components/ReadingView';
 import { GrammarView } from './components/GrammarView';
 import { VocabSRSView } from './components/VocabSRSView';
+import { WritingNotesView } from './components/WritingNotesView';
+import { SpeakingNotesView } from './components/SpeakingNotesView';
 import { AppTab, ExamMode } from './types';
 
 export default function App() {
@@ -27,12 +29,12 @@ export default function App() {
           <TodayDashboard onNavigateTab={setActiveTab} />
         )}
 
-        {activeTab === 'listening' && (
-          <ListeningView examMode={examMode} />
-        )}
-
         {activeTab === 'reading' && (
           <ReadingView examMode={examMode} />
+        )}
+
+        {activeTab === 'listening' && (
+          <ListeningView examMode={examMode} />
         )}
 
         {activeTab === 'grammar' && (
@@ -41,6 +43,14 @@ export default function App() {
 
         {activeTab === 'vocab' && (
           <VocabSRSView />
+        )}
+
+        {activeTab === 'writing' && (
+          <WritingNotesView />
+        )}
+
+        {activeTab === 'speaking' && (
+          <SpeakingNotesView />
         )}
       </main>
 

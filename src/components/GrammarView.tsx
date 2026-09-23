@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { GRAMMAR_TOPICS } from '../data/grammarData';
-import { GrammarCategory, GrammarProgressStatus } from '../types';
+import { GrammarProgressStatus } from '../types';
 import { loadGrammarProgress, saveGrammarProgress } from '../utils/db';
-import { CheckCircle2, Circle, Clock, Check, X, ArrowRight, BookOpen, Layers } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, Check, X, ArrowRight, BookOpen, Layers, AlertCircle, Sparkles } from 'lucide-react';
 
 export const GrammarView: React.FC = () => {
   const [selectedTopicId, setSelectedTopicId] = useState<string>(GRAMMAR_TOPICS[0].id);
-  const [categoryFilter, setCategoryFilter] = useState<GrammarCategory | 'all'>('all');
+  const [tierFilter, setTierFilter] = useState<'all' | 'essential' | 'advanced'>('all');
   const [progressMap, setProgressMap] = useState<Record<string, GrammarProgressStatus>>({});
 
   // Interactive exercise state
@@ -20,9 +20,12 @@ export const GrammarView: React.FC = () => {
   }, []);
 
   const currentTopic = GRAMMAR_TOPICS.find(t => t.id === selectedTopicId) || GRAMMAR_TOPICS[0];
+  const isCurrentTopicAdvanced = currentTopic.category === 'advanced' || parseInt(currentTopic.code.replace('G', ''), 10) >= 21;
 
   const filteredTopics = GRAMMAR_TOPICS.filter(t => {
-    if (categoryFilter !== 'all' && t.category !== categoryFilter) return false;
+    const isAdv = t.category === 'advanced' || parseInt(t.code.replace('G', ''), 10) >= 21;
+    if (tierFilter === 'essential') return !isAdv;
+    if (tierFilter === 'advanced') return isAdv;
     return true;
   });
 
@@ -38,7 +41,6 @@ export const GrammarView: React.FC = () => {
 
   const handleCheckExercise = (exId: string) => {
     setExerciseChecked(prev => ({ ...prev, [exId]: true }));
-    // If not completed, mark as learning
     if (!progressMap[currentTopic.id] || progressMap[currentTopic.id] === 'not-started') {
       handleUpdateStatus(currentTopic.id, 'learning');
     }
@@ -51,7 +53,7 @@ export const GrammarView: React.FC = () => {
   return (
     <div className="space-y-6 pb-16">
       {/* Header & Progress Stats */}
-      <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-3">
+      <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -59,7 +61,7 @@ export const GrammarView: React.FC = () => {
                 GRAMMATICAL RANGE & ACCURACY • PROGRESSION CURRICULUM
               </span>
               <span className="text-slate-300">•</span>
-              <span className="text-xs text-slate-600 font-medium">Từ Nền Tảng (4.0) tới Nâng Cao (7.0+)</span>
+              <span className="text-xs text-slate-600 font-medium">Lộ trình Band 4.0 → 6.5 → 7.0</span>
             </div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">
               26 Chủ Điểm Ngữ Pháp IELTS Thực Chiến
@@ -78,27 +80,45 @@ export const GrammarView: React.FC = () => {
           </div>
         </div>
 
-        {/* Category Filter Tabs */}
+        {/* Essential vs Advanced Filter Tabs */}
         <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
-          {[
-            { id: 'all', label: 'Tất cả 26 bài' },
-            { id: 'foundation', label: '1. Foundation (G01–G06: Band 4.0 - 5.5)' },
-            { id: 'core', label: '2. Core IELTS (G07–G20: Band 6.0 - 7.0)' },
-            { id: 'advanced', label: '3. Advanced (G21–G26: Band 7.5+)' }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setCategoryFilter(tab.id as any)}
-              className={`px-3 py-1.5 rounded text-xs font-medium cursor-pointer transition-colors border ${
-                categoryFilter === tab.id
-                  ? 'bg-slate-900 text-white border-slate-900 font-semibold shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+          <button
+            type="button"
+            onClick={() => setTierFilter('all')}
+            className={`px-3 py-1.5 rounded text-xs font-medium cursor-pointer transition-colors border ${
+              tierFilter === 'all'
+                ? 'bg-slate-900 text-white border-slate-900 font-semibold shadow-xs'
+                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            Tất cả 26 bài (Toàn bộ)
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setTierFilter('essential')}
+            className={`px-3 py-1.5 rounded text-xs font-medium cursor-pointer transition-colors border flex items-center gap-1.5 ${
+              tierFilter === 'essential'
+                ? 'bg-emerald-800 text-white border-emerald-800 font-semibold shadow-xs'
+                : 'bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-50'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span>ESSENTIAL — Band 4.0 → 6.5 (G01–G20 • Học trước)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setTierFilter('advanced')}
+            className={`px-3 py-1.5 rounded text-xs font-medium cursor-pointer transition-colors border flex items-center gap-1.5 ${
+              tierFilter === 'advanced'
+                ? 'bg-purple-900 text-white border-purple-900 font-semibold shadow-xs'
+                : 'bg-white text-purple-800 border-purple-300 hover:bg-purple-50'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+            <span>ADVANCED — Optional Band 7+ (G21–G26 • Tùy chọn)</span>
+          </button>
         </div>
       </div>
 
@@ -109,6 +129,7 @@ export const GrammarView: React.FC = () => {
           {filteredTopics.map(topic => {
             const isSelected = topic.id === currentTopic.id;
             const status = progressMap[topic.id] || 'not-started';
+            const isAdv = topic.category === 'advanced' || parseInt(topic.code.replace('G', ''), 10) >= 21;
 
             return (
               <button
@@ -126,20 +147,31 @@ export const GrammarView: React.FC = () => {
               >
                 <div className="flex items-center gap-2 truncate">
                   <span className={`px-1.5 py-0.5 rounded font-mono text-[10px] shrink-0 ${
-                    isSelected ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-600'
+                    isSelected
+                      ? 'bg-slate-700 text-slate-200'
+                      : isAdv
+                      ? 'bg-purple-100 text-purple-800 font-bold'
+                      : 'bg-slate-100 text-slate-600'
                   }`}>
                     {topic.code}
                   </span>
                   <span className="truncate">{topic.title}</span>
                 </div>
 
-                {status === 'completed' ? (
-                  <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-emerald-300' : 'text-emerald-600'}`} />
-                ) : status === 'learning' ? (
-                  <Clock className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-amber-300' : 'text-amber-500'}`} />
-                ) : (
-                  <Circle className={`w-3 h-3 shrink-0 ${isSelected ? 'text-slate-500' : 'text-slate-300'}`} />
-                )}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {isAdv && !isSelected && (
+                    <span className="text-[9px] px-1 py-0.2 bg-purple-50 text-purple-700 border border-purple-200 rounded">
+                      7+
+                    </span>
+                  )}
+                  {status === 'completed' ? (
+                    <CheckCircle2 className={`w-3.5 h-3.5 ${isSelected ? 'text-emerald-300' : 'text-emerald-600'}`} />
+                  ) : status === 'learning' ? (
+                    <Clock className={`w-3.5 h-3.5 ${isSelected ? 'text-amber-300' : 'text-amber-500'}`} />
+                  ) : (
+                    <Circle className={`w-3 h-3 ${isSelected ? 'text-slate-500' : 'text-slate-300'}`} />
+                  )}
+                </div>
               </button>
             );
           })}
@@ -163,6 +195,11 @@ export const GrammarView: React.FC = () => {
                 }`}>
                   {currentTopic.category}
                 </span>
+                {isCurrentTopicAdvanced && (
+                  <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-900 border border-amber-300">
+                    Optional for Band 7+
+                  </span>
+                )}
               </div>
 
               {/* Status Toggle Button */}
@@ -185,6 +222,19 @@ export const GrammarView: React.FC = () => {
             </div>
 
             <h2 className="text-xl font-bold text-slate-900 tracking-tight">{currentTopic.title}</h2>
+
+            {/* Optional for Band 7+ Banner Alert */}
+            {isCurrentTopicAdvanced && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-950 flex items-start gap-2.5 mt-2">
+                <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="font-bold">Lưu ý cho người học Band 4.0 → 6.0:</strong>
+                  <p className="mt-0.5 text-amber-900">
+                    Đây là cấu trúc ngữ pháp nâng cao (Band 7+). Nếu bạn đang ở band 4.0 - 5.5, hãy ưu tiên nắm vững 20 chủ điểm Essential (G01–G20) trước, tránh mất quá nhiều thời gian vào cấu trúc phức tạp hiếm gặp.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Section 1: Why it matters in IELTS */}
@@ -218,124 +268,112 @@ export const GrammarView: React.FC = () => {
             </span>
             <div className="grid grid-cols-1 gap-2.5">
               {currentTopic.examples.map((ex, idx) => (
-                <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded text-xs space-y-1">
-                  <p className="font-semibold text-slate-900">"{ex.sentence}"</p>
-                  <p className="text-slate-500 font-mono text-[11px]">{ex.note}</p>
+                <div key={idx} className="p-3 bg-slate-50 rounded border border-slate-100 text-xs space-y-1">
+                  <p className="font-medium text-slate-900">"{ex.sentence}"</p>
+                  <p className="text-slate-500 italic text-[11px]">{ex.note}</p>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Section 4: Common Mistake & Fix */}
-          <div className="space-y-2">
-            <span className="text-xs font-bold text-slate-800 uppercase font-mono tracking-wider block">
-              LỖI SAI ĐIỂN HÌNH & CÁCH KHẮC PHỤC
+          {/* Section 4: Common Mistake & Correction */}
+          <div className="p-4 bg-rose-50/60 border border-rose-200 rounded-lg text-xs space-y-2">
+            <span className="font-bold text-rose-900 block font-mono text-[11px] uppercase tracking-wider">
+              LỖI SAI KINH ĐIỂN CẦN TRÁNH TRONG IELTS
             </span>
-            <div className="p-4 bg-rose-50/40 border border-rose-200 rounded-lg text-xs space-y-2">
-              <div className="flex items-start gap-2">
-                <span className="font-bold text-rose-700 shrink-0">Lỗi sai:</span>
-                <span className="text-slate-800 line-through">"{currentTopic.commonMistake.incorrect}"</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <span className="font-bold text-emerald-700 shrink-0">Sửa đúng:</span>
-                <span className="text-slate-900 font-semibold">"{currentTopic.commonMistake.corrected}"</span>
-              </div>
-              <p className="text-slate-600 font-mono text-[11px] pt-1 border-t border-rose-100">
-                {currentTopic.commonMistake.explanation}
+            <div className="space-y-1">
+              <p className="text-rose-800">
+                <span className="font-semibold text-rose-900">Sai: </span>
+                <span className="line-through">{currentTopic.commonMistake.incorrect}</span>
+              </p>
+              <p className="text-emerald-800">
+                <span className="font-semibold text-emerald-900">Đúng: </span>
+                <span className="font-medium">{currentTopic.commonMistake.corrected}</span>
               </p>
             </div>
+            <p className="text-slate-700 text-[11px] pt-1 border-t border-rose-100">
+              <strong>Giải thích:</strong> {currentTopic.commonMistake.explanation}
+            </p>
           </div>
 
-          {/* Section 5: Mini Interactive Exercise */}
-          <div className="space-y-3 pt-2 border-t border-slate-100">
-            <span className="text-xs font-bold text-slate-800 uppercase font-mono tracking-wider block">
-              BÀI TẬP NHANH (MINI EXERCISE)
-            </span>
-            {currentTopic.exercises.map((ex) => {
-              const userVal = exerciseAnswers[ex.id] || '';
-              const isChecked = Boolean(exerciseChecked[ex.id]);
-              const isCorrect = isChecked && (
-                userVal.trim().toLowerCase() === ex.correctAnswer.trim().toLowerCase() ||
-                (ex.acceptableAnswers || []).map(a => a.trim().toLowerCase()).includes(userVal.trim().toLowerCase())
-              );
+          {/* Section 5: Interactive Mini Exercises */}
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-900 uppercase font-mono tracking-wider">
+                BÀI TẬP VẬN DỤNG TỨC THÌ (MINI-TEST)
+              </span>
+              <span className="text-[11px] text-slate-500 font-mono">
+                {currentTopic.exercises.length} câu hỏi
+              </span>
+            </div>
 
-              return (
-                <div key={ex.id} className="p-4 border border-slate-200 rounded-lg bg-slate-50/50 space-y-3 text-xs">
-                  <p className="font-medium text-slate-900 whitespace-pre-line leading-relaxed">{ex.question}</p>
+            <div className="space-y-4">
+              {currentTopic.exercises.map(ex => {
+                const isChecked = !!exerciseChecked[ex.id];
+                const userVal = (exerciseAnswers[ex.id] || '').trim();
+                const isCorrect = userVal.toLowerCase() === ex.correctAnswer.toLowerCase() ||
+                  (ex.acceptableAnswers || []).map(a => a.toLowerCase()).includes(userVal.toLowerCase());
 
-                  {ex.type === 'multiple-choice' && ex.options ? (
-                    <div className="space-y-1.5">
-                      {ex.options.map(opt => {
-                        const letter = opt.charAt(0);
-                        const isSelected = userVal.toUpperCase() === letter.toUpperCase();
-                        return (
-                          <label
-                            key={opt}
-                            className={`flex items-start gap-2 p-2 rounded cursor-pointer border transition-colors ${
-                              isSelected
-                                ? 'bg-slate-900 text-white border-slate-900 font-medium'
-                                : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-100'
-                            }`}
-                          >
+                return (
+                  <div key={ex.id} className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-3 text-xs">
+                    <p className="font-medium text-slate-900">{ex.question}</p>
+
+                    {ex.type === 'multiple-choice' && ex.options && (
+                      <div className="space-y-1.5">
+                        {ex.options.map(opt => (
+                          <label key={opt} className="flex items-center gap-2 cursor-pointer">
                             <input
                               type="radio"
-                              name={`ex-${ex.id}`}
-                              value={letter}
-                              checked={isSelected}
-                              onChange={() => handleExerciseChange(ex.id, letter)}
-                              className="hidden"
+                              name={ex.id}
+                              value={opt[0]}
+                              checked={userVal === opt[0]}
+                              onChange={(e) => handleExerciseChange(ex.id, e.target.value)}
+                              disabled={isChecked}
+                              className="text-slate-900 focus:ring-slate-900"
                             />
-                            <span>{opt}</span>
+                            <span className="text-slate-800">{opt}</span>
                           </label>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <input
-                      type="text"
-                      value={userVal}
-                      placeholder="Nhập câu trả lời viết lại / điền từ..."
-                      onChange={(e) => handleExerciseChange(ex.id, e.target.value)}
-                      className="w-full bg-white border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-900 focus:border-blue-600"
-                    />
-                  )}
+                        ))}
+                      </div>
+                    )}
 
-                  <div className="flex items-center justify-between pt-1">
-                    <button
-                      type="button"
-                      onClick={() => handleCheckExercise(ex.id)}
-                      disabled={!userVal.trim()}
-                      className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white rounded text-xs font-semibold cursor-pointer"
-                    >
-                      Kiểm Tra Đáp Án
-                    </button>
+                    {(ex.type === 'fill-gap' || ex.type === 'rewrite') && (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={userVal}
+                          onChange={(e) => handleExerciseChange(ex.id, e.target.value)}
+                          placeholder="Nhập câu trả lời của bạn..."
+                          disabled={isChecked}
+                          className="flex-1 px-3 py-1.5 rounded border border-slate-300 bg-white text-slate-900 text-xs focus:outline-hidden focus:ring-1 focus:ring-slate-900"
+                        />
+                      </div>
+                    )}
+
+                    {!isChecked ? (
+                      <button
+                        type="button"
+                        onClick={() => handleCheckExercise(ex.id)}
+                        disabled={!userVal}
+                        className="px-3 py-1.5 bg-slate-900 text-white rounded text-xs font-semibold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-800 transition-colors"
+                      >
+                        Kiểm tra đáp án
+                      </button>
+                    ) : (
+                      <div className={`p-3 rounded border text-xs space-y-1 ${
+                        isCorrect ? 'bg-emerald-50 border-emerald-200 text-emerald-950' : 'bg-rose-50 border-rose-200 text-rose-950'
+                      }`}>
+                        <div className="flex items-center gap-1.5 font-bold">
+                          {isCorrect ? <Check className="w-4 h-4 text-emerald-600" /> : <X className="w-4 h-4 text-rose-600" />}
+                          <span>{isCorrect ? 'Chính xác!' : `Chưa đúng. Đáp án: ${ex.correctAnswer}`}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-700">{ex.explanation}</p>
+                      </div>
+                    )}
                   </div>
-
-                  {isChecked && (
-                    <div className="mt-2 pt-2 border-t border-slate-200 text-xs space-y-1">
-                      {isCorrect ? (
-                        <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                          <Check className="w-3.5 h-3.5" /> Chính xác!
-                        </span>
-                      ) : (
-                        <span className="text-rose-700 font-semibold flex items-center gap-1">
-                          <X className="w-3.5 h-3.5" /> Chưa chính xác. Đáp án đúng: {ex.correctAnswer}
-                        </span>
-                      )}
-                      <p className="text-slate-600 font-mono text-[11px]">{ex.explanation}</p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Section 6: IELTS Context Example */}
-          <div className="p-3 bg-slate-100 border border-slate-200 rounded text-xs space-y-1">
-            <span className="font-bold text-slate-800 text-[11px] font-mono uppercase block">
-              ỨNG DỤNG THỰC TẾ TRONG WRITING/SPEAKING:
-            </span>
-            <p className="text-slate-700">{currentTopic.ieltsApplication}</p>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
