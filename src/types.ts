@@ -449,6 +449,7 @@ export interface VocabCard {
   audio?: string;
   audioSource?: 'dictionary' | 'tts';
   wordFamily?: { word: string; pos: string }[];
+  acceptedAnswers?: string[];
   priority?: number; // Higher for personal reading/listening saved words
   // FSRS optional metadata
   difficulty?: number; // 0.0 - 1.0 (FSRS D)

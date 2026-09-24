@@ -33,6 +33,7 @@ import {
   reviewCardSRS,
   saveCustomCard
 } from '../utils/db';
+import { NewVocabularyLearning } from '../features/vocabulary/learning/components/NewVocabularyLearning';
 
 interface EnrichedImportItem {
   card: VocabCard;
@@ -44,6 +45,7 @@ interface EnrichedImportItem {
 export const VocabSRSView: React.FC = () => {
   // 3 Primary Tabs
   const [activeTab, setActiveTab] = useState<'spaced-review' | 'topic-vocab' | 'paraphrase-bank'>('spaced-review');
+  const [showNewLearning, setShowNewLearning] = useState(false);
 
   // Decks state
   const [decks, setDecks] = useState<VocabDeck[]>(INITIAL_VOCAB_DECKS);
@@ -595,7 +597,7 @@ export const VocabSRSView: React.FC = () => {
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs shrink-0 self-start sm:self-auto">
             <button
               type="button"
-              onClick={() => { setActiveTab('spaced-review'); setIsSessionActive(false); }}
+              onClick={() => { setActiveTab('spaced-review'); setIsSessionActive(false); setShowNewLearning(false); }}
               className={`px-3 py-1.5 rounded text-xs font-medium cursor-pointer transition-colors ${
                 activeTab === 'spaced-review'
                   ? 'bg-white text-slate-900 font-semibold shadow-xs'
@@ -606,7 +608,7 @@ export const VocabSRSView: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={() => { setActiveTab('topic-vocab'); setIsSessionActive(false); }}
+              onClick={() => { setActiveTab('topic-vocab'); setIsSessionActive(false); setShowNewLearning(false); }}
               className={`px-3 py-1.5 rounded text-xs font-medium cursor-pointer transition-colors ${
                 activeTab === 'topic-vocab'
                   ? 'bg-white text-slate-900 font-semibold shadow-xs'
@@ -617,7 +619,7 @@ export const VocabSRSView: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={() => { setActiveTab('paraphrase-bank'); setIsSessionActive(false); }}
+              onClick={() => { setActiveTab('paraphrase-bank'); setIsSessionActive(false); setShowNewLearning(false); }}
               className={`px-3 py-1.5 rounded text-xs font-medium cursor-pointer transition-colors ${
                 activeTab === 'paraphrase-bank'
                   ? 'bg-slate-900 text-white font-semibold shadow-xs'
@@ -627,6 +629,13 @@ export const VocabSRSView: React.FC = () => {
               3. Ngân hàng Paraphrase
             </button>
           </div>
+          <button
+            type="button"
+            onClick={() => { setActiveTab('spaced-review'); setIsSessionActive(false); setSessionFinished(false); setShowNewLearning(true); }}
+            className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-semibold hover:bg-slate-800"
+          >
+            Học từ mới
+          </button>
         </div>
       </div>
 
@@ -635,8 +644,9 @@ export const VocabSRSView: React.FC = () => {
       {/* ========================================================================= */}
       {activeTab === 'spaced-review' && (
         <div className="space-y-6">
+          {showNewLearning && <NewVocabularyLearning decks={decks} initialDeckId={activeDeckId} onExit={() => setShowNewLearning(false)} />}
           {/* VOCABULARY OVERVIEW STATS ROW (When not reviewing) */}
-          {!isSessionActive && !sessionFinished && (
+          {!showNewLearning && !isSessionActive && !sessionFinished && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* 1. Ôn hôm nay */}
