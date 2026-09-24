@@ -6,3 +6,5 @@ tests
 scripts
 *.log
 .env
+aptis_data/
+planning.md

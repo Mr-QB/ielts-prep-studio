@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { WeakAreaStat, AppTab } from '../types';
 import { getWeakAreaStats } from '../utils/db';
-import {
-  AlertTriangle, BookOpen, Headphones, ArrowRight,
-  TrendingDown, CheckCircle2, Target, BarChart3, HelpCircle
-} from 'lucide-react';
 
 interface WeakAreasViewProps {
   onNavigateTab: (tab: AppTab) => void;
@@ -24,6 +20,7 @@ export const WeakAreasView: React.FC<WeakAreasViewProps> = ({ onNavigateTab }) =
   }, []);
 
   const filteredStats = stats.filter(s => {
+    if (s.totalQuestions < 10) return false;
     if (skillFilter !== 'all' && s.skill !== skillFilter) return false;
     return true;
   });
@@ -75,7 +72,6 @@ export const WeakAreasView: React.FC<WeakAreasViewProps> = ({ onNavigateTab }) =
           <div className="p-3.5 bg-rose-50/60 border border-rose-200 rounded-lg">
             <div className="flex items-center justify-between">
               <span className="text-rose-800 font-bold uppercase text-[10px]">Cần chú ý gấp (&lt; 60%)</span>
-              <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
             </div>
             <strong className="text-xl font-bold text-rose-900 font-mono mt-1 block">
               {criticalWeakAreas.length} dạng bài
@@ -86,7 +82,6 @@ export const WeakAreasView: React.FC<WeakAreasViewProps> = ({ onNavigateTab }) =
           <div className="p-3.5 bg-amber-50/60 border border-amber-200 rounded-lg">
             <div className="flex items-center justify-between">
               <span className="text-amber-800 font-bold uppercase text-[10px]">Đang cải thiện (60–75%)</span>
-              <Target className="w-3.5 h-3.5 text-amber-600" />
             </div>
             <strong className="text-xl font-bold text-amber-900 font-mono mt-1 block">
               {moderateWeakAreas.length} dạng bài
@@ -97,7 +92,6 @@ export const WeakAreasView: React.FC<WeakAreasViewProps> = ({ onNavigateTab }) =
           <div className="p-3.5 bg-emerald-50/60 border border-emerald-200 rounded-lg">
             <div className="flex items-center justify-between">
               <span className="text-emerald-800 font-bold uppercase text-[10px]">Vững vàng (&gt; 75%)</span>
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
             </div>
             <strong className="text-xl font-bold text-emerald-900 font-mono mt-1 block">
               {masteredAreas.length} dạng bài
@@ -115,13 +109,10 @@ export const WeakAreasView: React.FC<WeakAreasViewProps> = ({ onNavigateTab }) =
           </div>
         ) : filteredStats.length === 0 ? (
           <div className="bg-white border border-slate-200 rounded-lg p-12 text-center space-y-3">
-            <div className="w-10 h-10 mx-auto rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
-              <BarChart3 className="w-5 h-5 text-slate-400" />
-            </div>
             <div>
               <p className="text-sm font-bold text-slate-800">Chưa đủ dữ liệu phân tích</p>
               <p className="text-xs text-slate-500 mt-0.5">
-                Hãy làm thêm ít nhất 1 bài Reading hoặc Listening để hệ thống bắt đầu thống kê tỷ lệ đúng sai theo dạng bài.
+                Cần ít nhất 10 câu trả lời cho một dạng bài trước khi hệ thống xem tỷ lệ đó là có ý nghĩa.
               </p>
             </div>
             <div className="flex items-center justify-center gap-2 pt-2">
@@ -151,7 +142,6 @@ export const WeakAreasView: React.FC<WeakAreasViewProps> = ({ onNavigateTab }) =
                         ? 'bg-blue-50 text-blue-800 border border-blue-200'
                         : 'bg-purple-50 text-purple-800 border border-purple-200'
                     }`}>
-                      {stat.skill === 'reading' ? <BookOpen className="w-3 h-3" /> : <Headphones className="w-3 h-3" />}
                       <span>{stat.skill}</span>
                     </span>
 
@@ -176,7 +166,6 @@ export const WeakAreasView: React.FC<WeakAreasViewProps> = ({ onNavigateTab }) =
                       className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-md text-xs font-semibold cursor-pointer transition-colors"
                     >
                       <span>Luyện dạng này</span>
-                      <ArrowRight className="w-3 h-3" />
                     </button>
                   </div>
                 </div>

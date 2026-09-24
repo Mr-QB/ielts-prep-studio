@@ -55,7 +55,7 @@ assertTest(errUnrelated === 'RECALL_FAILURE', 'Unrelated word classified as RECA
 // Section 10 & 56: Same-Session Relearning Queue & Reinsertion
 // ----------------------------------------------------
 console.log('\n--- 2. Testing Same-Session Relearning & Mode Distribution ---');
-const mockCards: VocabCard[] = [
+const mockCards: VocabCard[] = ([
   { id: 'c1', word: 'mitigate', definitionVi: 'giảm nhẹ', repetition: 0, intervalDays: 0, easeFactor: 2.5, dueDate: new Date().toISOString(), state: 'new' },
   { id: 'c2', word: 'environment', definitionVi: 'môi trường', repetition: 2, intervalDays: 3, easeFactor: 2.5, dueDate: new Date().toISOString(), state: 'learning' },
   { id: 'c3', word: 'significant', definitionVi: 'đáng kể', repetition: 5, intervalDays: 14, easeFactor: 2.6, dueDate: new Date().toISOString(), state: 'review' },
@@ -64,7 +64,14 @@ const mockCards: VocabCard[] = [
   { id: 'c6', word: 'solution', definitionVi: 'giải pháp', repetition: 4, intervalDays: 10, easeFactor: 2.5, dueDate: new Date().toISOString(), state: 'review' },
   { id: 'c7', word: 'drastic', definitionVi: 'quyết liệt', repetition: 1, intervalDays: 1, easeFactor: 2.5, dueDate: new Date().toISOString(), state: 'learning' },
   { id: 'c8', word: 'alleviate', definitionVi: 'làm dịu bớt', repetition: 0, intervalDays: 0, easeFactor: 2.5, dueDate: new Date().toISOString(), state: 'new' }
-];
+] as Pick<VocabCard, 'id' | 'word' | 'definitionVi' | 'repetition' | 'intervalDays' | 'easeFactor' | 'dueDate' | 'state'>[]).map(card => ({
+  phonetic: '',
+  partOfSpeech: 'vocabulary',
+  definitionEn: '',
+  example: '',
+  category: 'Acceptance',
+  ...card
+}));
 
 const initialQueue = buildSessionReviewQueue(mockCards);
 assertTest(initialQueue.length === mockCards.length, 'Initial session queue built with 8 items', `Length: ${initialQueue.length}`);
@@ -109,10 +116,10 @@ assertTest(allHaveRequiredFields, 'All 12 stories contain short/extended version
 console.log('\n--- 5. Testing Reading Strategy Lessons & Foundation Sets ---');
 assertTest(READING_STRATEGY_LESSONS.length === 14, 'Reading strategy covers all 14 IELTS question types', `Found: ${READING_STRATEGY_LESSONS.length}`);
 const matchingInfo = READING_STRATEGY_LESSONS.find(l => l.type === 'matching-information');
+const matchingFormat = matchingInfo?.officialFormat || '';
 assertTest(
-  matchingInfo !== undefined && 
-  matchingInfo.officialFormat.includes('CÓ THỂ') && 
-  !matchingInfo.officialFormat.includes('sẽ có 1 đoạn chứa 2 đáp án'),
+  matchingFormat.includes('CÓ THỂ') &&
+  !matchingFormat.includes('sẽ có 1 đoạn chứa 2 đáp án'),
   'Matching Information rule corrected: a paragraph MAY be used more than once (not WILL contain 2 answers)'
 );
 

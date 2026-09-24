@@ -1,11 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { AppTab, TestAttempt, VocabDeck, GrammarProgressStatus, WeakAreaStat, UserProfile } from '../types';
-import {
-  loadAttemptsFromStorage,
-  loadDecksFromStorage,
-  loadGrammarProgress,
-  getWeakAreaStats
-} from '../utils/db';
+import React, { useEffect, useState } from 'react';
+import { AppTab, TestAttempt, VocabDeck, GrammarProgressStatus, WeakAreaStat, UserProfile, VocabReviewLog } from '../types';
+import { getWeakAreaStats, loadAttemptsFromStorage, loadDecksFromStorage, loadGrammarProgress, loadVocabReviewLogs } from '../utils/db';
 import { INITIAL_VOCAB_DECKS } from '../data/vocabData';
 
 interface ProgressViewProps {
@@ -13,264 +8,108 @@ interface ProgressViewProps {
   user?: UserProfile;
 }
 
+const Stat = ({ label, value, detail }: { label: string; value: string; detail: string }) => (
+  <div className="border-t border-line pt-4">
+    <p className="text-sm text-muted">{label}</p>
+    <p className="mt-2 font-display text-3xl text-ink">{value}</p>
+    <p className="mt-1 text-sm text-muted">{detail}</p>
+  </div>
+);
+
+const Accuracy = ({ label, attempts, onNavigate }: { label: string; attempts: TestAttempt[]; onNavigate: () => void }) => {
+  const total = attempts.reduce((sum, item) => sum + item.total, 0);
+  const correct = attempts.reduce((sum, item) => sum + item.score, 0);
+  const accuracy = total ? Math.round(correct / total * 100) : null;
+  return (
+    <div className="py-4 border-b border-line last:border-0">
+      <div className="flex justify-between items-baseline gap-4">
+        <h3 className="font-medium text-ink">{label}</h3>
+        <span className="font-mono text-sm text-ink">{accuracy === null ? 'Chưa có dữ liệu' : `${accuracy}%`}</span>
+      </div>
+      {accuracy !== null && <div className="mt-3 h-1.5 bg-paper-deep rounded-full"><div className="h-full bg-accent rounded-full" style={{ width: `${accuracy}%` }} /></div>}
+      <div className="mt-2 flex justify-between text-xs text-muted"><span>{total ? `${correct}/${total} câu đúng · ${attempts.length} lượt` : 'Hoàn thành bài luyện để ghi nhận độ chính xác'}</span><button type="button" onClick={onNavigate} className="text-accent hover:underline">Luyện {label} →</button></div>
+    </div>
+  );
+};
+
 export const ProgressView: React.FC<ProgressViewProps> = ({ onNavigateTab, user }) => {
   const [attempts, setAttempts] = useState<TestAttempt[]>([]);
   const [decks, setDecks] = useState<VocabDeck[]>([]);
   const [grammarProgress, setGrammarProgress] = useState<Record<string, GrammarProgressStatus>>({});
   const [weakAreas, setWeakAreas] = useState<WeakAreaStat[]>([]);
+  const [reviewLogs, setReviewLogs] = useState<VocabReviewLog[]>([]);
   const [activePhase, setActivePhase] = useState<1 | 2 | 3>(1);
 
   useEffect(() => {
-    loadAttemptsFromStorage().then(setAttempts);
-    loadDecksFromStorage(INITIAL_VOCAB_DECKS).then(setDecks);
-    loadGrammarProgress().then(setGrammarProgress);
-    getWeakAreaStats().then(setWeakAreas);
+    void Promise.all([
+      loadAttemptsFromStorage().then(setAttempts),
+      loadDecksFromStorage(INITIAL_VOCAB_DECKS).then(setDecks),
+      loadGrammarProgress().then(setGrammarProgress),
+      getWeakAreaStats().then(setWeakAreas),
+      loadVocabReviewLogs().then(setReviewLogs),
+    ]);
   }, []);
 
-  // Weekly stats
-  const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const weekAttempts = attempts.filter(a => new Date(a.date) >= oneWeekAgo);
-  const weekReadingCount = weekAttempts.filter(a => a.skill === 'reading').reduce((acc, a) => acc + a.total, 0);
-  const weekListeningCount = weekAttempts.filter(a => a.skill === 'listening').reduce((acc, a) => acc + a.total, 0);
-  const weekStudyMinutes = weekAttempts.reduce((acc, a) => acc + Math.round(a.durationSeconds / 60), 0) + 120; // estimated + review time
-
-  // Overall accuracy
-  const readingAttempts = attempts.filter(a => a.skill === 'reading');
-  const listeningAttempts = attempts.filter(a => a.skill === 'listening');
-
-  const readingTotal = readingAttempts.reduce((acc, a) => acc + a.total, 0);
-  const readingCorrect = readingAttempts.reduce((acc, a) => acc + a.score, 0);
-  const readingAccuracy = readingTotal > 0 ? Math.round((readingCorrect / readingTotal) * 100) : 68;
-
-  const listeningTotal = listeningAttempts.reduce((acc, a) => acc + a.total, 0);
-  const listeningCorrect = listeningAttempts.reduce((acc, a) => acc + a.score, 0);
-  const listeningAccuracy = listeningTotal > 0 ? Math.round((listeningCorrect / listeningTotal) * 100) : 64;
-
-  // Grammar & Vocab progress
-  const completedGrammarCount = Object.values(grammarProgress).filter(s => s === 'mastered').length;
-  const allCards = decks.flatMap(d => d.cards);
-  const masteredVocabCount = allCards.filter(c => c.state === 'mastered').length;
+  const weekStart = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const weekAttempts = attempts.filter(item => new Date(item.date).getTime() >= weekStart);
+  const minutes = weekAttempts.reduce((sum, item) => sum + Math.round(item.durationSeconds / 60), 0);
+  const countQuestions = (skill: 'reading' | 'listening') => weekAttempts.filter(item => item.skill === skill).reduce((sum, item) => sum + item.total, 0);
+  const weekReviews = reviewLogs.filter(item => item.createdAt >= weekStart).length;
+  const completedGrammar = Object.values(grammarProgress).filter(value => value === 'mastered').length;
+  const cards = decks.flatMap(deck => deck.cards);
+  const masteredVocab = cards.filter(card => card.state === 'mastered').length;
+  const measuredAreas = weakAreas.filter(area => area.totalQuestions >= 10);
+  const phaseContent = {
+    1: ['Nền tảng', 'Củng cố ngữ pháp cốt lõi, từ vựng thiết yếu và dạng câu hỏi cơ bản.', 'Tập trung vào độ chính xác trước khi tăng tốc.'],
+    2: ['Kỹ năng', 'Luyện paraphrase, bài đọc dài hơn và các phần nghe có nhiều người nói.', 'Tăng dần thời lượng làm bài có giới hạn.'],
+    3: ['Luyện thi', 'Kết hợp các dạng bài và rà soát lỗi lặp lại trong điều kiện có thời gian.', 'Dùng kết quả bài làm để chọn nội dung cần ôn.'],
+  } as const;
+  const phase = phaseContent[activePhase];
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-16">
-      {/* 1. Header Banner */}
-      <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs">
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-          Báo Cáo Tiến Độ & Năng Lực Học Tập
-        </h1>
-        <p className="text-base text-slate-600 mt-1">
-          Theo dõi mức độ thành thạo thực tế của từng kỹ năng và chủ điểm, hướng tới mục tiêu Band <span className="font-mono font-bold text-slate-900">{user ? user.targetBand.toFixed(1) : '6.5'}</span>.
-        </p>
-      </div>
+    <div className="max-w-5xl mx-auto space-y-10 pb-16">
+      <header className="max-w-2xl">
+        <p className="eyebrow">Sổ tay học tập</p>
+        <h1 className="mt-3 font-display text-4xl sm:text-5xl text-ink">Tiến độ</h1>
+        <p className="mt-3 text-muted leading-7">Các con số dưới đây đến từ bài làm, lượt ôn và nội dung bạn đã đánh dấu hoàn thành. Mục tiêu hiện tại: band {user?.targetBand.toFixed(1) ?? '6.5'}.</p>
+      </header>
 
-      {/* 2. Tuần Này (This Week Metrics) */}
-      <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs space-y-4">
-        <h2 className="text-lg font-bold text-slate-900">
-          Khối Lượng Học Tuần Này
-        </h2>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-1">
-          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-            <span className="text-xs font-semibold text-slate-500 uppercase block">Thời gian học</span>
-            <strong className="text-2xl font-bold text-slate-900 font-mono mt-1 block">
-              {weekStudyMinutes}
-            </strong>
-            <span className="text-xs text-slate-500">phút đã tích lũy</span>
-          </div>
-
-          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-            <span className="text-xs font-semibold text-slate-500 uppercase block">Reading</span>
-            <strong className="text-2xl font-bold text-slate-900 font-mono mt-1 block">
-              {weekReadingCount > 0 ? weekReadingCount : 40}
-            </strong>
-            <span className="text-xs text-slate-500">câu hỏi hoàn thành</span>
-          </div>
-
-          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-            <span className="text-xs font-semibold text-slate-500 uppercase block">Listening</span>
-            <strong className="text-2xl font-bold text-slate-900 font-mono mt-1 block">
-              {weekListeningCount > 0 ? weekListeningCount : 35}
-            </strong>
-            <span className="text-xs text-slate-500">câu hỏi đã luyện</span>
-          </div>
-
-          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-            <span className="text-xs font-semibold text-slate-500 uppercase block">Từ vựng đã ôn</span>
-            <strong className="text-2xl font-bold text-slate-900 font-mono mt-1 block">
-              {allCards.length > 0 ? allCards.length : 14}
-            </strong>
-            <span className="text-xs text-slate-500">thẻ từ vựng</span>
-          </div>
+      <section aria-labelledby="week-heading">
+        <div className="flex items-end justify-between gap-4 border-b border-line pb-3"><div><p className="eyebrow">7 ngày gần nhất</p><h2 id="week-heading" className="mt-1 font-display text-2xl text-ink">Thời gian và nhịp học</h2></div></div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-7 mt-5">
+          <Stat label="Thời gian đã ghi nhận" value={`${minutes}`} detail="phút từ các bài làm" />
+          <Stat label="Reading" value={`${countQuestions('reading')}`} detail="câu trong bài đã lưu" />
+          <Stat label="Listening" value={`${countQuestions('listening')}`} detail="câu trong bài đã lưu" />
+          <Stat label="Lượt ôn từ vựng" value={`${weekReviews}`} detail="lượt đã ghi nhận" />
         </div>
-      </div>
+      </section>
 
-      {/* 3. Tiến Độ Năng Lực & Tỷ Lệ Chính Xác (Skill Progress & Competency Mastery) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Reading & Listening Accuracy */}
-        <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs space-y-4">
-          <h2 className="text-lg font-bold text-slate-900">
-            Độ Chính Xác Kỹ Năng
-          </h2>
-
-          <div className="space-y-4">
-            <div>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="font-semibold text-slate-800">Reading Accuracy</span>
-                <span className="font-mono font-bold text-slate-900">{readingAccuracy}%</span>
-              </div>
-              <div className="w-full bg-slate-100 rounded-full h-2">
-                <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${readingAccuracy}%` }}></div>
-              </div>
-              <span className="text-xs text-slate-500 mt-1 block">Mục tiêu 6.5: Đạt ổn định 27–30/40 câu đúng (68–75%)</span>
-            </div>
-
-            <div>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="font-semibold text-slate-800">Listening Accuracy</span>
-                <span className="font-mono font-bold text-slate-900">{listeningAccuracy}%</span>
-              </div>
-              <div className="w-full bg-slate-100 rounded-full h-2">
-                <div className="bg-purple-600 h-2 rounded-full" style={{ width: `${listeningAccuracy}%` }}></div>
-              </div>
-              <span className="text-xs text-slate-500 mt-1 block">Mục tiêu 6.5: Đạt ổn định 27–30/40 câu đúng (68–75%)</span>
-            </div>
-          </div>
+      <section aria-labelledby="skills-heading">
+        <div className="border-b border-line pb-3"><p className="eyebrow">Từ bài làm đã lưu</p><h2 id="skills-heading" className="mt-1 font-display text-2xl text-ink">Độ chính xác</h2></div>
+        <div className="grid md:grid-cols-2 md:gap-10 mt-2">
+          <Accuracy label="Reading" attempts={attempts.filter(item => item.skill === 'reading')} onNavigate={() => onNavigateTab('reading')} />
+          <Accuracy label="Listening" attempts={attempts.filter(item => item.skill === 'listening')} onNavigate={() => onNavigateTab('listening')} />
         </div>
+      </section>
 
-        {/* Foundation Mastery (Grammar & Vocab) */}
-        <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs space-y-4">
-          <h2 className="text-lg font-bold text-slate-900">
-            Tiến Độ Nền Tảng
-          </h2>
-
-          <div className="space-y-4">
-            <div>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="font-semibold text-slate-800">Ngữ pháp cốt lõi</span>
-                <span className="font-mono font-bold text-slate-900">{completedGrammarCount} / 20 chủ điểm</span>
-              </div>
-              <div className="w-full bg-slate-100 rounded-full h-2">
-                <div className="bg-emerald-600 h-2 rounded-full" style={{ width: `${Math.round((completedGrammarCount / 20) * 100)}%` }}></div>
-              </div>
-              <span className="text-xs text-slate-500 mt-1 block">Cần hoàn thành 20 chủ điểm G01–G20 trước khi luyện đề dài</span>
-            </div>
-
-            <div>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="font-semibold text-slate-800">Từ vựng Core 4.0–5.5</span>
-                <span className="font-mono font-bold text-slate-900">{masteredVocabCount > 0 ? masteredVocabCount : 10} / 50 từ đã vững</span>
-              </div>
-              <div className="w-full bg-slate-100 rounded-full h-2">
-                <div className="bg-amber-600 h-2 rounded-full" style={{ width: '25%' }}></div>
-              </div>
-              <span className="text-xs text-slate-500 mt-1 block">Ôn tập đều đặn hàng ngày để chuyển từ vựng vào trí nhớ dài hạn</span>
-            </div>
-          </div>
+      <section aria-labelledby="foundation-heading">
+        <div className="border-b border-line pb-3"><p className="eyebrow">Nội dung đã đánh dấu</p><h2 id="foundation-heading" className="mt-1 font-display text-2xl text-ink">Nền tảng</h2></div>
+        <div className="grid sm:grid-cols-2 gap-8 mt-5">
+          <div><div className="flex justify-between gap-3"><h3 className="font-medium text-ink">Ngữ pháp cốt lõi</h3><span className="font-mono text-sm">{completedGrammar} / 20</span></div><div className="mt-3 h-1.5 bg-paper-deep rounded-full"><div className="h-full bg-accent rounded-full" style={{ width: `${Math.min(100, completedGrammar / 20 * 100)}%` }} /></div><p className="mt-2 text-sm text-muted">Chủ điểm đã đánh dấu nắm vững.</p></div>
+          <div><div className="flex justify-between gap-3"><h3 className="font-medium text-ink">Từ vựng đã nắm vững</h3><span className="font-mono text-sm">{masteredVocab} / {cards.length}</span></div>{cards.length > 0 && <div className="mt-3 h-1.5 bg-paper-deep rounded-full"><div className="h-full bg-accent rounded-full" style={{ width: `${Math.min(100, masteredVocab / cards.length * 100)}%` }} /></div>}<p className="mt-2 text-sm text-muted">Thẻ được đánh dấu nắm vững trong bộ từ của bạn.</p></div>
         </div>
-      </div>
+      </section>
 
-      {/* 4. Mức Độ Thuần Thục Dạng Bài (Question Type Mastery) */}
-      <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs space-y-4">
-        <h2 className="text-lg font-bold text-slate-900">
-          Độ Thuần Thục Theo Dạng Bài
-        </h2>
+      <section aria-labelledby="competency-heading">
+        <div className="border-b border-line pb-3"><p className="eyebrow">Ít nhất 10 câu đã ghi nhận mỗi dạng</p><h2 id="competency-heading" className="mt-1 font-display text-2xl text-ink">Theo dạng bài</h2></div>
+        {measuredAreas.length ? <div className="divide-y divide-line">{measuredAreas.map(area => <div key={`${area.skill}-${area.questionType}`} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><span className="text-xs uppercase tracking-wider text-muted">{area.skill}</span><h3 className="mt-1 font-medium text-ink">{area.questionType}</h3><p className="mt-1 text-sm text-muted">{area.recommendation}</p></div><div className="flex items-center gap-4"><span className="font-mono text-lg">{area.accuracyRate}%</span><button type="button" onClick={() => onNavigateTab(area.skill)} className="text-sm text-accent hover:underline">Luyện →</button></div></div>)}</div> : <p className="py-5 text-sm text-muted">Chưa đủ dữ liệu để ước lượng độ chính xác theo dạng bài. Hãy lưu bài luyện để bắt đầu theo dõi.</p>}
+      </section>
 
-        <div className="divide-y divide-slate-100 text-sm">
-          {[
-            { type: 'True / False / Not Given', skill: 'Reading', accuracy: 78, status: 'Nắm vững (Mastered)', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
-            { type: 'Sentence Completion', skill: 'Reading', accuracy: 72, status: 'Đang tiến bộ', color: 'text-blue-700 bg-blue-50 border-blue-200' },
-            { type: 'Multiple Choice (Part 2 & 3)', skill: 'Listening', accuracy: 65, status: 'Đang tiến bộ', color: 'text-blue-700 bg-blue-50 border-blue-200' },
-            { type: 'Matching Headings', skill: 'Reading', accuracy: 52, status: 'Cần khắc phục gấp', color: 'text-rose-700 bg-rose-50 border-rose-200' },
-            { type: 'Map & Plan Labelling', skill: 'Listening', accuracy: 50, status: 'Cần khắc phục gấp', color: 'text-rose-700 bg-rose-50 border-rose-200' },
-          ].map(item => (
-            <div key={item.type} className="py-3 flex items-center justify-between gap-4">
-              <div>
-                <span className="font-semibold text-slate-900 block">{item.type}</span>
-                <span className="text-xs text-slate-500">{item.skill}</span>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <span className="font-mono font-bold text-slate-800">{item.accuracy}%</span>
-                <span className={`px-2 py-0.5 rounded text-xs font-medium border ${item.color}`}>
-                  {item.status}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onNavigateTab(item.skill === 'Reading' ? 'reading' : 'listening')}
-                  className="text-xs font-semibold text-slate-700 hover:text-slate-900 hover:underline cursor-pointer"
-                >
-                  Luyện →
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 5. Lộ Trình 3 Giai Đoạn (180 Days Phases) */}
-      <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">
-              Lộ Trình 180 Ngày (Band 4.0 → 6.5 → 7.0)
-            </h2>
-            <p className="text-sm text-slate-500">
-              3 giai đoạn học tập tuần tự giúp bạn phân bổ thời gian hiệu quả, không bị quá tải.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded">
-            {[1, 2, 3].map(p => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setActivePhase(p as any)}
-                className={`px-3 py-1 rounded text-xs font-bold transition-all cursor-pointer ${
-                  activePhase === p ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Giai đoạn {p}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {activePhase === 1 && (
-          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3 text-sm text-slate-700">
-            <div className="flex items-center justify-between">
-              <strong className="text-slate-900 font-bold">Giai đoạn 1 (Tuần 1–8): Xây Dựng Nền Tảng (Band 4.0 → 5.5)</strong>
-              <span className="px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800">Trọng tâm hiện tại</span>
-            </div>
-            <p className="leading-relaxed">
-              Mục tiêu là nắm chắc 20 chủ điểm ngữ pháp câu, vốn từ học thuật Core 4.0–5.5 và làm quen với từng dạng câu hỏi Reading/Listening đơn lẻ. Chưa cần ép thời gian 60 phút quá nghiêm ngặt.
-            </p>
-          </div>
-        )}
-
-        {activePhase === 2 && (
-          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3 text-sm text-slate-700">
-            <div className="flex items-center justify-between">
-              <strong className="text-slate-900 font-bold">Giai đoạn 2 (Tuần 9–16): Kỹ Năng & Paraphrase (Band 5.5 → 6.5)</strong>
-              <span className="px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">Tăng tốc</span>
-            </div>
-            <p className="leading-relaxed">
-              Luyện đọc Passage 2 & 3 và nghe Part 3 & 4. Rèn luyện nhận diện từ đồng nghĩa và phát hiện bẫy đổi ý kiến (Distractors). Bắt đầu canh giờ 18–20 phút/passage.
-            </p>
-          </div>
-        )}
-
-        {activePhase === 3 && (
-          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3 text-sm text-slate-700">
-            <div className="flex items-center justify-between">
-              <strong className="text-slate-900 font-bold">Giai đoạn 3 (Tuần 17–24): Luyện Đề Thực Chiến (Band 6.5 → 7.0+)</strong>
-              <span className="px-2 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-800">Thi thử</span>
-            </div>
-            <p className="leading-relaxed">
-              Làm 2 Full Mock Test mỗi tuần, bấm giờ nghiêm ngặt trong điều kiện phòng thi thật. Khắc phục triệt để các câu trong Sổ Lỗi Sai để đạt ổn định 27–30 câu đúng.
-            </p>
-          </div>
-        )}
-      </div>
+      <section aria-labelledby="phase-heading">
+        <div className="border-b border-line pb-3"><p className="eyebrow">Khung tham khảo</p><h2 id="phase-heading" className="mt-1 font-display text-2xl text-ink">Lộ trình học</h2></div>
+        <div className="flex gap-5 border-b border-line mt-4">{([1, 2, 3] as const).map(number => <button key={number} type="button" aria-pressed={activePhase === number} onClick={() => setActivePhase(number)} className={`pb-3 text-sm ${activePhase === number ? 'text-accent border-b-2 border-accent' : 'text-muted hover:text-ink'}`}>Giai đoạn {number}</button>)}</div>
+        <div className="grid sm:grid-cols-[1fr_auto] gap-4 py-5"><div><p className="eyebrow">Giai đoạn {activePhase} · {phase[0]}</p><h3 className="mt-2 font-display text-xl text-ink">{phase[1]}</h3><p className="mt-2 text-sm text-muted">{phase[2]}</p></div><p className="text-sm text-muted self-end">Khung học tập, không phải dự báo kết quả thi.</p></div>
+      </section>
     </div>
   );
 };

@@ -352,6 +352,59 @@ async function handleApiRoutes(req: http.IncomingMessage, res: http.ServerRespon
 
   const userId = authenticatedUser.id;
 
+  if ((pathname === '/api/bootstrap' || pathname === '/api/sync/pull') && method === 'GET') {
+    try {
+      const requestedCursor = pathname === '/api/bootstrap' ? 0 : Math.max(0, Number(url.searchParams.get('cursor') || 0));
+      const rows = await d1.query<any>(
+        `SELECT cursor, change_id, entity, record_id, operation, payload, updated_at
+         FROM sync_changes WHERE user_id = ? AND cursor > ? ORDER BY cursor ASC LIMIT 500;`,
+        [userId, Number.isFinite(requestedCursor) ? requestedCursor : 0]
+      );
+      const changes = rows.map(row => ({
+        cursor: row.cursor,
+        changeId: row.change_id,
+        userId,
+        entity: row.entity,
+        recordId: row.record_id,
+        operation: row.operation,
+        payload: row.payload ? JSON.parse(row.payload) : null,
+        updatedAt: row.updated_at
+      }));
+      const nextCursor = changes.length ? changes[changes.length - 1].cursor : requestedCursor;
+      sendJson(res, 200, { success: true, cursor: nextCursor, changes });
+    } catch (err: any) {
+      sendJson(res, 500, { success: false, error: err.message });
+    }
+    return true;
+  }
+
+  if (pathname === '/api/sync/push' && method === 'POST') {
+    try {
+      const body = await parseBody<{ changes?: any[] }>(req);
+      const changes = Array.isArray(body.changes) ? body.changes.slice(0, 200) : [];
+      const allowedEntities = new Set(['decks', 'vocab_progress', 'vocab_review', 'attempt', 'mistake', 'grammar', 'protocol']);
+      const acceptedIds: string[] = [];
+      for (const change of changes) {
+        if (!change || typeof change.id !== 'string' || typeof change.changeId !== 'string' ||
+            !allowedEntities.has(change.entity) || typeof change.recordId !== 'string' ||
+            !['upsert', 'delete'].includes(change.operation) || !Number.isFinite(change.updatedAt)) continue;
+        const payload = change.operation === 'delete' ? null : JSON.stringify(change.payload ?? null);
+        if (payload && payload.length > 1_000_000) continue;
+        await d1.execute(
+          `INSERT OR IGNORE INTO sync_changes (user_id, change_id, entity, record_id, operation, payload, updated_at, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+          [userId, change.changeId, change.entity, change.recordId, change.operation, payload, change.updatedAt, Date.now()]
+        );
+        acceptedIds.push(change.id);
+      }
+      const [latest] = await d1.query<any>('SELECT COALESCE(MAX(cursor), 0) AS cursor FROM sync_changes WHERE user_id = ?;', [userId]);
+      sendJson(res, 200, { success: true, accepted: acceptedIds.length, acceptedIds, cursor: latest?.cursor || 0 });
+    } catch (err: any) {
+      sendJson(res, 500, { success: false, error: err.message });
+    }
+    return true;
+  }
+
   // 3. Vocabulary Decks & Cards (Merged with user_vocab_progress)
   if (pathname === '/api/decks') {
     if (method === 'GET') {

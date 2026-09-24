@@ -14,6 +14,7 @@ interface ApiResponse<T = any> {
   mistakes?: any[];
   progress?: Record<string, string>;
   record?: any;
+  changes?: any[];
   error?: string;
 }
 
@@ -173,6 +174,22 @@ async function runTwoUserTest() {
     streakDays: 4
   });
 
+  const syncChangeId = `sync-isolation-${Date.now()}`;
+  await clientA.post('/api/sync/push', { changes: [{
+    id: syncChangeId,
+    changeId: syncChangeId,
+    userId: 'spoofed-user-id',
+    entity: 'grammar',
+    recordId: 'sync-isolation-check',
+    operation: 'upsert',
+    payload: 'mastered',
+    updatedAt: Date.now()
+  }] });
+  const syncA = await clientA.get('/api/sync/pull?cursor=0');
+  if (!(syncA.changes || []).some((change: any) => change.recordId === 'sync-isolation-check' && change.payload === 'mastered')) {
+    throw new Error('SYNC FAILURE: User A cannot pull their accepted batch change.');
+  }
+
   console.log(' - User A logging out...');
   await clientA.logout();
 
@@ -180,6 +197,12 @@ async function runTwoUserTest() {
   console.log(`\n[Step 3] User B logs in (${clientB.email})...`);
   const userB = await clientB.login();
   console.log(` - Logged in as User B (ID: ${userB.id}, Name: ${userB.displayName})`);
+
+  const syncB = await clientB.get('/api/sync/pull?cursor=0');
+  if ((syncB.changes || []).some((change: any) => change.recordId === 'sync-isolation-check')) {
+    throw new Error('ISOLATION FAILURE: User B can pull User A sync changes.');
+  }
+  console.log(' ✓ ISOLATION PASS: Sync pull is partitioned by the authenticated user.');
 
   // Check 1: User B must NOT see User A's custom card "photosynthesis"
   const decksB = await clientB.get('/api/decks');

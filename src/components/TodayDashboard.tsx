@@ -45,13 +45,9 @@ export const TodayDashboard: React.FC<TodayDashboardProps> = ({ onNavigateTab, u
       return t;
     });
 
-    const completedTasksCount = updatedTasks.filter(t => t.completed).length;
-    const newStreak = completedTasksCount > 0 ? Math.max(protocol.streakDays, 1) : protocol.streakDays;
-
     const updatedProtocol: DailyProtocolRecord = {
       ...protocol,
-      tasks: updatedTasks,
-      streakDays: newStreak
+      tasks: updatedTasks
     };
 
     setProtocol(updatedProtocol);
@@ -62,8 +58,9 @@ export const TodayDashboard: React.FC<TodayDashboardProps> = ({ onNavigateTab, u
   const completedMinutes = protocol ? protocol.tasks.filter(t => t.completed).reduce((acc, t) => acc + t.durationMin, 0) : 0;
   const progressPercent = Math.min(100, Math.round((completedMinutes / totalPlannedMinutes) * 100));
 
-  // Determine top weak area with meaningful sample size (>= 3 attempts) without fake fallbacks
-  const validWeakAreas = weakAreas.filter(w => w.totalQuestions >= 3);
+  // Do not infer a weak skill until there are enough observations.
+  const validWeakAreas = weakAreas.filter(w => w.totalQuestions >= 10 && w.accuracyRate < 75);
+  const hasDiagnosticData = weakAreas.some(w => w.totalQuestions >= 10);
   const topWeak = validWeakAreas.length > 0
     ? [...validWeakAreas].sort((a, b) => a.accuracyRate - b.accuracyRate)[0]
     : null;
@@ -83,9 +80,6 @@ export const TodayDashboard: React.FC<TodayDashboardProps> = ({ onNavigateTab, u
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-sm font-medium px-3 py-1.5 bg-slate-100 rounded text-slate-700">
-              Chuỗi học: <span className="font-mono font-bold text-slate-900">{protocol ? protocol.streakDays : 1}</span> ngày
-            </span>
             <span className="text-sm font-medium px-3 py-1.5 bg-slate-900 text-white rounded font-mono font-bold">
               {completedMinutes} / {totalPlannedMinutes} phút
             </span>
@@ -109,7 +103,7 @@ export const TodayDashboard: React.FC<TodayDashboardProps> = ({ onNavigateTab, u
         <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs flex flex-col justify-between">
           <div>
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-              {topWeak ? 'Tiếp theo (Trọng tâm yếu)' : 'Phân tích điểm yếu'}
+            {topWeak ? 'Nên luyện tiếp' : 'Gợi ý học tập'}
             </span>
             {topWeak ? (
               <>
@@ -117,16 +111,16 @@ export const TodayDashboard: React.FC<TodayDashboardProps> = ({ onNavigateTab, u
                   {topWeak.questionType}
                 </h2>
                 <p className="text-sm text-slate-600 mt-1">
-                  Độ chính xác hiện tại: <span className="font-mono font-bold text-rose-700">{topWeak.accuracyRate}%</span>. Bạn cần rèn luyện phản xạ nhận diện từ khóa và cách làm.
+                  Đúng {topWeak.accuracyRate}% trong {topWeak.totalQuestions} câu gần đây. {topWeak.accuracyRate < 60 ? 'Ôn chiến thuật rồi làm bài Foundation ngắn.' : 'Luyện thêm một nhóm câu cùng dạng để củng cố.'}
                 </p>
               </>
             ) : (
               <>
                 <h2 className="text-base font-bold text-slate-900 mt-1">
-                  Chưa đủ dữ liệu bài thi
+                  {hasDiagnosticData ? 'Chưa có kỹ năng yếu rõ rệt' : 'Chưa đủ dữ liệu để chẩn đoán'}
                 </h2>
                 <p className="text-xs text-slate-500 mt-1">
-                  Làm tối thiểu một bài kiểm tra hoặc bài tập thực hành (ít nhất 3 câu) để hệ thống tự động chẩn đoán điểm yếu cần cải thiện của bạn.
+                  {hasDiagnosticData ? 'Các kỹ năng đã đo hiện đạt từ 75% trở lên. Tiếp tục luyện đều và xem lại lỗi mới.' : 'Hệ thống chờ ít nhất 10 câu trả lời cho một dạng bài trước khi gợi ý đó là điểm yếu.'}
                 </p>
               </>
             )}
@@ -135,10 +129,10 @@ export const TodayDashboard: React.FC<TodayDashboardProps> = ({ onNavigateTab, u
           <div className="pt-4 mt-2">
             <button
               type="button"
-              onClick={() => onNavigateTab(topWeak ? (topWeak.skill === 'reading' ? 'reading' : 'listening') : 'reading')}
+              onClick={() => onNavigateTab(topWeak ? (topWeak.accuracyRate < 60 ? 'strategy' : topWeak.skill === 'reading' ? 'reading' : 'listening') : 'reading')}
               className="w-full sm:w-auto px-4 py-2 bg-slate-900 text-white text-sm font-semibold rounded hover:bg-slate-800 cursor-pointer transition-colors"
             >
-              {topWeak ? 'Luyện 10 câu ngay' : 'Làm bài chẩn đoán'}
+              {topWeak ? (topWeak.accuracyRate < 60 ? 'Học chiến thuật' : 'Luyện dạng này') : 'Bắt đầu Reading'}
             </button>
           </div>
         </div>

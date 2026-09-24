@@ -464,17 +464,11 @@ export async function lookupVocabularyWord(queryWord: string, context?: string):
         return {
           word: cleanWord,
           lemma: cleanWord,
-          phonetic: phonetic || `/${cleanWord}/`,
+          phonetic,
           audio: audioUrl,
           audioSource: audioUrl ? 'dictionary' : 'tts',
           partOfSpeech: primaryPos,
-          senses: senses.length > 0 ? senses : [
-            {
-              definitionEn: `Meaning of ${cleanWord}`,
-              viSuggestion: `Nghĩa của ${cleanWord}`,
-              relevanceScore: 0
-            }
-          ]
+          senses
         };
       }
     }
@@ -482,21 +476,14 @@ export async function lookupVocabularyWord(queryWord: string, context?: string):
     // Network timeout or offline - gracefully fall through to generic fallback
   }
 
-  // 3. Fallback for offline words not in curated lexicon
+  // No placeholder definitions: the client can explain that enrichment is unavailable.
   return {
     word: cleanWord,
     lemma: lemma,
-    phonetic: `/${cleanWord}/`,
+    phonetic: '',
     audioSource: 'tts',
-    partOfSpeech: 'vocabulary',
-    senses: [
-      {
-        definitionEn: `IELTS target vocabulary item: ${cleanWord}`,
-        viSuggestion: `Nghĩa tiếng Việt của từ "${cleanWord}"`,
-        examples: context ? [context] : [],
-        relevanceScore: 0
-      }
-    ]
+    partOfSpeech: '',
+    senses: []
   };
 }
 
@@ -517,5 +504,5 @@ function generateViSuggestion(word: string, defEn: string): string {
   if (lower.includes('process of receiving') || lower.includes('instruction')) {
     return 'sự giáo dục, quá trình học tập';
   }
-  return `nghĩa của "${word}"`;
+  return '';
 }

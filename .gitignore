@@ -11,3 +11,4 @@ coverage/
 data/private/**
 assets/private/**
 private/**
+aptis_data/*

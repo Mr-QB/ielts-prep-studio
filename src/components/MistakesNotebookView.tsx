@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { RecordedMistake, MistakeTagType, AppTab, MistakeRetryStatus } from '../types';
-import { loadMistakes, recordDetailedMistake } from '../utils/db';
+import { getTodayDateString, loadMistakes, recordDetailedMistake } from '../utils/db';
 
 interface MistakesNotebookViewProps {
   onNavigateTab: (tab: AppTab) => void;
@@ -132,7 +132,9 @@ export const MistakesNotebookView: React.FC<MistakesNotebookViewProps> = ({ onNa
     return true;
   });
 
-  const retryDueCount = mistakes.filter(m => (m.status || 'retry') === 'retry').length;
+  const today = getTodayDateString();
+  const isDue = (mistake: RecordedMistake) => (mistake.status || 'retry') !== 'mastered' && (!mistake.nextRetryDate || mistake.nextRetryDate <= today);
+  const retryDueCount = mistakes.filter(isDue).length;
   const masteredCount = mistakes.filter(m => m.status === 'mastered').length;
 
   return (
@@ -230,6 +232,7 @@ export const MistakesNotebookView: React.FC<MistakesNotebookViewProps> = ({ onNa
             const errInfo = m.errorType ? ERROR_TYPE_LABELS[m.errorType] : null;
             const isMastered = m.status === 'mastered';
             const isRetry = (m.status || 'retry') === 'retry';
+            const due = isDue(m);
 
             return (
               <div
@@ -269,9 +272,10 @@ export const MistakesNotebookView: React.FC<MistakesNotebookViewProps> = ({ onNa
                     <button
                       type="button"
                       onClick={() => handleStartRetry(m)}
-                      className="px-3 py-1 bg-slate-900 text-white rounded text-xs font-semibold hover:bg-slate-800 cursor-pointer"
+                      disabled={!isMastered && !due}
+                      className="px-3 py-1 bg-slate-900 text-white rounded text-xs font-semibold hover:bg-slate-800 disabled:opacity-45 disabled:cursor-not-allowed cursor-pointer"
                     >
-                      {isMastered ? 'Làm lại thử thách' : 'Làm lại câu này'}
+                      {isMastered ? 'Làm lại thử thách' : due ? 'Làm lại câu này' : `Ôn lại ngày ${m.nextRetryDate}`}
                     </button>
                   </div>
                 </div>

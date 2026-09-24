@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
 import { updateUserProfile } from '../utils/db';
-import { X, User, Check, Target, Clock, Calendar } from 'lucide-react';
 
 interface UserProfileModalProps {
   user: UserProfile;
@@ -55,7 +54,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       <div className="bg-white rounded-lg border border-slate-200 shadow-xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <User className="w-4 h-4 text-slate-700" />
             <h3 className="font-semibold text-sm text-slate-900">
               Hồ sơ học tập cá nhân
             </h3>
@@ -65,7 +63,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             onClick={onClose}
             className="text-slate-400 hover:text-slate-600 p-1 rounded-md cursor-pointer"
           >
-            <X className="w-4 h-4" />
+            Đóng
           </button>
         </div>
 
@@ -173,10 +171,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               className="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 cursor-pointer disabled:opacity-50 transition-colors"
             >
               {savedSuccess ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Đã lưu!</span>
-                </>
+                <span>Đã lưu!</span>
               ) : (
                 <span>{saving ? 'Đang lưu...' : 'Lưu thay đổi'}</span>
               )}

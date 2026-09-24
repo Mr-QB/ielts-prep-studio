@@ -20,7 +20,7 @@ import {
 import { calculateNextSRS } from './srsEngine';
 
 const DB_NAME = 'ielts_prep_studio_v2';
-const DB_VERSION = 3;
+const DB_VERSION = 5;
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 let currentActiveUser: UserProfile | null = null;
@@ -31,6 +31,9 @@ export function getActiveUser(): UserProfile | null {
 
 export function setActiveUser(user: UserProfile | null): void {
   currentActiveUser = user;
+  if (user) {
+    try { localStorage.setItem('ielts_prep_offline_profile', JSON.stringify(user)); } catch { /* browser storage may be disabled */ }
+  }
 }
 
 function getUserKey(prefix: string): string {
@@ -65,11 +68,220 @@ function getDB(): Promise<IDBDatabase> {
         if (!db.objectStoreNames.contains('user_protocol')) {
           db.createObjectStore('user_protocol', { keyPath: 'storeId' });
         }
+        if (!db.objectStoreNames.contains('cached_dictionary')) {
+          db.createObjectStore('cached_dictionary', { keyPath: 'key' });
+        }
+        if (!db.objectStoreNames.contains('user_data')) {
+          db.createObjectStore('user_data', { keyPath: 'storeId' });
+        }
+        if (!db.objectStoreNames.contains('sync_queue')) {
+          db.createObjectStore('sync_queue', { keyPath: 'id' });
+        }
       };
     });
   }
   return dbPromise;
 }
+
+interface LocalRecord<T> { storeId: string; value: T; updatedAt: number; }
+interface SyncChange {
+  id: string;
+  changeId: string;
+  userId: string;
+  entity: string;
+  recordId: string;
+  operation: 'upsert' | 'delete';
+  payload: unknown;
+  updatedAt: number;
+}
+
+async function readLocalData<T>(prefix: string, fallback: T): Promise<T> {
+  const storeId = getUserKey(prefix);
+  try {
+    const db = await getDB();
+    const row = await new Promise<LocalRecord<T> | undefined>((resolve, reject) => {
+      const request = db.transaction('user_data', 'readonly').objectStore('user_data').get(storeId);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    if (row) return row.value;
+  } catch { /* migrate from localStorage or use the supplied default */ }
+  try {
+    const raw = localStorage.getItem(storeId);
+    if (raw) {
+      const value = JSON.parse(raw) as T;
+      await writeLocalData(prefix, value);
+      return value;
+    }
+  } catch { /* storage may be unavailable */ }
+  return fallback;
+}
+
+async function writeLocalData<T>(prefix: string, value: T): Promise<void> {
+  const storeId = getUserKey(prefix);
+  const updatedAt = Date.now();
+  try {
+    const db = await getDB();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('user_data', 'readwrite');
+      tx.objectStore('user_data').put({ storeId, value, updatedAt } satisfies LocalRecord<T>);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch { /* localStorage remains a compatibility fallback */ }
+  try { localStorage.setItem(storeId, JSON.stringify(value)); } catch { /* quota/private mode */ }
+}
+
+async function deleteLocalData(prefix: string): Promise<void> {
+  const storeId = getUserKey(prefix);
+  try {
+    const db = await getDB();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('user_data', 'readwrite');
+      tx.objectStore('user_data').delete(storeId);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch { /* keep localStorage compatibility */ }
+  try { localStorage.removeItem(storeId); } catch { /* quota/private mode */ }
+}
+
+let syncTimer: number | undefined;
+let syncRunning = false;
+
+async function queueSyncChange(entity: string, recordId: string, payload: unknown, operation: 'upsert' | 'delete' = 'upsert'): Promise<void> {
+  if (!currentActiveUser) return;
+  const change: SyncChange = {
+    id: `${currentActiveUser.id}:${entity}:${recordId}`,
+    changeId: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+    userId: currentActiveUser.id,
+    entity,
+    recordId,
+    operation,
+    payload,
+    updatedAt: Date.now()
+  };
+  try {
+    const db = await getDB();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('sync_queue', 'readwrite');
+      tx.objectStore('sync_queue').put(change);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch { /* the local record is retained even if the outbox is unavailable */ }
+  if (['decks', 'vocab_progress', 'grammar', 'protocol', 'mistake'].includes(entity)) {
+    const versions = await readLocalData<Record<string, number>>('sync_versions', {});
+    versions[`${entity}:${recordId}`] = change.updatedAt;
+    await writeLocalData('sync_versions', versions);
+  }
+  if (navigator.onLine) {
+    window.clearTimeout(syncTimer);
+    syncTimer = window.setTimeout(() => { syncPendingChanges().catch(() => {}); }, 800);
+  }
+}
+
+async function syncPendingChanges(): Promise<void> {
+  if (syncRunning || !currentActiveUser || !navigator.onLine) return;
+  syncRunning = true;
+  try {
+    const db = await getDB();
+    const queued = await new Promise<SyncChange[]>((resolve, reject) => {
+      const request = db.transaction('sync_queue', 'readonly').objectStore('sync_queue').getAll();
+      request.onsuccess = () => resolve(request.result.filter((change: SyncChange) => change.userId === currentActiveUser?.id));
+      request.onerror = () => reject(request.error);
+    });
+    if (queued.length) {
+      const response = await fetch('/api/sync/push', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ changes: queued.slice(0, 200) })
+      });
+      if (response.ok) {
+        const { acceptedIds = [] } = await response.json();
+        await new Promise<void>((resolve, reject) => {
+          const tx = db.transaction('sync_queue', 'readwrite');
+          acceptedIds.forEach((id: string) => tx.objectStore('sync_queue').delete(id));
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+        });
+      }
+    }
+    const cursorKey = `sync_cursor:${currentActiveUser.id}`;
+    let cursor = await readLocalData<number>(cursorKey, 0);
+    for (let page = 0; page < 20; page += 1) {
+      const pulled = await fetch(`/api/sync/pull?cursor=${cursor}`, { signal: AbortSignal.timeout(5000) });
+      if (!pulled.ok) break;
+      const data = await pulled.json();
+      const changes = data.changes as SyncChange[];
+      for (const change of changes) await applyRemoteChange(change);
+      if (!Number.isFinite(data.cursor) || data.cursor <= cursor) break;
+      cursor = data.cursor;
+      await writeLocalData(cursorKey, cursor);
+      if (changes.length < 500) break;
+    }
+  } catch { /* retry on the next local change or online event */ }
+  finally { syncRunning = false; }
+}
+
+async function applyRemoteChange(change: SyncChange): Promise<void> {
+  if (!currentActiveUser || change.userId !== currentActiveUser.id) return;
+  if (['decks', 'vocab_progress', 'grammar', 'protocol', 'mistake'].includes(change.entity)) {
+    const versions = await readLocalData<Record<string, number>>('sync_versions', {});
+    const versionKey = `${change.entity}:${change.recordId}`;
+    if ((versions[versionKey] || 0) > change.updatedAt) return;
+    versions[versionKey] = change.updatedAt;
+    await writeLocalData('sync_versions', versions);
+  }
+  if (change.operation === 'delete') {
+    if (change.entity === 'attempt') await writeLocalData('attempts', (await readLocalData<TestAttempt[]>('attempts', [])).filter(item => item.id !== change.recordId));
+    if (change.entity === 'mistake') await writeLocalData('mistakes', (await readLocalData<RecordedMistake[]>('mistakes', [])).filter(item => item.id !== change.recordId));
+    if (change.entity === 'vocab_review') await writeLocalData('vocab_review_logs', (await readLocalData<VocabReviewLog[]>('vocab_review_logs', [])).filter(item => item.id !== change.recordId));
+    if (change.entity === 'protocol') await deleteLocalData(`protocol_${change.recordId}`);
+    if (change.entity === 'grammar') {
+      const progress = await readLocalData<Record<string, GrammarProgressStatus>>('grammar', {});
+      delete progress[change.recordId];
+      await writeLocalData('grammar', progress);
+    }
+    return;
+  }
+  const mergeById = <T extends { id: string }>(current: T[], incoming: T): T[] => [incoming, ...current.filter(item => item.id !== incoming.id)];
+  switch (change.entity) {
+    case 'decks':
+      await writeLocalData('decks', change.payload as VocabDeck[]);
+      break;
+    case 'vocab_progress': {
+      const decks = await readLocalData<VocabDeck[]>('decks', []);
+      const card = change.payload as VocabCard;
+      await writeLocalData('decks', decks.map(deck => ({ ...deck, cards: deck.cards.map(item => item.id === card.id ? card : item) })));
+      break;
+    }
+    case 'attempt': {
+      const attempts = await readLocalData<TestAttempt[]>('attempts', []);
+      await writeLocalData('attempts', mergeById(attempts, change.payload as TestAttempt).slice(0, 100));
+      break;
+    }
+    case 'mistake': {
+      const mistakes = await readLocalData<RecordedMistake[]>('mistakes', []);
+      await writeLocalData('mistakes', mergeById(mistakes, change.payload as RecordedMistake).slice(0, 200));
+      break;
+    }
+    case 'grammar': {
+      const progress = await readLocalData<Record<string, GrammarProgressStatus>>('grammar', {});
+      await writeLocalData('grammar', { ...progress, [change.recordId]: change.payload as GrammarProgressStatus });
+      break;
+    }
+    case 'protocol':
+      await writeLocalData(`protocol_${change.recordId}`, change.payload as DailyProtocolRecord);
+      break;
+    case 'vocab_review': {
+      const logs = await readLocalData<VocabReviewLog[]>('vocab_review_logs', []);
+      await writeLocalData('vocab_review_logs', mergeById(logs, change.payload as VocabReviewLog).slice(0, 500));
+      break;
+    }
+  }
+}
+
+if (typeof window !== 'undefined') window.addEventListener('online', () => { syncPendingChanges().catch(() => {}); });
 
 /**
  * Health & Connection check for Cloudflare D1
@@ -101,11 +313,24 @@ export async function fetchCurrentUser(): Promise<UserProfile | null> {
       const data = await res.json();
       if (data.success && data.user) {
         setActiveUser(data.user);
+        await syncPendingChanges();
         return data.user;
       }
     }
+    if (res.status === 401) {
+      try { localStorage.removeItem('ielts_prep_offline_profile'); } catch { /* browser storage may be disabled */ }
+      setActiveUser(null);
+      return null;
+    }
   } catch {
-    // Offline or unauthenticated
+    try {
+      const cached = localStorage.getItem('ielts_prep_offline_profile');
+      if (cached) {
+        const profile = JSON.parse(cached) as UserProfile;
+        setActiveUser(profile);
+        return profile;
+      }
+    } catch { /* invalid or unavailable offline profile */ }
   }
   setActiveUser(null);
   return null;
@@ -124,6 +349,7 @@ export async function loginUser(
     const data = await res.json();
     if (res.ok && data.success && data.user) {
       setActiveUser(data.user);
+      syncPendingChanges().catch(() => {});
       return { success: true, user: data.user };
     }
     return { success: false, error: data.error || 'Login failed' };
@@ -139,6 +365,7 @@ export async function logoutUser(): Promise<void> {
     // ignore
   }
   setActiveUser(null);
+  try { localStorage.removeItem('ielts_prep_offline_profile'); } catch { /* browser storage may be disabled */ }
 }
 
 export async function updateUserProfile(profile: Partial<UserProfile>): Promise<UserProfile | null> {
@@ -165,6 +392,9 @@ export async function updateUserProfile(profile: Partial<UserProfile>): Promise<
 
 export async function loadDecksFromStorage(defaultDecks: VocabDeck[]): Promise<VocabDeck[]> {
   const lsKey = getUserKey('decks');
+
+  const cached = await readLocalData<VocabDeck[]>('decks', []);
+  if (cached.length > 0) return cached;
 
   // 1. Try to fetch from Cloudflare D1 via /api/decks
   try {
@@ -197,26 +427,12 @@ export async function loadDecksFromStorage(defaultDecks: VocabDeck[]): Promise<V
 }
 
 function saveDecksToLocalCache(decks: VocabDeck[]): void {
-  try {
-    const lsKey = getUserKey('decks');
-    localStorage.setItem(lsKey, JSON.stringify(decks));
-  } catch {
-    // safe fallback
-  }
+  writeLocalData('decks', decks).catch(() => {});
 }
 
 export async function saveDecksToStorage(decks: VocabDeck[]): Promise<void> {
-  saveDecksToLocalCache(decks);
-
-  try {
-    fetch('/api/decks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ decks })
-    }).catch(() => {});
-  } catch {
-    // Offline safe
-  }
+  await writeLocalData('decks', decks);
+  await queueSyncChange('decks', 'all', decks);
 }
 
 export interface AddWordCardData {
@@ -255,6 +471,9 @@ export async function addWordToVocabDeck(
 
     const targetDeck = deckId ? decks.find(d => d.id === deckId) || decks[0] : decks[0];
     const cleanWord = cardData.word.trim();
+    if (!cleanWord || !cardData.definitionVi.trim() || !cardData.definitionEn?.trim() || /^(meaning of|ielts target vocabulary item)/i.test(cardData.definitionEn.trim())) {
+      return { success: false, message: 'Cần có từ, định nghĩa tiếng Anh và nghĩa tiếng Việt đã xác nhận trước khi lưu.' };
+    }
 
     // Check duplicate in all decks
     let existingCard: VocabCard | undefined;
@@ -290,14 +509,7 @@ export async function addWordToVocabDeck(
       if (cardData.definitionEn) {
         existingCard.definitionEn = cardData.definitionEn;
       }
-      saveDecksToLocalCache(decks);
-
-      // Sync update to backend
-      fetch('/api/vocab/card', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ card: existingCard, deckId: existingDeck?.id || targetDeck.id, updateExisting: true })
-      }).catch(() => {});
+      await saveDecksToStorage(decks);
 
       return { success: true, message: `Đã cập nhật ngữ cảnh cho từ "${cleanWord}".` };
     }
@@ -329,14 +541,7 @@ export async function addWordToVocabDeck(
     };
 
     targetDeck.cards.unshift(newCard);
-    saveDecksToLocalCache(decks);
-
-    // Sync to /api/vocab/card
-    fetch('/api/vocab/card', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ card: newCard, deckId: targetDeck.id })
-    }).catch(() => {});
+    await saveDecksToStorage(decks);
 
     return { success: true, message: `Đã thêm "${cleanWord}" vào bộ "${targetDeck.name}".` };
   } catch {
@@ -377,30 +582,40 @@ export async function checkDuplicateWordApi(word: string): Promise<{ exists: boo
  */
 export async function lookupVocabularyApi(word: string, context?: string): Promise<VocabLookupResult> {
   const cleanWord = word.trim();
+  const cacheKey = `${cleanWord.toLowerCase()}|${context?.trim().toLowerCase() || ''}`;
   try {
     const url = `/api/vocab/lookup?word=${encodeURIComponent(cleanWord)}${context ? `&context=${encodeURIComponent(context)}` : ''}`;
     const res = await fetch(url, { signal: AbortSignal.timeout(3500) });
     if (res.ok) {
       const data = await res.json();
-      if (data.success) {
+      if (data.success && Array.isArray(data.senses)) {
+        try {
+          const db = await getDB();
+          const tx = db.transaction('cached_dictionary', 'readwrite');
+          tx.objectStore('cached_dictionary').put({ key: cacheKey, value: data, cachedAt: Date.now() });
+        } catch { /* browser storage may be unavailable */ }
         return data;
       }
     }
   } catch {}
 
-  // Fallback for offline / disconnected
+  try {
+    const db = await getDB();
+    const cached = await new Promise<{ value: VocabLookupResult } | undefined>((resolve, reject) => {
+      const request = db.transaction('cached_dictionary', 'readonly').objectStore('cached_dictionary').get(cacheKey);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    if (cached?.value) return cached.value;
+  } catch { /* continue with an explicit unavailable result */ }
+
   return {
     word: cleanWord,
     lemma: cleanWord.toLowerCase(),
-    phonetic: `/${cleanWord}/`,
-    partOfSpeech: 'vocabulary',
+    phonetic: '',
+    partOfSpeech: '',
     audioSource: 'tts',
-    senses: [
-      {
-        definitionEn: `IELTS target vocabulary item: ${cleanWord}`,
-        viSuggestion: `Nghĩa của từ "${cleanWord}"`
-      }
-    ]
+    senses: []
   };
 }
 
@@ -408,23 +623,13 @@ export async function lookupVocabularyApi(word: string, context?: string): Promi
  * Record a single active retrieval log item (local fallback + sync to D1)
  */
 export async function logVocabReviewAction(log: VocabReviewLog): Promise<void> {
-  // 1. Local storage cache
-  try {
-    const key = getUserKey('vocab_review_logs');
-    const existing: VocabReviewLog[] = JSON.parse(localStorage.getItem(key) || '[]');
-    existing.unshift(log);
-    if (existing.length > 500) existing.length = 500;
-    localStorage.setItem(key, JSON.stringify(existing));
-  } catch {}
+  const existing = await readLocalData<VocabReviewLog[]>('vocab_review_logs', []);
+  await writeLocalData('vocab_review_logs', [log, ...existing.filter(item => item.id !== log.id)].slice(0, 500));
+  await queueSyncChange('vocab_review', log.id, log);
+}
 
-  // 2. Sync to Cloudflare D1
-  try {
-    fetch('/api/vocab/review-log', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(log)
-    }).catch(() => {});
-  } catch {}
+export async function loadVocabReviewLogs(): Promise<VocabReviewLog[]> {
+  return readLocalData<VocabReviewLog[]>('vocab_review_logs', []);
 }
 
 /**
@@ -450,19 +655,7 @@ export async function reviewCardSRS(
     masteryState: next.masteryState
   };
 
-  // Sync to Cloudflare D1
-  fetch('/api/vocab/review', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      cardId,
-      easeFactor: next.easeFactor,
-      intervalDays: next.intervalDays,
-      repetitions: next.repetition,
-      nextReview: next.dueDate,
-      learningStatus: next.state
-    })
-  }).catch(() => {});
+  await queueSyncChange('vocab_progress', cardId, updatedCard);
 
   return updatedCard;
 }
@@ -474,12 +667,15 @@ export async function reviewCardSRS(
 export async function loadAttemptsFromStorage(): Promise<TestAttempt[]> {
   const lsKey = getUserKey('attempts');
 
+  const cached = await readLocalData<TestAttempt[]>('attempts', []);
+  if (cached.length) return cached;
+
   try {
     const res = await fetch('/api/attempts', { signal: AbortSignal.timeout(4000) });
     if (res.ok) {
       const data = await res.json();
       if (data.success && Array.isArray(data.attempts)) {
-        localStorage.setItem(lsKey, JSON.stringify(data.attempts));
+        await writeLocalData('attempts', data.attempts);
         return data.attempts;
       }
     }
@@ -496,21 +692,9 @@ export async function loadAttemptsFromStorage(): Promise<TestAttempt[]> {
 }
 
 export async function recordAttempt(attempt: TestAttempt): Promise<void> {
-  const lsKey = getUserKey('attempts');
-  try {
-    const attempts = await loadAttemptsFromStorage();
-    const updated = [attempt, ...attempts].slice(0, 100);
-    localStorage.setItem(lsKey, JSON.stringify(updated));
-  } catch {
-    // safe fallback
-  }
-
-  // Sync to Cloudflare D1
-  fetch('/api/attempts', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(attempt)
-  }).catch(() => {});
+  const attempts = await loadAttemptsFromStorage();
+  await writeLocalData('attempts', [attempt, ...attempts.filter(item => item.id !== attempt.id)].slice(0, 100));
+  await queueSyncChange('attempt', attempt.id, attempt);
 
   // Also automatically record any mistakes to the local mistakes store
   if (attempt.mistakeTags && attempt.mistakeTags.length > 0) {
@@ -540,12 +724,15 @@ export async function recordAttempt(attempt: TestAttempt): Promise<void> {
 export async function loadMistakes(): Promise<RecordedMistake[]> {
   const lsKey = getUserKey('mistakes');
 
+  const cached = await readLocalData<RecordedMistake[]>('mistakes', []);
+  if (cached.length) return cached;
+
   try {
     const res = await fetch('/api/mistakes', { signal: AbortSignal.timeout(3000) });
     if (res.ok) {
       const data = await res.json();
       if (data.success && Array.isArray(data.mistakes)) {
-        localStorage.setItem(lsKey, JSON.stringify(data.mistakes));
+        await writeLocalData('mistakes', data.mistakes);
         return data.mistakes;
       }
     }
@@ -562,20 +749,9 @@ export async function loadMistakes(): Promise<RecordedMistake[]> {
 }
 
 export async function recordDetailedMistake(mistake: RecordedMistake): Promise<void> {
-  const lsKey = getUserKey('mistakes');
-  try {
-    const current = await loadMistakes();
-    const updated = [mistake, ...current].slice(0, 200);
-    localStorage.setItem(lsKey, JSON.stringify(updated));
-  } catch {
-    // safe fallback
-  }
-
-  fetch('/api/mistakes', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(mistake)
-  }).catch(() => {});
+  const current = await loadMistakes();
+  await writeLocalData('mistakes', [mistake, ...current.filter(item => item.id !== mistake.id)].slice(0, 200));
+  await queueSyncChange('mistake', mistake.id, mistake);
 }
 
 export async function getWeakAreaStats(): Promise<WeakAreaStat[]> {
@@ -633,12 +809,15 @@ export async function getWeakAreaStats(): Promise<WeakAreaStat[]> {
 export async function loadGrammarProgress(): Promise<Record<string, GrammarProgressStatus>> {
   const lsKey = getUserKey('grammar');
 
+  const cached = await readLocalData<Record<string, GrammarProgressStatus> | null>('grammar', null);
+  if (cached) return cached;
+
   try {
     const res = await fetch('/api/grammar', { signal: AbortSignal.timeout(3000) });
     if (res.ok) {
       const data = await res.json();
       if (data.success && data.progress) {
-        localStorage.setItem(lsKey, JSON.stringify(data.progress));
+        await writeLocalData('grammar', data.progress);
         return data.progress;
       }
     }
@@ -656,20 +835,10 @@ export async function loadGrammarProgress(): Promise<Record<string, GrammarProgr
 }
 
 export async function saveGrammarProgress(topicId: string, status: GrammarProgressStatus): Promise<void> {
-  const lsKey = getUserKey('grammar');
-  try {
-    const current = await loadGrammarProgress();
-    current[topicId] = status;
-    localStorage.setItem(lsKey, JSON.stringify(current));
-  } catch {
-    // ignore
-  }
-
-  fetch('/api/grammar', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ topicId, status })
-  }).catch(() => {});
+  const current = await loadGrammarProgress();
+  current[topicId] = status;
+  await writeLocalData('grammar', current);
+  await queueSyncChange('grammar', topicId, status);
 }
 
 // ==========================================
@@ -728,7 +897,8 @@ export const DEFAULT_DAILY_TASKS: DailyTaskItem[] = [
 ];
 
 export function getTodayDateString(): string {
-  return new Date().toISOString().split('T')[0];
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 }
 
 export function getStudyStartDate(): string {
@@ -751,7 +921,7 @@ export function getStudyStartDate(): string {
 export function calculateDayNumber(): number {
   const start = new Date(getStudyStartDate());
   const now = new Date(getTodayDateString());
-  const diffTime = Math.abs(now.getTime() - start.getTime());
+  const diffTime = Math.max(0, now.getTime() - start.getTime());
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
   return Math.min(180, Math.max(1, diffDays));
 }
@@ -761,13 +931,16 @@ export async function loadTodayProtocol(): Promise<DailyProtocolRecord> {
   const dayNum = calculateDayNumber();
   const lsKey = getUserKey(`protocol_${todayStr}`);
 
+  const cached = await readLocalData<DailyProtocolRecord | null>(`protocol_${todayStr}`, null);
+  if (cached) return cached;
+
   // 1. Try to fetch from Cloudflare D1
   try {
     const res = await fetch(`/api/protocol?date=${todayStr}`, { signal: AbortSignal.timeout(3000) });
     if (res.ok) {
       const data = await res.json();
       if (data.success && data.record) {
-        localStorage.setItem(lsKey, JSON.stringify(data.record));
+        await writeLocalData(`protocol_${todayStr}`, data.record);
         return data.record;
       }
     }
@@ -797,21 +970,11 @@ export async function loadTodayProtocol(): Promise<DailyProtocolRecord> {
     date: todayStr,
     dayNumber: dayNum,
     tasks: scaledTasks,
-    streakDays: 1
+    streakDays: 0
   };
 }
 
 export async function saveTodayProtocol(record: DailyProtocolRecord): Promise<void> {
-  const lsKey = getUserKey(`protocol_${record.date}`);
-  try {
-    localStorage.setItem(lsKey, JSON.stringify(record));
-  } catch {
-    // ignore
-  }
-
-  fetch('/api/protocol', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(record)
-  }).catch(() => {});
+  await writeLocalData(`protocol_${record.date}`, record);
+  await queueSyncChange('protocol', record.date, record);
 }

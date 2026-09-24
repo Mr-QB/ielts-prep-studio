@@ -118,24 +118,44 @@ export function previewNextInterval(card: VocabCard, rating: SRSIntervalRating):
   }
 }
 
-/**
- * Parses user-uploaded .txt / .csv into VocabCard items.
- */
-export function parseVocabText(rawText: string, deckName = 'Uploaded Deck'): VocabCard[] {
+function parseCsvLine(line: string): string[] {
+  const cells: string[] = [];
+  let value = '';
+  let quoted = false;
+  for (let i = 0; i < line.length; i += 1) {
+    if (line[i] === '"' && line[i + 1] === '"' && quoted) { value += '"'; i += 1; }
+    else if (line[i] === '"') quoted = !quoted;
+    else if (line[i] === ',' && !quoted) { cells.push(value.trim()); value = ''; }
+    else value += line[i];
+  }
+  cells.push(value.trim());
+  return cells;
+}
+
+/** Parses user text as one item per line; CSV columns are used only for explicit CSV input. */
+export function parseVocabText(rawText: string, deckName = 'Uploaded Deck', format: 'text' | 'csv' = 'text'): VocabCard[] {
   const lines = rawText
     .split(/\r?\n/)
     .map(l => l.trim())
-    .filter(l => l.length > 0 && !l.startsWith('#') && !l.startsWith('//'));
+    .filter(l => l.length > 0 && !l.startsWith('#') && !l.startsWith('//'))
+    .flatMap(line => format !== 'csv' && line.includes(';') && !/[|\t]|\s-\s|:/.test(line) ? line.split(';').map(part => part.trim()) : [line])
+    .map(line => line.replace(/^(?:[-*•]\s+|\d+[.)]\s+)/, ''));
 
   const cards: VocabCard[] = [];
 
   lines.forEach((line, index) => {
+    if (format === 'csv' && index === 0 && /^(?:word|term|vocabulary)\s*,/i.test(line)) return;
     let word = '';
     let phonetic = '';
     let definitionVi = '';
     let example = '';
 
-    if (line.includes('|')) {
+    if (format === 'csv' && line.includes(',')) {
+      const parts = parseCsvLine(line);
+      word = parts[0] || '';
+      definitionVi = parts[1] || '';
+      example = parts[2] || '';
+    } else if (line.includes('|')) {
       const parts = line.split('|').map(s => s.trim());
       word = parts[0] || '';
       phonetic = parts[1] || '';
@@ -162,26 +182,19 @@ export function parseVocabText(rawText: string, deckName = 'Uploaded Deck'): Voc
       } else {
         definitionVi = rest;
       }
-    } else if (line.includes(',')) {
-      const parts = line.split(',').map(s => s.trim());
-      word = parts[0] || '';
-      definitionVi = parts[1] || '';
-      example = parts[2] || '';
     } else {
-      // Single word line
       word = line;
-      definitionVi = 'Chờ cập nhật nghĩa tiếng Việt';
     }
 
     if (word && word.length > 0) {
       cards.push({
         id: `v-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 6)}`,
         word,
-        phonetic: phonetic || `/.../`,
-        partOfSpeech: 'lexical',
-        definitionVi: definitionVi || 'Từ vựng đã nhập',
+        phonetic,
+        partOfSpeech: '',
+        definitionVi,
         definitionEn: '',
-        example: example || `Using "${word}" in an academic IELTS context.`,
+        example,
         category: deckName,
         repetition: 0,
         intervalDays: 0,
@@ -201,14 +214,15 @@ export function parseVocabText(rawText: string, deckName = 'Uploaded Deck'): Voc
 export function analyzeVocabImport(
   rawText: string,
   existingWords: Set<string>,
-  deckName = 'Uploaded Deck'
+  deckName = 'Uploaded Deck',
+  format: 'text' | 'csv' = 'text'
 ): ParsePreviewResult {
   const lines = rawText
     .split(/\r?\n/)
     .map(l => l.trim())
     .filter(l => l.length > 0 && !l.startsWith('#') && !l.startsWith('//'));
 
-  const parsed = parseVocabText(rawText, deckName);
+  const parsed = parseVocabText(rawText, deckName, format);
   const invalidLinesCount = Math.max(0, lines.length - parsed.length);
 
   const seenInUpload = new Set<string>();
@@ -302,6 +316,16 @@ export function damerauLevenshteinDistance(source: string, target: string): numb
   }
 
   return d[s.length][t.length];
+}
+
+export function suggestVocabCorrection(word: string, candidates: string[]): string | undefined {
+  const normalized = word.trim().toLowerCase();
+  if (normalized.length < 5) return undefined;
+  const maxDistance = normalized.length >= 8 ? 2 : 1;
+  return candidates
+    .map(candidate => ({ candidate, distance: damerauLevenshteinDistance(normalized, candidate) }))
+    .filter(item => item.distance > 0 && item.distance <= maxDistance)
+    .sort((a, b) => a.distance - b.distance || a.candidate.length - b.candidate.length)[0]?.candidate;
 }
 
 function getCommonPrefixLength(a: string, b: string): number {
@@ -517,4 +541,3 @@ export function reinsertCardIntoSessionQueue(
   newQueue.splice(targetIndex, 0, retryItem);
   return newQueue;
 }
-

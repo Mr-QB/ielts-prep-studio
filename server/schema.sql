@@ -190,3 +190,19 @@ CREATE TABLE IF NOT EXISTS vocab_review_log (
 CREATE INDEX IF NOT EXISTS idx_vocab_review_log_user_card ON vocab_review_log(user_id, card_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_vocab_review_log_created ON vocab_review_log(user_id, created_at);
 
+-- 10. CLIENT CHANGE LOG FOR BATCHED OFFLINE-FIRST SYNC
+CREATE TABLE IF NOT EXISTS sync_changes (
+    cursor INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    change_id TEXT NOT NULL,
+    entity TEXT NOT NULL,
+    record_id TEXT NOT NULL,
+    operation TEXT NOT NULL CHECK (operation IN ('upsert', 'delete')),
+    payload TEXT,
+    updated_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    UNIQUE (user_id, change_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_sync_changes_user_cursor ON sync_changes(user_id, cursor);

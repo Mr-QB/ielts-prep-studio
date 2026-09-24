@@ -115,11 +115,7 @@ export const WordCapturePopover: React.FC<WordCapturePopoverProps> = ({ sourceLa
 
     const result = await lookupVocabularyApi(selectedWord, contextSentence);
     setLookupResult(result);
-    if (result.senses && result.senses.length > 0 && result.senses[0].viSuggestion) {
-      setConfirmedMeaningVi(result.senses[0].viSuggestion);
-    } else {
-      setConfirmedMeaningVi(`Nghĩa của từ "${selectedWord}"`);
-    }
+    setConfirmedMeaningVi(result.senses?.[0]?.viSuggestion || '');
     setIsLookingUp(false);
   };
 
@@ -127,7 +123,11 @@ export const WordCapturePopover: React.FC<WordCapturePopoverProps> = ({ sourceLa
     if (!selectedWord) return;
 
     const chosenSense = lookupResult?.senses[0];
-    const finalVi = confirmedMeaningVi.trim() || chosenSense?.viSuggestion || `Nghĩa của từ "${selectedWord}"`;
+    const finalVi = confirmedMeaningVi.trim();
+    if (!chosenSense?.definitionEn?.trim() || !finalVi) {
+      showToast('Chưa có nghĩa đáng tin cậy để lưu. Hãy thử lại khi có mạng.');
+      return;
+    }
 
     const res = await addWordToVocabDeck({
       word: selectedWord,
@@ -231,6 +231,11 @@ export const WordCapturePopover: React.FC<WordCapturePopoverProps> = ({ sourceLa
                     </div>
                   </div>
                 )}
+                {lookupResult && lookupResult.senses.length === 0 && (
+                  <p role="status" className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                    Chưa tra được nghĩa đáng tin cậy. Từ này chưa được lưu; hãy thử lại khi có mạng.
+                  </p>
+                )}
 
                 <div>
                   <label className="text-xs font-semibold text-slate-700 block mb-1">
@@ -257,7 +262,7 @@ export const WordCapturePopover: React.FC<WordCapturePopoverProps> = ({ sourceLa
               </button>
               <button
                 type="button"
-                disabled={isLookingUp}
+                disabled={isLookingUp || !lookupResult?.senses[0]?.definitionEn || !confirmedMeaningVi.trim()}
                 onClick={handleConfirmSave}
                 className="px-4 py-1.5 bg-slate-900 text-white rounded text-xs font-semibold hover:bg-slate-800 disabled:opacity-50 cursor-pointer shadow-xs"
               >

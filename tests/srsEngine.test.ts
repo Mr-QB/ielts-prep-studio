@@ -5,6 +5,7 @@ import {
   previewNextInterval,
   parseVocabText,
   analyzeVocabImport,
+  suggestVocabCorrection,
   damerauLevenshteinDistance,
   classifyVocabError,
   selectVocabReviewMode,
@@ -109,6 +110,22 @@ describe('Vocab Text Parser', () => {
     assert.strictEqual(parsed[0].definitionVi, 'sự chênh lệch');
   });
 
+  it('parses plain lists and bullet prefixes without splitting contextual commas or saving placeholders', () => {
+    const parsed = parseVocabText('consistency\n2. candidate\n- angular pattern\nreliable, consistent and robust');
+    assert.deepStrictEqual(parsed.map(card => card.word), [
+      'consistency', 'candidate', 'angular pattern', 'reliable, consistent and robust'
+    ]);
+    assert(parsed.every(card => !card.definitionVi && !card.definitionEn && !card.example));
+  });
+
+  it('uses explicit CSV parsing and preserves quoted commas', () => {
+    const parsed = parseVocabText('word,meaning,example\n"well-being",sức khỏe,"Health, education and safety matter."', 'Import', 'csv');
+    assert.strictEqual(parsed.length, 1);
+    assert.strictEqual(parsed[0].word, 'well-being');
+    assert.strictEqual(parsed[0].definitionVi, 'sức khỏe');
+    assert.strictEqual(parsed[0].example, 'Health, education and safety matter.');
+  });
+
   it('analyzes import and accurately detects duplicates and invalid lines', () => {
     const raw = `
 # Comment line should be ignored
@@ -138,6 +155,11 @@ describe('Active Retrieval Engine & Typo Tolerance', () => {
     assert.strictEqual(damerauLevenshteinDistance('teh', 'the'), 1);
     // 1 substitution
     assert.strictEqual(damerauLevenshteinDistance('cat', 'bat'), 1);
+  });
+
+  it('suggests a nearby spelling without changing the entered word', () => {
+    assert.strictEqual(suggestVocabCorrection('imdependent', ['independent']), 'independent');
+    assert.strictEqual(suggestVocabCorrection('rollout', ['independent']), undefined);
   });
 
   it('classifies spelling errors vs recall failures vs morphology', () => {
@@ -211,4 +233,3 @@ describe('Active Retrieval Engine & Typo Tolerance', () => {
     assert(['recall', 'typing_vi_en', 'cloze', 'collocation', 'audio_spelling', 'paraphrase_context'].includes(mode2));
   });
 });
-

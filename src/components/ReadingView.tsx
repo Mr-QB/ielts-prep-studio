@@ -3,7 +3,7 @@ import { READING_FULL_TESTS, READING_PASSAGES, READING_FOUNDATION_SETS } from '.
 import { READING_PRACTICE_SETS } from '../data/readingPracticeData';
 import { READING_QUESTION_GROUPS, READING_STRATEGY_LESSONS } from '../data/readingStrategyData';
 import { ReadingQuestionType, ReadingQuestion, TestAttempt, ReadingQuestionGroup } from '../types';
-import { recordAttempt, addWordToVocabDeck } from '../utils/db';
+import { recordAttempt, addWordToVocabDeck, lookupVocabularyApi } from '../utils/db';
 import { calculateReadingBand, formatTime } from '../utils/ieltsScoring';
 import { WordCapturePopover } from './WordCapturePopover';
 
@@ -211,11 +211,22 @@ export const ReadingView: React.FC<ReadingViewProps> = () => {
   };
 
   const handleAddWord = async (word: string, defVi: string, sentence: string) => {
+    const lookup = await lookupVocabularyApi(word, sentence);
+    const sense = lookup.senses[0];
+    if (!sense?.definitionEn || !defVi.trim()) return;
     const res = await addWordToVocabDeck({
       word,
       definitionVi: defVi,
+      definitionEn: sense.definitionEn,
+      lemma: lookup.lemma,
+      phonetic: lookup.phonetic,
+      partOfSpeech: sense.partOfSpeech || lookup.partOfSpeech,
       sourceContext: sentence,
-      source: 'Reading Notebook'
+      source: 'Reading Notebook',
+      sourceType: 'reading',
+      audio: lookup.audio,
+      audioSource: lookup.audioSource,
+      collocations: lookup.collocations
     });
     if (res.success) {
       setAddedVocabWords(prev => ({ ...prev, [word]: true }));

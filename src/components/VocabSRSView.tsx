@@ -20,6 +20,7 @@ import {
   selectVocabReviewMode,
   buildSessionReviewQueue,
   reinsertCardIntoSessionQueue,
+  suggestVocabCorrection,
   SessionReviewItem,
   VocabErrorClassification
 } from '../utils/srsEngine';
@@ -32,6 +33,13 @@ import {
   reviewCardSRS,
   saveCustomCard
 } from '../utils/db';
+
+interface EnrichedImportItem {
+  card: VocabCard;
+  result: VocabLookupResult;
+  senseIndex: number;
+  meaningVi: string;
+}
 
 export const VocabSRSView: React.FC = () => {
   // 3 Primary Tabs
@@ -76,6 +84,7 @@ export const VocabSRSView: React.FC = () => {
   // SIMPLIFIED ADD WORD & LOOKUP MODAL
   // ==========================================
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
+  const [bulkMode, setBulkMode] = useState(false);
   const [lookupWordInput, setLookupWordInput] = useState<string>('');
   const [lookupContextInput, setLookupContextInput] = useState<string>('');
   const [isLookingUp, setIsLookingUp] = useState<boolean>(false);
@@ -98,10 +107,14 @@ export const VocabSRSView: React.FC = () => {
   const [discriminationAnswers, setDiscriminationAnswers] = useState<Record<string, string>>({});
 
   // Import TXT/CSV Modal & Preview States
-  const [showImportModal, setShowImportModal] = useState<boolean>(false);
   const [importText, setImportText] = useState<string>('');
-  const [importDeckName, setImportDeckName] = useState<string>('');
+  const importDeckName = 'Từ của tôi';
   const [importAnalysis, setImportAnalysis] = useState<ParsePreviewResult | null>(null);
+  const [importFormat, setImportFormat] = useState<'text' | 'csv'>('text');
+  const [enrichedImport, setEnrichedImport] = useState<EnrichedImportItem[]>([]);
+  const [isEnrichingImport, setIsEnrichingImport] = useState(false);
+  const [importError, setImportError] = useState('');
+  const [importCorrections, setImportCorrections] = useState<Record<string, string>>({});
 
   // Load decks on mount
   useEffect(() => {
@@ -412,32 +425,35 @@ export const VocabSRSView: React.FC = () => {
     setAddFeedbackMsg(null);
 
     // 1. Check duplicate
-    const dupCheck = await checkDuplicateWordApi(rawWord);
-    if (dupCheck.exists && dupCheck.card) {
-      setDuplicateWarning({
-        exists: true,
-        card: dupCheck.card,
-        message: `Từ "${rawWord}" đã có trong danh sách từ vựng của bạn.`
-      });
-    }
+    try {
+      const dupCheck = await checkDuplicateWordApi(rawWord);
+      if (dupCheck.exists && dupCheck.card) {
+        setDuplicateWarning({
+          exists: true,
+          card: dupCheck.card,
+          message: `Từ "${rawWord}" đã có trong danh sách từ vựng của bạn.`
+        });
+      }
 
-    // 2. Fetch dictionary lookup
-    const res = await lookupVocabularyApi(rawWord, lookupContextInput.trim());
-    setLookupResult(res);
-    setSelectedSenseIndex(0);
-    if (res.senses.length > 0 && res.senses[0].viSuggestion) {
-      setCustomMeaningVi(res.senses[0].viSuggestion);
-    } else {
-      setCustomMeaningVi('');
+      const res = await lookupVocabularyApi(rawWord, lookupContextInput.trim());
+      setLookupResult(res);
+      setSelectedSenseIndex(0);
+      setCustomMeaningVi(res.senses[0]?.viSuggestion || '');
+      if (!res.senses.length) setAddFeedbackMsg({ type: 'error', text: 'Chưa tra được nghĩa đáng tin cậy. Có thể thử lại khi có mạng hoặc nhập từ khác.' });
+    } finally {
+      setIsLookingUp(false);
     }
-    setIsLookingUp(false);
   };
 
   const handleSaveLookedUpWord = async (updateExisting = false) => {
     if (!lookupResult || !lookupWordInput.trim()) return;
 
     const chosenSense = lookupResult.senses[selectedSenseIndex] || lookupResult.senses[0];
-    const finalVi = customMeaningVi.trim() || chosenSense.viSuggestion || `Nghĩa của từ ${lookupResult.word}`;
+    const finalVi = customMeaningVi.trim();
+    if (!chosenSense?.definitionEn?.trim() || !finalVi) {
+      setAddFeedbackMsg({ type: 'error', text: 'Hãy chọn một nghĩa tiếng Anh và xác nhận nghĩa tiếng Việt trước khi lưu.' });
+      return;
+    }
 
     const saveResult = await saveCustomCard({
       word: lookupResult.word,
@@ -473,6 +489,76 @@ export const VocabSRSView: React.FC = () => {
     } else {
       setAddFeedbackMsg({ type: 'error', text: saveResult.message });
     }
+  };
+
+  const analyzeBulkInput = (text: string, format = importFormat) => {
+    setImportText(text);
+    setImportFormat(format);
+    setEnrichedImport([]);
+    setImportError('');
+    setImportCorrections({});
+    setImportAnalysis(analyzeVocabImport(text, new Set(allCards.map(card => card.word.toLowerCase())), importDeckName || 'Từ của tôi', format));
+  };
+
+  const handleEnrichBulkImport = async () => {
+    if (!importAnalysis) return;
+    const seen = new Set<string>();
+    const candidates = importAnalysis.parsed.map(card => ({ ...card, word: importCorrections[card.word] || card.word })).filter(card => {
+      const word = card.word.trim().toLowerCase();
+      if (!word || seen.has(word) || allCards.some(existing => existing.word.trim().toLowerCase() === word)) return false;
+      seen.add(word);
+      return true;
+    }).slice(0, 50);
+    if (candidates.length === 0) {
+      setImportError('Không có mục mới để tra. Từ trùng đã được bỏ qua.');
+      return;
+    }
+    if (importAnalysis.parsed.length > 50) setImportError('Mỗi lượt tra tối đa 50 mục; các mục đầu tiên sẽ được xử lý trước.');
+    setIsEnrichingImport(true);
+    const results = await Promise.all(candidates.map(async card => {
+      try {
+        const result = await lookupVocabularyApi(card.word, card.example || card.sourceContext);
+        if (!result.senses.some(sense => sense.definitionEn.trim() && !/^(meaning of|ielts target vocabulary item)/i.test(sense.definitionEn))) return null;
+        return { card, result, senseIndex: 0, meaningVi: card.definitionVi || result.senses[0]?.viSuggestion || '' };
+      } catch {
+        return null;
+      }
+    }));
+    const enriched = results.filter((item): item is EnrichedImportItem => item !== null);
+    setEnrichedImport(enriched);
+    if (enriched.length < candidates.length) setImportError(`${candidates.length - enriched.length} mục chưa tra được nghĩa tin cậy nên không thể lưu. Thử lại khi có mạng hoặc bỏ các mục đó.`);
+    setIsEnrichingImport(false);
+  };
+
+  const handleSaveBulkImport = () => {
+    if (!enrichedImport.length || enrichedImport.some(item => !item.result.senses[item.senseIndex]?.definitionEn.trim() || !item.meaningVi.trim())) return;
+    const cards = enrichedImport.map(({ card, result, senseIndex, meaningVi }) => {
+      const sense = result.senses[senseIndex];
+      return {
+        ...card,
+        word: result.word,
+        lemma: result.lemma,
+        phonetic: result.phonetic,
+        partOfSpeech: sense.partOfSpeech || result.partOfSpeech,
+        definitionVi: meaningVi.trim(),
+        definitionEn: sense.definitionEn,
+        example: card.example || sense.examples?.[0] || '',
+        sourceContext: card.example || card.sourceContext || '',
+        collocations: result.collocations || [],
+        sourceType: 'manual' as const,
+        source: 'Nhập từ cá nhân',
+        audio: result.audio,
+        audioSource: result.audioSource
+      };
+    });
+    const nextDecks = decks.length
+      ? decks.map((deck, index) => index === 0 ? { ...deck, cards: [...cards, ...deck.cards] } : deck)
+      : [{ id: `personal-${Date.now()}`, name: importDeckName || 'Từ của tôi', description: '', createdAt: new Date().toISOString(), source: 'personal', cards }];
+    updateDecks(nextDecks);
+    setShowAddModal(false);
+    setImportText('');
+    setImportAnalysis(null);
+    setEnrichedImport([]);
   };
 
   // Helper for cloze sentences
@@ -692,7 +778,7 @@ export const VocabSRSView: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => setShowImportModal(true)}
+                    onClick={() => { setBulkMode(true); setShowAddModal(true); }}
                     className="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded text-xs font-medium cursor-pointer hover:bg-slate-50"
                   >
                     Nhập TXT / CSV
@@ -700,7 +786,7 @@ export const VocabSRSView: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => setShowAddModal(true)}
+                    onClick={() => { setBulkMode(false); setShowAddModal(true); }}
                     className="px-3 py-1.5 bg-slate-900 text-white rounded text-xs font-semibold cursor-pointer hover:bg-slate-800"
                   >
                     + Tra từ & Thêm
@@ -1571,7 +1657,7 @@ export const VocabSRSView: React.FC = () => {
           <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Tra Từ & Thêm Vào Sổ Tay</h3>
+                <h3 className="text-lg font-bold text-slate-900">{bulkMode ? 'Thêm từ và cụm từ' : 'Tra từ và thêm vào sổ tay'}</h3>
                 <p className="text-xs text-slate-500">Nhập từ vựng, hệ thống sẽ tự động lấy phát âm, nghĩa tiếng Anh và gợi ý tiếng Việt.</p>
               </div>
               <button
@@ -1583,7 +1669,85 @@ export const VocabSRSView: React.FC = () => {
               </button>
             </div>
 
+            <div className="flex gap-2 rounded-xl bg-slate-100 p-1">
+              <button type="button" onClick={() => setBulkMode(false)} className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium ${!bulkMode ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'}`}>Một từ</button>
+              <button type="button" onClick={() => setBulkMode(true)} className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium ${bulkMode ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'}`}>Danh sách / file</button>
+            </div>
+
+            {bulkMode && (
+              <div className="space-y-4">
+                <label className="block text-sm font-medium text-slate-700">
+                  Dán danh sách. Mỗi dòng là một từ hoặc cụm từ.
+                  <textarea
+                    rows={6}
+                    value={importText}
+                    onChange={event => analyzeBulkInput(event.target.value)}
+                    placeholder={'1. consistency\n2. angular pattern\n3. environment'}
+                    className="mt-2 block w-full rounded-xl border border-slate-300 bg-white p-3 text-sm leading-relaxed"
+                  />
+                </label>
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="cursor-pointer rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                    Chọn TXT / CSV
+                    <input type="file" accept=".txt,.csv,text/plain,text/csv" className="sr-only" onChange={async event => {
+                      const file = event.target.files?.[0];
+                      if (!file) return;
+                      const format = file.name.toLowerCase().endsWith('.csv') ? 'csv' : 'text';
+                      analyzeBulkInput(await file.text(), format);
+                      event.currentTarget.value = '';
+                    }} />
+                  </label>
+                  <button type="button" disabled={!importAnalysis?.parsed.length || isEnrichingImport} onClick={handleEnrichBulkImport} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
+                    {isEnrichingImport ? 'Đang tra nghĩa…' : 'Tra nghĩa các mục mới'}
+                  </button>
+                  {importAnalysis && <span className="text-sm text-slate-500">{importAnalysis.parsed.length} mục · {importAnalysis.duplicateCount} mục trùng sẽ bỏ qua</span>}
+                </div>
+                {importAnalysis && enrichedImport.length === 0 && (
+                  <div className="max-h-52 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200 px-3">
+                    {importAnalysis.previewCards.map(card => {
+                      const suggestion = suggestVocabCorrection(card.word, [
+                        ...allCards.map(existing => existing.word),
+                        'independent', 'environment', 'significant', 'development', 'government', 'education'
+                      ]);
+                      const isDuplicate = allCards.some(existing => existing.word.trim().toLowerCase() === card.word.trim().toLowerCase());
+                      return (
+                        <div key={card.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 py-2 text-sm">
+                          <strong className="text-slate-800">{card.word}</strong>
+                          <span className="text-xs text-slate-500">{card.word.includes(' ') ? 'Cụm từ' : 'Từ'}{isDuplicate ? ' · Đã có, sẽ bỏ qua' : ''}</span>
+                          {suggestion && !isDuplicate && <>
+                            <span className="text-xs text-amber-800">Có thể là {suggestion}</span>
+                            <button type="button" onClick={() => setImportCorrections(current => ({ ...current, [card.word]: suggestion }))} className="text-xs font-semibold text-emerald-800 underline">Dùng gợi ý</button>
+                            {importCorrections[card.word] && <button type="button" onClick={() => setImportCorrections(current => { const next = { ...current }; delete next[card.word]; return next; })} className="text-xs text-slate-500 underline">Giữ nguyên</button>}
+                          </>}
+                        </div>
+                      );
+                    })}
+                    {importAnalysis.parsed.length > importAnalysis.previewCards.length && <p className="py-2 text-xs text-slate-500">Đang xem {importAnalysis.previewCards.length} mục đầu tiên.</p>}
+                  </div>
+                )}
+                {importError && <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">{importError}</p>}
+                {enrichedImport.length > 0 && (
+                  <div className="max-h-72 space-y-3 overflow-y-auto rounded-xl border border-slate-200 p-3">
+                    {enrichedImport.map((item, index) => (
+                      <div key={item.card.id} className="grid gap-2 border-b border-slate-100 pb-3 last:border-0 last:pb-0">
+                        <div className="flex flex-wrap items-baseline justify-between gap-2">
+                          <strong className="text-base text-slate-900">{item.card.word}</strong>
+                          <span className="text-sm text-slate-500">{item.result.partOfSpeech}{item.result.phonetic ? ` · ${item.result.phonetic}` : ''}</span>
+                        </div>
+                        <select aria-label={`Nghĩa tiếng Anh của ${item.card.word}`} value={item.senseIndex} onChange={event => setEnrichedImport(current => current.map((entry, i) => i === index ? { ...entry, senseIndex: Number(event.target.value), meaningVi: entry.result.senses[Number(event.target.value)]?.viSuggestion || '' } : entry))} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+                          {item.result.senses.map((sense, senseIndex) => <option key={senseIndex} value={senseIndex}>{sense.partOfSpeech || item.result.partOfSpeech}: {sense.definitionEn}</option>)}
+                        </select>
+                        <input aria-label={`Xác nhận nghĩa tiếng Việt của ${item.card.word}`} value={item.meaningVi} onChange={event => setEnrichedImport(current => current.map((entry, i) => i === index ? { ...entry, meaningVi: event.target.value } : entry))} placeholder="Xác nhận nghĩa tiếng Việt" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" />
+                        {(item.card.example || item.card.sourceContext) && <p className="font-serif-reading text-base italic text-slate-600">{item.card.example || item.card.sourceContext}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Input Form */}
+            {!bulkMode && <>
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-semibold text-slate-700 block mb-1">Từ tiếng Anh (Word):</label>
@@ -1719,6 +1883,7 @@ export const VocabSRSView: React.FC = () => {
                 )}
               </div>
             )}
+            </>}
 
             {addFeedbackMsg && (
               <div className={`p-3 rounded text-xs font-semibold ${
@@ -1737,7 +1902,7 @@ export const VocabSRSView: React.FC = () => {
               >
                 Đóng
               </button>
-              {lookupResult && (
+              {!bulkMode && lookupResult && lookupResult.senses.length > 0 && (
                 <button
                   type="button"
                   onClick={() => handleSaveLookedUpWord(false)}
@@ -1746,87 +1911,18 @@ export const VocabSRSView: React.FC = () => {
                   Xác nhận & Lưu thẻ
                 </button>
               )}
+              {bulkMode && (
+                <button type="button" onClick={handleSaveBulkImport} disabled={!enrichedImport.length || enrichedImport.some(item => !item.result.senses[item.senseIndex]?.definitionEn.trim() || !item.meaningVi.trim())} className="rounded-lg bg-slate-900 px-5 py-2 text-sm font-semibold text-white disabled:opacity-40">
+                  Xác nhận và lưu {enrichedImport.length} mục
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* IMPORT TXT / CSV MODAL (Existing feature preserved)                       */}
-      {/* ========================================================================= */}
-      {showImportModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <h3 className="text-lg font-bold text-slate-900">Nhập Danh Sách Từ Vựng TXT / CSV</h3>
-              <button
-                type="button"
-                onClick={() => setShowImportModal(false)}
-                className="text-slate-400 hover:text-slate-700 text-xl font-bold cursor-pointer"
-              >
-                &times;
-              </button>
-            </div>
 
-            <p className="text-xs text-slate-600">
-              Hỗ trợ các định dạng: <code>word - nghĩa - ví dụ</code> hoặc <code>word | ipa | nghĩa | ví dụ</code> hoặc cách nhau bằng dấu Tab.
-            </p>
-
-            <textarea
-              rows={8}
-              value={importText}
-              onChange={(e) => {
-                setImportText(e.target.value);
-                const existingSet = new Set(allCards.map(c => c.word.toLowerCase()));
-                setImportAnalysis(analyzeVocabImport(e.target.value, existingSet));
-              }}
-              placeholder="mitigate - giảm nhẹ tác hại - Subsidies mitigate emissions.&#10;significant - đáng kể - A significant increase."
-              className="w-full p-3 font-mono text-xs border border-slate-300 rounded-lg focus:outline-hidden"
-            />
-
-            {importAnalysis && (
-              <div className="bg-slate-50 p-3 rounded text-xs space-y-1 text-slate-700 border border-slate-200">
-                <div>Nhận diện thành công: <strong>{importAnalysis.parsed.length}</strong> từ vựng.</div>
-                {importAnalysis.duplicateCount > 0 && (
-                  <div className="text-amber-700 font-medium">
-                    Phát hiện {importAnalysis.duplicateCount} từ trùng lặp sẽ được bỏ qua.
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowImportModal(false)}
-                className="px-4 py-2 border border-slate-300 rounded text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                disabled={!importAnalysis || importAnalysis.parsed.length === 0}
-                onClick={() => {
-                  if (!importAnalysis) return;
-                  const newCards = importAnalysis.parsed;
-                  const updatedDecks = decks.map((d, idx) => {
-                    if (idx === 0) return { ...d, cards: [...newCards, ...d.cards] };
-                    return d;
-                  });
-                  updateDecks(updatedDecks);
-                  setShowImportModal(false);
-                  setImportText('');
-                  setImportAnalysis(null);
-                  alert(`Đã thêm thành công ${newCards.length} thẻ từ vựng vào bộ thẻ.`);
-                }}
-                className="px-4 py-2 bg-slate-900 text-white rounded text-xs font-semibold hover:bg-slate-800 disabled:opacity-50 cursor-pointer"
-              >
-                Xác nhận nhập
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

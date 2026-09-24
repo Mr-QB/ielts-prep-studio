@@ -4,7 +4,7 @@ import { LISTENING_PRACTICE_SECTIONS } from '../data/listeningPracticeData';
 import { LISTENING_STRATEGY_LESSONS } from '../data/listeningStrategyData';
 import { ListeningQuestion, ListeningSection, MistakeTagType, TestAttempt } from '../types';
 import { AudioPlayer } from './AudioPlayer';
-import { recordAttempt, addWordToVocabDeck } from '../utils/db';
+import { recordAttempt, addWordToVocabDeck, lookupVocabularyApi } from '../utils/db';
 import { calculateListeningBand, formatTime } from '../utils/ieltsScoring';
 import { WordCapturePopover } from './WordCapturePopover';
 
@@ -139,11 +139,22 @@ export const ListeningView: React.FC<ListeningViewProps> = () => {
   };
 
   const handleAddWordToVocab = async (word: string, defVi: string, sentence: string) => {
+    const lookup = await lookupVocabularyApi(word, sentence);
+    const sense = lookup.senses[0];
+    if (!sense?.definitionEn || !defVi.trim()) return;
     const res = await addWordToVocabDeck({
       word,
       definitionVi: defVi,
+      definitionEn: sense.definitionEn,
+      lemma: lookup.lemma,
+      phonetic: lookup.phonetic,
+      partOfSpeech: sense.partOfSpeech || lookup.partOfSpeech,
       sourceContext: sentence,
-      source: 'Listening Context Practice'
+      source: 'Listening Context Practice',
+      sourceType: 'listening',
+      audio: lookup.audio,
+      audioSource: lookup.audioSource,
+      collocations: lookup.collocations
     });
     if (res.success) {
       setAddedVocabWords(prev => ({ ...prev, [word]: true }));
