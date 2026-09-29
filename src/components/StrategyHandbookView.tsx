@@ -16,8 +16,10 @@ export const StrategyHandbookView: React.FC = () => {
           Cẩm Nang Chiến Thuật Làm Bài (Strategy Handbook)
         </h1>
         <p className="text-base text-slate-600 mt-1 max-w-3xl">
-          Phương pháp tư duy, kỹ thuật đọc lướt định vị từ khóa và chiến lược phòng thi thực tế đã được kiểm chứng bởi các cựu giám khảo IELTS.
+          Phương pháp tư duy, kỹ thuật đọc lướt định vị từ khóa và chiến lược phòng thi thực tế được tổng hợp thành tài liệu hướng dẫn cho người học.
         </p>
+
+        <p role="note" className="text-xs text-slate-500 mt-2">Nội dung hướng dẫn do IELTS Prep Studio biên soạn; không phải tài liệu IELTS chính thức.</p>
 
         {/* Skill Category Tabs */}
         <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">

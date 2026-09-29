@@ -91,6 +91,7 @@ CREATE INDEX IF NOT EXISTS idx_user_vocab_status ON user_vocab_progress(user_id,
 CREATE TABLE IF NOT EXISTS test_attempts (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
+    exam_family TEXT NOT NULL DEFAULT 'ielts',
     skill TEXT NOT NULL, -- 'reading' | 'listening'
     section_id TEXT NOT NULL,
     section_title TEXT NOT NULL,

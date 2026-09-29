@@ -1,98 +1,73 @@
-# IELTS Prep Studio (Academic Self-Study Platform)
+# IELTS Prep Studio
 
-Nền tảng tự học IELTS cá nhân, tập trung chuyên sâu cho **IELTS Academic** hướng tới mục tiêu **Band 6.5 → 7.0**, thiết kế theo triết lý **tối giản, yên tĩnh, nhanh, keyboard-first, local-first** và **không phụ thuộc vào API AI bên ngoài**.
+Ứng dụng web tự học với giao diện tiếng Việt và bài luyện tiếng Anh. Sản phẩm ưu tiên lộ trình Cambridge IELTS 12 General Training và có thư viện mẫu đề Aptis riêng.
 
----
+## Học trong ứng dụng
 
-## 1. 4 Module Trọng Tâm
+- **IELTS:** lộ trình Cambridge IELTS 12 GT, Tests 5–8; lưu vị trí học, chấm Reading, xem lại lỗi, lưu bài viết và ôn từ vựng theo SM-2.
+- **Listening Cambridge:** dữ liệu câu hỏi và transcript đã được nhập, nhưng phần làm bài chỉ mở khi có audio Cambridge gốc trong bản self-host.
+- **Aptis:** thư viện mẫu Reading, Listening, Writing và Speaking. Reading/Listening có thể chấm theo đáp án; Writing/Speaking chỉ xem đề và bài mẫu.
+- **Kế hoạch học:** xếp việc theo khung giờ, bước Cambridge đang học, từ và lỗi đến hạn. Số liệu chỉ dựa trên dữ liệu đã lưu.
+- **Lưu trữ:** IndexedDB trên thiết bị là bộ nhớ chính; tài khoản đồng bộ thay đổi với Cloudflare D1.
 
-1. **Listening (Luyện Nghe chuẩn 4 Parts):**
-   - Lộ trình 4 Parts chuẩn: Part 1 (Hội thoại xã hội), Part 2 (Độc thoại đời sống), Part 3 (Thảo luận học thuật), Part 4 (Bài giảng học thuật).
-   - Audio Player tối giản, hỗ trợ chọn tốc độ (0.75x – 1.25x), sound test kiểm tra tai nghe.
-   - Chế độ Học tập (Study Mode) kèm Audioscript ẩn/hiện theo nhu cầu và chế độ Thi thử (Exam Mode).
-   - Minh bạch nguồn gốc học liệu: gắn nhãn rõ `Official IELTS`, `British Council`, `User reference`. Tuyệt đối không giả mạo giọng Web Speech thành giọng Cambridge.
+Cambridge là học liệu riêng: không đưa PDF, audio hoặc JSON đầy đủ vào repository. Lưu bản được phép sử dụng tại `data/private/cambridge12_gt/`; thư mục này được loại khỏi Git và được mount chỉ đọc vào container.
 
-2. **Reading (IELTS Academic):**
-   - Mặc định ưu tiên 100% các bài đọc học thuật IELTS Academic (Marie Curie, Dung Beetles, Ant Specimens) với độ dài chuẩn ~2,600 từ cho 3 Passages.
-   - Giao diện chia đôi màn hình (Split-view): bên trái văn bản bài đọc, bên phải câu hỏi; hai khung cuộn độc lập.
-   - Công cụ đánh dấu (Highlighter 3 màu), điều chỉnh cỡ chữ (A-, A, A+), tra cứu vị trí đoạn văn giải thích sau khi nộp bài.
-   - Tài liệu General Training (Cambridge 12) được phân loại riêng vào ngăn tham khảo (Legacy Drawer) kèm cảnh báo rõ ràng.
+## Chạy bằng Docker Compose
 
-3. **Grammar (Lộ trình 26 Chủ điểm):**
-   - **Foundation (G01–G06):** Cấu trúc câu, tránh fragments/run-ons, các thì cốt lõi trong ngữ cảnh IELTS, hòa hợp chủ-vị, mạo từ a/an/the/zero, danh từ đếm được/không đếm được, đại từ liên kết.
-   - **Core IELTS (G07–G20):** Tính từ & trạng từ học thuật, cấu trúc so sánh Task 1, cụm danh từ nén thông tin, giới từ số liệu biểu đồ, mệnh đề quan hệ, modal verbs, thể bị động quy trình, danh động từ, câu điều kiện loại 1 & 2, câu phức, liên từ liên kết, nguyên nhân - kết quả - mục đích, hedging (tính cẩn trọng học thuật), tổ chức đoạn văn.
-   - **Advanced (G21–G26):** Mệnh đề phân từ rút gọn, danh từ hóa (nominalisation), bị động khách quan, đảo ngữ với phó từ phủ định, câu chẻ (cleft sentences), đảo ngữ câu điều kiện không dùng if.
-   - Mỗi bài học gồm: Tầm quan trọng trong IELTS, Công thức, Ví dụ chuẩn mực, Lỗi sai kinh điển & Cách sửa, Bài tập tương tác nhanh, Ứng dụng thực tế.
+Cần Docker Compose và thông tin Cloudflare D1 để dùng đăng nhập, tài khoản và đồng bộ.
 
-4. **Vocabulary & Spaced Repetition (SuperMemo SM-2):**
-   - Học thẻ Flashcard 2 mặt và Gõ chính tả (Typing Mode).
-   - Thuật toán SM-2 chuẩn: Các nút đánh giá [1] Again, [2] Hard, [3] Good, [4] Easy hiển thị chu kỳ tiếp theo được tính toán trực tiếp theo trạng thái thẻ (không hardcode).
-   - Hỗ trợ nhập file `.txt` / `.csv` cá nhân với cửa sổ xem trước (Preview 10 thẻ), phát hiện từ trùng và tùy chọn bỏ qua/ghi đè.
-   - Quản lý bộ từ (Deck): Tạo mới, đổi tên, xóa, xuất file JSON (bảo toàn tiến độ học SRS) hoặc file TXT.
-   - Lưu trữ bền vững Local-first qua IndexedDB (có sao lưu tự động vào localStorage).
+1. Tạo `.env` từ mẫu rồi điền thông tin D1:
 
----
+   ```powershell
+   Copy-Item .env.example .env
+   ```
 
-## 2. Phím Tắt Điều Khiển (Keyboard Shortcuts)
+   Cập nhật `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_DATABASE_ID` và `CLOUDFLARE_API_TOKEN` trong `.env`.
 
-### Trong chế độ Flashcard (Ôn từ vựng):
-| Phím | Chức năng |
-| :--- | :--- |
-| `Space` | Lật thẻ xem nghĩa, phiên âm và ví dụ ngữ cảnh |
-| `1` | Đánh giá **Quên (Again)** — ôn lại sau < 10 phút |
-| `2` | Đánh giá **Khó (Hard)** — ôn lại sau 12 giờ hoặc chu kỳ ngắn |
-| `3` | Đánh giá **Tốt (Good)** — ôn lại sau 1 – 3 ngày |
-| `4` | Đánh giá **Rất Dễ (Easy)** — ôn lại sau 3 – 6 ngày |
-| `R` | Nghe phát âm từ vựng (Browser TTS) |
-| `→` | Chuyển sang thẻ kế tiếp |
+2. Tạo schema và tài khoản quản trị từ máy đã cấu hình Node.js:
 
-### Trong chế độ Gõ chính tả (Typing Mode):
-| Phím | Chức năng |
-| :--- | :--- |
-| `Enter` (lần 1) | Kiểm tra chính tả từ vừa gõ |
-| `Enter` hoặc `Space` (lần 2) | Tiếp tục sang từ tiếp theo |
+   ```powershell
+   npm ci
+   npm run d1:migrate
+   npm run user:create -- --email=you@example.com --name="Your Name" --password="Choose-A-Password"
+   ```
 
----
+   Ứng dụng không mở đăng ký công khai; chỉ tạo tài khoản theo cách quản trị này.
 
-## 3. Kiểm Tra Dữ Liệu & Kiểm Thử Tự Động (Data QA & Tests)
+3. Khởi động ứng dụng:
 
-Dự án tích hợp sẵn công cụ kiểm định toàn vẹn dữ liệu:
+   ```powershell
+   docker compose up -d --build
+   docker compose ps
+   ```
 
-```bash
-# Kiểm tra toàn bộ ID trùng lặp, thiếu đáp án, cấu trúc bài tập (Offline):
-npm run validate:data
+   Mặc định app ở `http://localhost:8085`. Container phục vụ API và frontend bằng Node.js; dữ liệu `data/private/` được mount chỉ đọc. Để truy cập qua Internet, cần cấu hình HTTPS/reverse proxy trên máy chủ tự host.
 
-# Kiểm tra mở rộng (Online):
-npm run validate:data:online
+   ```powershell
+   docker compose logs -f
+   docker compose down
+   ```
 
-# Chạy toàn bộ Unit Tests (Kiểm thử thuật toán SM-2, Text Parser, Data Integrity):
-npm test
+### Đồng bộ Google Calendar (tùy chọn)
 
-# Kiểm tra TypeScript typecheck:
+Để bật đồng bộ trực tiếp, tạo OAuth Client ID loại **Web application** trong Google Cloud Console, bật Google Calendar API, rồi khai báo đúng callback `https://<ten-mien>/api/calendar/oauth/callback` trong danh sách redirect URI. Thêm bốn biến sau vào `.env`:
+
+```text
+GOOGLE_OAUTH_CLIENT_ID
+GOOGLE_OAUTH_CLIENT_SECRET
+GOOGLE_OAUTH_REDIRECT_URI
+GOOGLE_TOKEN_ENCRYPTION_KEY
+```
+
+Khóa mã hóa phải là 32 byte, biểu diễn bằng 64 ký tự hex hoặc base64. Có thể tạo khóa hex bằng `openssl rand -hex 32`; hãy giữ nguyên khóa này để đọc được token đã lưu. Sau đó chạy lại `docker compose up -d --build`. Mỗi lần bấm đồng bộ, ứng dụng tạo hoặc cập nhật một sự kiện cho mỗi ngày có lịch trong Google Calendar chính; sự kiện có nhắc trước 10 phút. Nếu kế hoạch đổi, ứng dụng xóa các khối do mình tạo trong 7 ngày tới đã bị bỏ khỏi kế hoạch, còn sự kiện trong quá khứ được giữ lại. Tài khoản và token được tách theo người dùng; refresh token lưu trong D1 dưới dạng mã hóa AES-256-GCM. Ngắt kết nối thu hồi quyền Google, còn sự kiện đã đồng bộ và mã theo dõi được giữ để lần kết nối sau cập nhật đúng các sự kiện cũ. Tệp `.ics` vẫn dùng được khi chưa cấu hình OAuth.
+
+## Kiểm tra mã nguồn và dữ liệu
+
+```powershell
 npm run lint
-
-# Tạo bản build production:
+npm test
+npm run validate:data
 npm run build
 ```
 
----
-
-## 4. Chạy Bằng Docker (Production Deployment)
-
-Dự án được đóng gói bằng Multi-stage Dockerfile (Node 20 build → Nginx Alpine serve), phục vụ ứng dụng tại địa chỉ `http://127.0.0.1:8085`.
-
-```bash
-# Khởi động ứng dụng bằng Docker Compose:
-docker compose up -d --build
-
-# Kiểm tra trạng thái container và healthcheck:
-docker compose ps
-
-# Xem log container:
-docker compose logs -f
-
-# Dừng container khi không sử dụng:
-docker compose down
-```
-
-> **Ghi chú cổng:** Mặc định cổng map ra host là `8085` (tránh xung đột với cổng `8080` trên máy). Bạn có thể đổi cổng bằng cách truyền biến môi trường, ví dụ: `PORT=8080 docker compose up -d`.
+`npm run validate:data` kiểm tra bộ dữ liệu IELTS/Aptis và manifest Cambridge riêng trên máy. Không đưa nội dung Cambridge riêng vào bản build công khai.

@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { Navbar } from './components/Navbar';
 import { TodayDashboard } from './components/TodayDashboard';
-import { ListeningView } from './components/ListeningView';
-import { ReadingView } from './components/ReadingView';
+import { CambridgeCourseView } from './components/CambridgeCourseView';
+import { StudyPlanView } from './components/StudyPlanView';
 import { GrammarView } from './components/GrammarView';
 import { VocabSRSView } from './components/VocabSRSView';
 import { WritingNotesView } from './components/WritingNotesView';
@@ -13,14 +13,16 @@ import { ProgressView } from './components/ProgressView';
 import { StrategyHandbookView } from './components/StrategyHandbookView';
 import { LoginView } from './components/LoginView';
 import { UserProfileModal } from './components/UserProfileModal';
-import { AppTab, ExamMode, UserProfile } from './types';
+import { AppTab, ExamFamily, UserProfile } from './types';
 import { fetchCurrentUser, logoutUser } from './utils/db';
+
+const AptisSamplesView = lazy(() => import('./components/AptisSamplesView').then(module => ({ default: module.AptisSamplesView })));
 
 export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [activeTab, setActiveTab] = useState<AppTab>('today');
-  const [examMode] = useState<ExamMode>('study');
+  const [examFamily, setExamFamily] = useState<ExamFamily>(() => localStorage.getItem('examFamily') === 'aptis' ? 'aptis' : 'ielts');
   const [showProfileModal, setShowProfileModal] = useState(false);
 
   useEffect(() => {
@@ -34,10 +36,24 @@ export default function App() {
     return () => { mounted = false; };
   }, []);
 
+  useEffect(() => {
+    if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+      void navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+    }
+  }, []);
+
   const handleLogout = async () => {
     await logoutUser();
     setUser(null);
     setActiveTab('today');
+    setExamFamily('ielts');
+    localStorage.setItem('examFamily', 'ielts');
+  };
+
+  const handleExamFamilyChange = (next: ExamFamily) => {
+    setExamFamily(next);
+    localStorage.setItem('examFamily', next);
+    setActiveTab(next === 'aptis' ? 'aptis' : 'today');
   };
 
   if (isLoadingAuth) {
@@ -60,6 +76,8 @@ export default function App() {
       <Navbar
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        examFamily={examFamily}
+        onExamFamilyChange={handleExamFamilyChange}
         user={user}
         onLogout={handleLogout}
         onOpenProfile={() => setShowProfileModal(true)}
@@ -72,9 +90,12 @@ export default function App() {
           onUpdateSuccess={setUser}
         />
         <main className="workspace-content flex-1">
+          {examFamily === 'aptis' ? <Suspense fallback={<p className="p-8 text-sm text-muted">Aptis samples are loading…</p>}><AptisSamplesView /></Suspense> : <>
           {activeTab === 'today' && <TodayDashboard onNavigateTab={setActiveTab} user={user} />}
-          {activeTab === 'reading' && <ReadingView examMode={examMode} />}
-          {activeTab === 'listening' && <ListeningView examMode={examMode} />}
+          {activeTab === 'plan' && <StudyPlanView onNavigateTab={setActiveTab} user={user} />}
+          {activeTab === 'cambridge' && <CambridgeCourseView />}
+          {activeTab === 'reading' && <CambridgeCourseView />}
+          {activeTab === 'listening' && <CambridgeCourseView />}
           {activeTab === 'grammar' && <GrammarView />}
           {activeTab === 'vocab' && <VocabSRSView />}
           {activeTab === 'strategy' && <StrategyHandbookView />}
@@ -83,9 +104,10 @@ export default function App() {
           {activeTab === 'mistakes' && <MistakesNotebookView onNavigateTab={setActiveTab} />}
           {activeTab === 'weak-areas' && <WeakAreasView onNavigateTab={setActiveTab} />}
           {activeTab === 'progress' && <ProgressView onNavigateTab={setActiveTab} />}
+          </>}
         </main>
         <footer className="workspace-footer mt-auto flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <span>IELTS Prep Studio · Học tập theo nhịp của bạn</span>
+          <span>{examFamily === 'aptis' ? 'Aptis Prep · Thư viện mẫu đề' : 'IELTS Prep Studio · Học tập theo nhịp của bạn'}</span>
           <span>{user.displayName} · Mục tiêu Band {user.targetBand.toFixed(1)}</span>
         </footer>
       </div>

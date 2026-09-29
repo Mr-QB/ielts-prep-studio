@@ -10,12 +10,15 @@ import {
   RecordedMistake,
   WeakAreaStat,
   DailyProtocolRecord,
-  DailyTaskItem,
   VocabCard,
   UserProfile,
   SRSIntervalRating,
   VocabReviewLog,
-  VocabLookupResult
+  VocabLookupResult,
+  LearningPosition,
+  CambridgeWritingWork,
+  CambridgePracticeDraft,
+  StudyPlanSettings
 } from '../types';
 import { calculateNextSRS } from './srsEngine';
 
@@ -36,8 +39,8 @@ export function setActiveUser(user: UserProfile | null): void {
   }
 }
 
-function getUserKey(prefix: string): string {
-  const uid = currentActiveUser?.id || 'anonymous';
+function getUserKey(prefix: string, userId = currentActiveUser?.id || 'anonymous'): string {
+  const uid = userId;
   return `user:${uid}:${prefix}`;
 }
 
@@ -95,8 +98,8 @@ interface SyncChange {
   updatedAt: number;
 }
 
-async function readLocalData<T>(prefix: string, fallback: T): Promise<T> {
-  const storeId = getUserKey(prefix);
+async function readLocalData<T>(prefix: string, fallback: T, userId?: string): Promise<T> {
+  const storeId = getUserKey(prefix, userId);
   try {
     const db = await getDB();
     const row = await new Promise<LocalRecord<T> | undefined>((resolve, reject) => {
@@ -110,15 +113,15 @@ async function readLocalData<T>(prefix: string, fallback: T): Promise<T> {
     const raw = localStorage.getItem(storeId);
     if (raw) {
       const value = JSON.parse(raw) as T;
-      await writeLocalData(prefix, value);
+      await writeLocalData(prefix, value, userId);
       return value;
     }
   } catch { /* storage may be unavailable */ }
   return fallback;
 }
 
-async function writeLocalData<T>(prefix: string, value: T): Promise<void> {
-  const storeId = getUserKey(prefix);
+async function writeLocalData<T>(prefix: string, value: T, userId?: string): Promise<void> {
+  const storeId = getUserKey(prefix, userId);
   const updatedAt = Date.now();
   try {
     const db = await getDB();
@@ -132,8 +135,20 @@ async function writeLocalData<T>(prefix: string, value: T): Promise<void> {
   try { localStorage.setItem(storeId, JSON.stringify(value)); } catch { /* quota/private mode */ }
 }
 
-async function deleteLocalData(prefix: string): Promise<void> {
-  const storeId = getUserKey(prefix);
+export async function loadPrivateBookCache<T>(key: string): Promise<T | null> {
+  return readLocalData<T | null>(`private_book_cache:${key}`, null);
+}
+
+export async function savePrivateBookCache<T>(key: string, value: T): Promise<void> {
+  await writeLocalData(`private_book_cache:${key}`, value);
+}
+
+export const loadVocabularyLearningSession = <T>() => readLocalData<T | null>('vocab_learning_session', null);
+export const saveVocabularyLearningSession = <T>(session: T) => writeLocalData('vocab_learning_session', session);
+export const clearVocabularyLearningSession = () => deleteLocalData('vocab_learning_session');
+
+async function deleteLocalData(prefix: string, userId?: string): Promise<void> {
+  const storeId = getUserKey(prefix, userId);
   try {
     const db = await getDB();
     await new Promise<void>((resolve, reject) => {
@@ -147,14 +162,15 @@ async function deleteLocalData(prefix: string): Promise<void> {
 }
 
 let syncTimer: number | undefined;
-let syncRunning = false;
+let syncRunning = false; // ponytail: serializes accounts in one tab; key by user only if sync becomes parallel.
 
 async function queueSyncChange(entity: string, recordId: string, payload: unknown, operation: 'upsert' | 'delete' = 'upsert'): Promise<void> {
   if (!currentActiveUser) return;
+  const userId = currentActiveUser.id;
   const change: SyncChange = {
-    id: `${currentActiveUser.id}:${entity}:${recordId}`,
+    id: `${userId}:${entity}:${recordId}`,
     changeId: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-    userId: currentActiveUser.id,
+    userId,
     entity,
     recordId,
     operation,
@@ -170,10 +186,10 @@ async function queueSyncChange(entity: string, recordId: string, payload: unknow
       tx.onerror = () => reject(tx.error);
     });
   } catch { /* the local record is retained even if the outbox is unavailable */ }
-  if (['decks', 'vocab_progress', 'grammar', 'protocol', 'mistake'].includes(entity)) {
-    const versions = await readLocalData<Record<string, number>>('sync_versions', {});
+  if (['decks', 'vocab_progress', 'grammar', 'protocol', 'mistake', 'learning_position', 'cambridge_writing', 'cambridge_practice', 'planner_settings'].includes(entity)) {
+    const versions = await readLocalData<Record<string, number>>('sync_versions', {}, userId);
     versions[`${entity}:${recordId}`] = change.updatedAt;
-    await writeLocalData('sync_versions', versions);
+    await writeLocalData('sync_versions', versions, userId);
   }
   if (navigator.onLine) {
     window.clearTimeout(syncTimer);
@@ -183,12 +199,13 @@ async function queueSyncChange(entity: string, recordId: string, payload: unknow
 
 async function syncPendingChanges(): Promise<void> {
   if (syncRunning || !currentActiveUser || !navigator.onLine) return;
+  const syncUserId = currentActiveUser.id;
   syncRunning = true;
   try {
     const db = await getDB();
     const queued = await new Promise<SyncChange[]>((resolve, reject) => {
       const request = db.transaction('sync_queue', 'readonly').objectStore('sync_queue').getAll();
-      request.onsuccess = () => resolve(request.result.filter((change: SyncChange) => change.userId === currentActiveUser?.id));
+      request.onsuccess = () => resolve(request.result.filter((change: SyncChange) => change.userId === syncUserId));
       request.onerror = () => reject(request.error);
     });
     if (queued.length) {
@@ -206,76 +223,107 @@ async function syncPendingChanges(): Promise<void> {
         });
       }
     }
-    const cursorKey = `sync_cursor:${currentActiveUser.id}`;
-    let cursor = await readLocalData<number>(cursorKey, 0);
+    const cursorKey = `sync_cursor:${syncUserId}`;
+    let cursor = await readLocalData<number>(cursorKey, 0, syncUserId);
     for (let page = 0; page < 20; page += 1) {
       const pulled = await fetch(`/api/sync/pull?cursor=${cursor}`, { signal: AbortSignal.timeout(5000) });
       if (!pulled.ok) break;
       const data = await pulled.json();
       const changes = data.changes as SyncChange[];
-      for (const change of changes) await applyRemoteChange(change);
+      for (const change of changes) await applyRemoteChange(change, syncUserId);
       if (!Number.isFinite(data.cursor) || data.cursor <= cursor) break;
       cursor = data.cursor;
-      await writeLocalData(cursorKey, cursor);
+      await writeLocalData(cursorKey, cursor, syncUserId);
       if (changes.length < 500) break;
     }
   } catch { /* retry on the next local change or online event */ }
-  finally { syncRunning = false; }
+  finally {
+    syncRunning = false;
+    if (currentActiveUser && currentActiveUser.id !== syncUserId) void syncPendingChanges();
+  }
 }
 
-async function applyRemoteChange(change: SyncChange): Promise<void> {
-  if (!currentActiveUser || change.userId !== currentActiveUser.id) return;
-  if (['decks', 'vocab_progress', 'grammar', 'protocol', 'mistake'].includes(change.entity)) {
-    const versions = await readLocalData<Record<string, number>>('sync_versions', {});
+async function applyRemoteChange(change: SyncChange, userId: string): Promise<void> {
+  if (change.userId !== userId) return;
+  if (['decks', 'vocab_progress', 'grammar', 'protocol', 'mistake', 'learning_position', 'cambridge_writing', 'cambridge_practice', 'planner_settings'].includes(change.entity)) {
+    const versions = await readLocalData<Record<string, number>>('sync_versions', {}, userId);
     const versionKey = `${change.entity}:${change.recordId}`;
     if ((versions[versionKey] || 0) > change.updatedAt) return;
     versions[versionKey] = change.updatedAt;
-    await writeLocalData('sync_versions', versions);
+    await writeLocalData('sync_versions', versions, userId);
   }
   if (change.operation === 'delete') {
-    if (change.entity === 'attempt') await writeLocalData('attempts', (await readLocalData<TestAttempt[]>('attempts', [])).filter(item => item.id !== change.recordId));
-    if (change.entity === 'mistake') await writeLocalData('mistakes', (await readLocalData<RecordedMistake[]>('mistakes', [])).filter(item => item.id !== change.recordId));
-    if (change.entity === 'vocab_review') await writeLocalData('vocab_review_logs', (await readLocalData<VocabReviewLog[]>('vocab_review_logs', [])).filter(item => item.id !== change.recordId));
-    if (change.entity === 'protocol') await deleteLocalData(`protocol_${change.recordId}`);
+    if (change.entity === 'attempt') await writeLocalData('attempts', (await readLocalData<TestAttempt[]>('attempts', [], userId)).filter(item => item.id !== change.recordId), userId);
+    if (change.entity === 'mistake') await writeLocalData('mistakes', (await readLocalData<RecordedMistake[]>('mistakes', [], userId)).filter(item => item.id !== change.recordId), userId);
+    if (change.entity === 'vocab_review') await writeLocalData('vocab_review_logs', (await readLocalData<VocabReviewLog[]>('vocab_review_logs', [], userId)).filter(item => item.id !== change.recordId), userId);
+    if (change.entity === 'protocol') await deleteLocalData(`protocol_${change.recordId}`, userId);
+    if (change.entity === 'learning_position') await deleteLocalData('learning_position', userId);
+    if (change.entity === 'planner_settings') await deleteLocalData('study_plan_settings', userId);
+    if (change.entity === 'cambridge_writing') {
+      const work = await readLocalData<Record<string, CambridgeWritingWork>>('cambridge_writing', {}, userId);
+      delete work[change.recordId];
+      await writeLocalData('cambridge_writing', work, userId);
+    }
+    if (change.entity === 'cambridge_practice') {
+      const drafts = await readLocalData<Record<string, CambridgePracticeDraft>>('cambridge_practice', {}, userId);
+      delete drafts[change.recordId];
+      await writeLocalData('cambridge_practice', drafts, userId);
+    }
     if (change.entity === 'grammar') {
-      const progress = await readLocalData<Record<string, GrammarProgressStatus>>('grammar', {});
+      const progress = await readLocalData<Record<string, GrammarProgressStatus>>('grammar', {}, userId);
       delete progress[change.recordId];
-      await writeLocalData('grammar', progress);
+      await writeLocalData('grammar', progress, userId);
     }
     return;
   }
   const mergeById = <T extends { id: string }>(current: T[], incoming: T): T[] => [incoming, ...current.filter(item => item.id !== incoming.id)];
   switch (change.entity) {
     case 'decks':
-      await writeLocalData('decks', change.payload as VocabDeck[]);
+      await writeLocalData('decks', change.payload as VocabDeck[], userId);
       break;
     case 'vocab_progress': {
-      const decks = await readLocalData<VocabDeck[]>('decks', []);
+      const decks = await readLocalData<VocabDeck[]>('decks', [], userId);
       const card = change.payload as VocabCard;
-      await writeLocalData('decks', decks.map(deck => ({ ...deck, cards: deck.cards.map(item => item.id === card.id ? card : item) })));
+      await writeLocalData('decks', decks.map(deck => ({ ...deck, cards: deck.cards.map(item => item.id === card.id ? card : item) })), userId);
       break;
     }
     case 'attempt': {
-      const attempts = await readLocalData<TestAttempt[]>('attempts', []);
-      await writeLocalData('attempts', mergeById(attempts, change.payload as TestAttempt).slice(0, 100));
+      const attempts = await readLocalData<TestAttempt[]>('attempts', [], userId);
+      await writeLocalData('attempts', mergeById(attempts, change.payload as TestAttempt).slice(0, 100), userId);
       break;
     }
     case 'mistake': {
-      const mistakes = await readLocalData<RecordedMistake[]>('mistakes', []);
-      await writeLocalData('mistakes', mergeById(mistakes, change.payload as RecordedMistake).slice(0, 200));
+      const mistakes = await readLocalData<RecordedMistake[]>('mistakes', [], userId);
+      await writeLocalData('mistakes', mergeById(mistakes, change.payload as RecordedMistake).slice(0, 200), userId);
       break;
     }
     case 'grammar': {
-      const progress = await readLocalData<Record<string, GrammarProgressStatus>>('grammar', {});
-      await writeLocalData('grammar', { ...progress, [change.recordId]: change.payload as GrammarProgressStatus });
+      const progress = await readLocalData<Record<string, GrammarProgressStatus>>('grammar', {}, userId);
+      await writeLocalData('grammar', { ...progress, [change.recordId]: change.payload as GrammarProgressStatus }, userId);
       break;
     }
     case 'protocol':
-      await writeLocalData(`protocol_${change.recordId}`, change.payload as DailyProtocolRecord);
+      await writeLocalData(`protocol_${change.recordId}`, change.payload as DailyProtocolRecord, userId);
       break;
+    case 'learning_position':
+      await writeLocalData('learning_position', change.payload as LearningPosition, userId);
+      break;
+    case 'planner_settings':
+      await writeLocalData('study_plan_settings', change.payload as StudyPlanSettings, userId);
+      break;
+    case 'cambridge_writing': {
+      const work = await readLocalData<Record<string, CambridgeWritingWork>>('cambridge_writing', {}, userId);
+      await writeLocalData('cambridge_writing', { ...work, [change.recordId]: change.payload as CambridgeWritingWork }, userId);
+      break;
+    }
+    case 'cambridge_practice': {
+      const drafts = await readLocalData<Record<string, CambridgePracticeDraft>>('cambridge_practice', {}, userId);
+      await writeLocalData('cambridge_practice', { ...drafts, [change.recordId]: change.payload as CambridgePracticeDraft }, userId);
+      break;
+    }
     case 'vocab_review': {
-      const logs = await readLocalData<VocabReviewLog[]>('vocab_review_logs', []);
-      await writeLocalData('vocab_review_logs', mergeById(logs, change.payload as VocabReviewLog).slice(0, 500));
+      const logs = await readLocalData<VocabReviewLog[]>('vocab_review_logs', [], userId);
+      await writeLocalData('vocab_review_logs', mergeById(logs, change.payload as VocabReviewLog).slice(0, 500), userId);
       break;
     }
   }
@@ -447,6 +495,9 @@ export interface AddWordCardData {
   source?: string;
   sourceType?: 'reading' | 'listening' | 'manual' | 'starter';
   sourceId?: string;
+  sourcePackId?: string;
+  sourceTestNumber?: number;
+  sourceSectionNumber?: number;
   phonetic?: string;
   partOfSpeech?: string;
   audio?: string;
@@ -454,6 +505,33 @@ export interface AddWordCardData {
   lemma?: string;
   priority?: number;
   updateExisting?: boolean;
+}
+
+const starterDeckIds = new Set(['core-band-4-5', 'starter-academic-core', 'starter-upgrade-band-7']);
+const starterCardIdPrefixes = ['v-core-', 'v-acad-', 'v-upg-'];
+
+/** Hide built-in placeholder cards while keeping learner cards saved in those decks visible. */
+export function getLearnerVocabDecks(decks: VocabDeck[]): VocabDeck[] {
+  const learnerDecks = decks.filter(deck => !starterDeckIds.has(deck.id));
+  const legacyCards = decks.filter(deck => starterDeckIds.has(deck.id))
+    .flatMap(deck => deck.cards.filter(card => !starterCardIdPrefixes.some(prefix => card.id.startsWith(prefix))));
+
+  if (!legacyCards.length) return learnerDecks;
+  const legacyDeckId = 'personal-vocab-legacy';
+  const existing = learnerDecks.find(deck => deck.id === legacyDeckId);
+  if (existing) {
+    return learnerDecks.map(deck => deck.id === legacyDeckId
+      ? { ...deck, cards: [...deck.cards, ...legacyCards.filter(card => !deck.cards.some(existingCard => existingCard.id === card.id))] }
+      : deck);
+  }
+  return [...learnerDecks, {
+    id: legacyDeckId,
+    name: 'My vocabulary',
+    description: 'Words you previously saved.',
+    createdAt: new Date().toISOString(),
+    source: 'user_created',
+    cards: legacyCards,
+  }];
 }
 
 /**
@@ -464,17 +542,20 @@ export async function addWordToVocabDeck(
   deckId?: string
 ): Promise<{ success: boolean; message: string; isDuplicate?: boolean; existingCard?: VocabCard }> {
   try {
-    const decks = await loadDecksFromStorage([]);
-    if (!decks || decks.length === 0) {
-      return { success: false, message: 'Chưa có bộ thẻ nào để thêm.' };
-    }
-
-    const targetDeck = deckId ? decks.find(d => d.id === deckId) || decks[0] : decks[0];
+    let decks = await loadDecksFromStorage([]);
+    let targetDeck = deckId && !starterDeckIds.has(deckId) ? decks.find(deck => deck.id === deckId) : undefined;
+    targetDeck ||= decks.find(deck => !starterDeckIds.has(deck.id));
     const cleanWord = cardData.word.trim();
     if (!cleanWord || !cardData.definitionVi.trim() || !cardData.definitionEn?.trim() || /^(meaning of|ielts target vocabulary item)/i.test(cardData.definitionEn.trim())) {
       return { success: false, message: 'Cần có từ, định nghĩa tiếng Anh và nghĩa tiếng Việt đã xác nhận trước khi lưu.' };
     }
 
+    if (!targetDeck) {
+      const owner = currentActiveUser?.id || 'local';
+      targetDeck = { id: `personal-vocab-${owner}`, name: 'My vocabulary', description: 'Words saved from Cambridge or added by you.', createdAt: new Date().toISOString(), source: 'user_created', cards: [] };
+      decks = [...decks, targetDeck];
+      await saveDecksToStorage(decks);
+    }
     // Check duplicate in all decks
     let existingCard: VocabCard | undefined;
     let existingDeck: VocabDeck | undefined;
@@ -528,6 +609,9 @@ export async function addWordToVocabDeck(
       source: cardData.source || 'IELTS Context Practice',
       sourceType: cardData.sourceType || 'manual',
       sourceId: cardData.sourceId,
+      sourcePackId: cardData.sourcePackId,
+      sourceTestNumber: cardData.sourceTestNumber,
+      sourceSectionNumber: cardData.sourceSectionNumber,
       sourceContext: cardData.sourceContext || cardData.example || '',
       audio: cardData.audio,
       audioSource: cardData.audioSource || 'tts',
@@ -710,11 +794,76 @@ export async function recordAttempt(attempt: TestAttempt): Promise<void> {
         errorType: m.errorType,
         userAnswer: m.userAnswer,
         correctAnswer: m.correctAnswer,
+        questionPrompt: m.questionPrompt,
+        options: m.options,
         note: m.distractorNote || m.paraphraseNote,
-        timestamp: attempt.date
+        timestamp: attempt.date,
+        status: 'new',
+        retryCount: 0,
+        consecutiveCorrect: 0,
+        source: attempt.source,
+        sourcePackId: attempt.sourcePackId,
+        module: attempt.module,
+        bookId: attempt.bookId,
+        testNumber: attempt.testNumber,
+        sectionNumber: m.sectionNumber ?? attempt.sectionNumber,
+        sourcePage: m.sourcePage,
+        sourcePdfPage: m.sourcePdfPage
       });
     }
   }
+}
+
+export async function markAttemptReviewed(attemptId: string): Promise<void> {
+  const attempts = await loadAttemptsFromStorage();
+  const updated = attempts.map(attempt => attempt.id === attemptId ? { ...attempt, reviewedAt: new Date().toISOString() } : attempt);
+  await writeLocalData('attempts', updated);
+  const reviewed = updated.find(attempt => attempt.id === attemptId);
+  if (reviewed) await queueSyncChange('attempt', reviewed.id, reviewed);
+}
+
+export const loadLearningPosition = () => readLocalData<LearningPosition | null>('learning_position', null);
+
+export const loadStudyPlanSettings = () => readLocalData<StudyPlanSettings | null>('study_plan_settings', null);
+
+export async function saveStudyPlanSettings(settings: StudyPlanSettings): Promise<void> {
+  await writeLocalData('study_plan_settings', settings);
+  await queueSyncChange('planner_settings', settings.id, settings);
+}
+
+export async function saveLearningPosition(position: LearningPosition): Promise<void> {
+  await writeLocalData('learning_position', position);
+  await queueSyncChange('learning_position', 'current', position);
+}
+
+export async function clearLearningPosition(): Promise<void> {
+  await deleteLocalData('learning_position');
+  await queueSyncChange('learning_position', 'current', null, 'delete');
+}
+
+export const loadCambridgeWritingWork = () => readLocalData<Record<string, CambridgeWritingWork>>('cambridge_writing', {});
+
+export async function saveCambridgeWritingWork(work: CambridgeWritingWork): Promise<void> {
+  const all = await loadCambridgeWritingWork();
+  all[work.id] = work;
+  await writeLocalData('cambridge_writing', all);
+  await queueSyncChange('cambridge_writing', work.id, work);
+}
+
+export const loadCambridgePracticeDraft = async (id: string) => (await readLocalData<Record<string, CambridgePracticeDraft>>('cambridge_practice', {}))[id] ?? null;
+
+export async function saveCambridgePracticeDraft(draft: CambridgePracticeDraft): Promise<void> {
+  const drafts = await readLocalData<Record<string, CambridgePracticeDraft>>('cambridge_practice', {});
+  drafts[draft.id] = draft;
+  await writeLocalData('cambridge_practice', drafts);
+  await queueSyncChange('cambridge_practice', draft.id, draft);
+}
+
+export async function clearCambridgePracticeDraft(id: string): Promise<void> {
+  const drafts = await readLocalData<Record<string, CambridgePracticeDraft>>('cambridge_practice', {});
+  delete drafts[id];
+  await writeLocalData('cambridge_practice', drafts);
+  await queueSyncChange('cambridge_practice', id, null, 'delete');
 }
 
 // ==========================================
@@ -754,43 +903,35 @@ export async function recordDetailedMistake(mistake: RecordedMistake): Promise<v
   await queueSyncChange('mistake', mistake.id, mistake);
 }
 
-export async function getWeakAreaStats(): Promise<WeakAreaStat[]> {
-  const attempts = await loadAttemptsFromStorage();
-  const typeMap: Record<string, { skill: 'reading' | 'listening'; total: number; incorrect: number }> = {};
+export function buildWeakAreaStats(attempts: TestAttempt[]): WeakAreaStat[] {
+  const typeMap: Record<string, { questionType: string; skill: 'reading' | 'listening'; total: number; incorrect: number }> = {};
 
-  attempts.forEach(att => {
+  attempts.filter(att => att.sourcePackId === 'cambridge12-gt' && att.questionTypeStats).forEach(att => {
     if (att.questionTypeStats) {
       Object.entries(att.questionTypeStats).forEach(([type, stat]) => {
-        if (!typeMap[type]) {
-          typeMap[type] = { skill: att.skill, total: 0, incorrect: 0 };
+        const key = `${att.skill}:${type}`;
+        if (!typeMap[key]) {
+          typeMap[key] = { questionType: type, skill: att.skill, total: 0, incorrect: 0 };
         }
-        typeMap[type].total += stat.total;
-        typeMap[type].incorrect += (stat.total - stat.correct);
-      });
-    } else if (att.mistakeTags) {
-      att.mistakeTags.forEach(m => {
-        if (!typeMap[m.type]) {
-          typeMap[m.type] = { skill: att.skill, total: 0, incorrect: 0 };
-        }
-        typeMap[m.type].incorrect += 1;
-        typeMap[m.type].total = Math.max(typeMap[m.type].total + 1, typeMap[m.type].incorrect + 1);
+        typeMap[key].total += stat.total;
+        typeMap[key].incorrect += (stat.total - stat.correct);
       });
     }
   });
 
-  const stats: WeakAreaStat[] = Object.entries(typeMap).map(([type, data]) => {
+  const stats: WeakAreaStat[] = Object.values(typeMap).map(data => {
     const correct = Math.max(0, data.total - data.incorrect);
     const rate = data.total > 0 ? Math.round((correct / data.total) * 100) : 100;
 
-    let recommendation = `Tiếp tục duy trì dạng bài ${type}.`;
+    let recommendation = `Tiếp tục duy trì dạng bài ${data.questionType}.`;
     if (rate < 60) {
-      recommendation = `Độ chính xác thấp (${rate}%). Nên ưu tiên luyện thêm 1–2 set dạng ${type}.`;
+      recommendation = `Độ chính xác thấp (${rate}%). Nên ưu tiên luyện thêm 1–2 set dạng ${data.questionType}.`;
     } else if (rate < 75) {
-      recommendation = `Cần chú ý bẫy từ đồng nghĩa và từ gây nhiễu trong dạng ${type}.`;
+      recommendation = `Cần chú ý bẫy từ đồng nghĩa và từ gây nhiễu trong dạng ${data.questionType}.`;
     }
 
     return {
-      questionType: type,
+      questionType: data.questionType,
       skill: data.skill,
       totalQuestions: data.total,
       incorrectCount: data.incorrect,
@@ -800,6 +941,34 @@ export async function getWeakAreaStats(): Promise<WeakAreaStat[]> {
   });
 
   return stats.sort((a, b) => a.accuracyRate - b.accuracyRate);
+}
+
+export function buildWeeklySkillStats(attempts: TestAttempt[], fromDate: string, throughDate: string) {
+  const start = new Date(`${fromDate}T00:00:00`).getTime();
+  const end = new Date(`${throughDate}T23:59:59.999`).getTime();
+  const totals = new Map<TestAttempt['skill'], { correct: number; total: number }>();
+  attempts.filter(attempt => attempt.sourcePackId === 'cambridge12-gt').forEach(attempt => {
+    const timestamp = new Date(attempt.date).getTime();
+    if (!Number.isFinite(timestamp) || timestamp < start || timestamp > end) return;
+    const current = totals.get(attempt.skill) || { correct: 0, total: 0 };
+    if (attempt.questionTypeStats && Object.keys(attempt.questionTypeStats).length) {
+      Object.values(attempt.questionTypeStats).forEach(stat => { current.correct += stat.correct; current.total += stat.total; });
+    } else {
+      current.correct += attempt.score;
+      current.total += attempt.total;
+    }
+    totals.set(attempt.skill, current);
+  });
+  return [...totals.entries()].map(([skill, data]) => ({
+    skill,
+    correctQuestions: data.correct,
+    totalQuestions: data.total,
+    accuracyRate: data.total ? Math.round(data.correct / data.total * 100) : 0,
+  })).sort((a, b) => a.accuracyRate - b.accuracyRate);
+}
+
+export async function getWeakAreaStats(): Promise<WeakAreaStat[]> {
+  return buildWeakAreaStats(await loadAttemptsFromStorage());
 }
 
 // ==========================================
@@ -844,57 +1013,6 @@ export async function saveGrammarProgress(topicId: string, status: GrammarProgre
 // ==========================================
 // 5. DAILY STUDY PROTOCOL & 180-DAY TRACKER (USER-ISOLATED)
 // ==========================================
-
-export const DEFAULT_DAILY_TASKS: DailyTaskItem[] = [
-  {
-    id: 'task-vocab',
-    title: 'Vocabulary SRS Review',
-    subtitle: 'Ôn thẻ đến hạn & ghi nhớ từ học thuật',
-    durationMin: 20,
-    completed: false,
-    tabTarget: 'vocab'
-  },
-  {
-    id: 'task-grammar',
-    title: 'Grammar Concept & Exercise',
-    subtitle: 'Học 1 chủ điểm Essential & làm mini-test',
-    durationMin: 25,
-    completed: false,
-    tabTarget: 'grammar'
-  },
-  {
-    id: 'task-reading',
-    title: 'Reading Practice / Passage',
-    subtitle: 'Luyện 1 dạng bài hoặc 1 full passage chuẩn',
-    durationMin: 50,
-    completed: false,
-    tabTarget: 'reading'
-  },
-  {
-    id: 'task-listening',
-    title: 'Listening Practice / Section',
-    subtitle: 'Luyện nghe bẫy distractor & phân tích transcript',
-    durationMin: 50,
-    completed: false,
-    tabTarget: 'listening'
-  },
-  {
-    id: 'task-mistake',
-    title: 'Mistake Review & Paraphrase',
-    subtitle: 'Xem lại các câu làm sai & lưu từ mới vào SRS',
-    durationMin: 20,
-    completed: false,
-    tabTarget: 'today'
-  },
-  {
-    id: 'task-academic-read',
-    title: 'Scientific / Academic Reading',
-    subtitle: 'Đọc bài báo khoa học ngắn để tăng tốc độ đọc',
-    durationMin: 15,
-    completed: false,
-    tabTarget: 'reading'
-  }
-];
 
 export function getTodayDateString(): string {
   const today = new Date();
@@ -958,18 +1076,10 @@ export async function loadTodayProtocol(): Promise<DailyProtocolRecord> {
     // ignore
   }
 
-  // Scale tasks duration to match user's daily study minutes if customized
-  const totalMins = currentActiveUser?.dailyStudyMinutes || 180;
-  const scale = totalMins / 180;
-  const scaledTasks = DEFAULT_DAILY_TASKS.map(t => ({
-    ...t,
-    durationMin: Math.max(5, Math.round(t.durationMin * scale))
-  }));
-
   return {
     date: todayStr,
     dayNumber: dayNum,
-    tasks: scaledTasks,
+    tasks: [],
     streakDays: 0
   };
 }

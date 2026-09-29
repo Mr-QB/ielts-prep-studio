@@ -134,6 +134,7 @@ export const GrammarView: React.FC = () => {
             </p>
           </div>
 
+          <p role="note" className="text-xs text-slate-500 mt-2">Nội dung hướng dẫn do IELTS Prep Studio biên soạn; không phải tài liệu IELTS chính thức.</p>
           <div className="flex items-center gap-3 text-xs shrink-0 self-start sm:self-auto">
             <div className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded text-slate-700">
               Đã vững: <strong className="font-mono text-slate-900">{completedCount}</strong>/26

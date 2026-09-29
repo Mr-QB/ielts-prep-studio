@@ -1,6 +1,6 @@
 import { SpeakingNotePart, SpeakingGeneralTips, SpeakingStoryItem } from '../types';
 
-export const SPEAKING_PARTS_DATA: SpeakingNotePart[] = [
+export const SPEAKING_PARTS_DATA = ([
   {
     part: 1,
     title: 'Part 1: Phỏng Vấn Ngắn (Everyday Topics)',
@@ -176,9 +176,10 @@ export const SPEAKING_PARTS_DATA: SpeakingNotePart[] = [
       }
     ]
   }
-];
+] satisfies Omit<SpeakingNotePart, 'provenance'>[]).map(part => ({ ...part, provenance: 'ielts_prep_original' as const }));
 
 export const SPEAKING_GENERAL_TIPS: SpeakingGeneralTips = {
+  provenance: 'ielts_prep_original',
   fillers: [
     { phrase: 'Well, to be perfectly honest,...', context: 'Dùng khi cần 1-2s mở đầu suy nghĩ cho câu hỏi Part 1 & Part 3' },
     { phrase: 'That is a rather intriguing question, let me think...', context: 'Dùng khi gặp câu hỏi khó hoặc lạ cần tổ chức ý tưởng' },
@@ -263,7 +264,7 @@ Ask me deep, probing Part 3 questions one by one. If my answer is too brief or o
 // ==========================================
 // MY STORY BANK: 12 REUSABLE STORIES FOR PART 2 & 3
 // ==========================================
-export const MY_STORY_BANK: SpeakingStoryItem[] = [
+export const MY_STORY_BANK = ([
   // 1. Difficult Project
   {
     id: 'story-robot-project',
@@ -542,4 +543,4 @@ export const MY_STORY_BANK: SpeakingStoryItem[] = [
     ],
     feelingsVocab: ['refreshed', 'carefree', 'peaceful and recharged']
   }
-];
+] satisfies Omit<SpeakingStoryItem, 'provenance'>[]).map(story => ({ ...story, provenance: 'ielts_prep_original' as const }));

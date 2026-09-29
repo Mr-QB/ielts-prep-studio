@@ -11,4 +11,6 @@ coverage/
 data/private/**
 assets/private/**
 private/**
+private_sources/
 aptis_data/*
+.tmp/

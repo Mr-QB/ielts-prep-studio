@@ -6,7 +6,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
-COPY . .
+COPY index.html vite.config.ts tsconfig.json ./
+COPY src ./src
 RUN npm run build
 
 # Stage 2: Serve with Node.js Server & Cloudflare D1
@@ -21,10 +22,13 @@ RUN npm ci --omit=dev
 
 # Copy built frontend static assets
 COPY --from=builder /app/dist ./dist
+COPY public/aptis-media ./dist/aptis-media
+COPY public/service-worker.js ./dist/service-worker.js
 
 # Copy server code and types
 COPY server ./server
 COPY src/types.ts ./src/types.ts
+COPY src/utils/bookPracticeGrade.ts ./src/utils/bookPracticeGrade.ts
 
 EXPOSE 80
 

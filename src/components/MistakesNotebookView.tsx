@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { RecordedMistake, MistakeTagType, AppTab, MistakeRetryStatus } from '../types';
 import { getTodayDateString, loadMistakes, recordDetailedMistake } from '../utils/db';
+import { isMistakeAnswerCorrect, isMistakeDue, mistakeOptionValue, nextMistakeRetryDays } from '../utils/mistakeReview';
+import { loadCambridgeListeningTest, loadCambridgeReadingSection } from '../utils/bookPractice';
 
 interface MistakesNotebookViewProps {
   onNavigateTab: (tab: AppTab) => void;
@@ -34,18 +36,19 @@ export const MistakesNotebookView: React.FC<MistakesNotebookViewProps> = ({ onNa
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNote, setEditNote] = useState<string>('');
   const [retryingMistake, setRetryingMistake] = useState<RecordedMistake | null>(null);
+  const [retryEvidence, setRetryEvidence] = useState('');
   const [retryAnswerInput, setRetryAnswerInput] = useState<string>('');
-  const [selectedReason, setSelectedReason] = useState<string>(COMMON_MISTAKE_REASONS[0]);
+  const [selectedReason, setSelectedReason] = useState<string>('');
   const [retryResult, setRetryResult] = useState<{ isCorrect: boolean; feedback: string } | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
     setIsLoading(true);
     loadMistakes().then(data => {
-      // Default unset status to 'new' or 'retry'
+      // Older saved mistakes have no retry state yet; start them at NEW.
       const initialized = data.map(m => ({
         ...m,
-        status: m.status || 'retry',
+        status: m.status || 'new',
         consecutiveCorrect: m.consecutiveCorrect || 0,
         retryCount: m.retryCount || 0
       }));
@@ -64,47 +67,47 @@ export const MistakesNotebookView: React.FC<MistakesNotebookViewProps> = ({ onNa
     setEditingId(null);
   };
 
-  const handleStartRetry = (m: RecordedMistake) => {
+  const handleStartRetry = async (m: RecordedMistake) => {
     setRetryingMistake(m);
     setRetryAnswerInput('');
-    setSelectedReason(m.selectedReason || COMMON_MISTAKE_REASONS[0]);
+    setSelectedReason(m.selectedReason || '');
     setRetryResult(null);
+    setRetryEvidence('');
+    if (m.sourcePackId !== 'cambridge12-gt' || !m.testNumber || !m.sectionNumber) return;
+    try {
+      if (m.skill === 'reading') {
+        const section = await loadCambridgeReadingSection(m.testNumber, m.sectionNumber);
+        setRetryEvidence(section.passages.find(passage => m.questionNumber >= passage.questionRange[0] && m.questionNumber <= passage.questionRange[1])?.text || '');
+      } else {
+        const test = await loadCambridgeListeningTest(m.testNumber);
+        setRetryEvidence(test.parts.find(part => part.partNumber === m.sectionNumber)?.transcript || '');
+      }
+    } catch {
+      setRetryEvidence('');
+    }
   };
 
   const handleSubmitRetry = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!retryingMistake || !retryAnswerInput.trim()) return;
 
-    const userClean = retryAnswerInput.trim().toLowerCase();
-    const correctClean = retryingMistake.correctAnswer.trim().toLowerCase();
-    const isCorrect = userClean === correctClean;
+    const isCorrect = isMistakeAnswerCorrect(retryAnswerInput, retryingMistake.correctAnswer);
 
     const newRetryCount = (retryingMistake.retryCount || 0) + 1;
     const newConsecutive = isCorrect ? (retryingMistake.consecutiveCorrect || 0) + 1 : 0;
 
-    let newStatus: MistakeRetryStatus = 'learning';
-    let nextDays = 1;
-
-    if (newConsecutive >= 2) {
-      newStatus = 'mastered';
-      nextDays = 30;
-    } else if (isCorrect) {
-      newStatus = 'learning';
-      nextDays = 3;
-    } else {
-      newStatus = 'retry';
-      nextDays = 1;
-    }
-
-    const nextDate = new Date(Date.now() + nextDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const nextDays = nextMistakeRetryDays(newRetryCount, isCorrect, newConsecutive);
+    const newStatus: MistakeRetryStatus = nextDays === null ? 'mastered' : isCorrect ? 'learning' : 'retry';
+    const nextDate = nextDays === null ? undefined : new Date(Date.now() + nextDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
     const updated: RecordedMistake = {
       ...retryingMistake,
       status: newStatus,
+      masteredAt: newStatus === 'mastered' ? new Date().toISOString() : undefined,
       retryCount: newRetryCount,
       consecutiveCorrect: newConsecutive,
       nextRetryDate: nextDate,
-      selectedReason: selectedReason
+      selectedReason: selectedReason || undefined
     };
 
     await recordDetailedMistake(updated);
@@ -113,14 +116,14 @@ export const MistakesNotebookView: React.FC<MistakesNotebookViewProps> = ({ onNa
     setRetryResult({
       isCorrect,
       feedback: isCorrect
-        ? (newStatus === 'mastered' ? 'Chính xác! Bạn đã làm đúng 2 lần liên tiếp và chính thức NẮM VỮNG câu này.' : 'Chính xác! Lần làm lại tiếp theo sẽ vào sau 3 ngày.')
-        : `Chưa chính xác. Đáp án đúng là: ${retryingMistake.correctAnswer}. Hệ thống sẽ nhắc bạn làm lại vào ngày mai.`
+        ? (newStatus === 'mastered' ? 'Chính xác! Bạn đã làm đúng 2 lần liên tiếp và đã nắm vững câu này.' : 'Chính xác! Hệ thống sẽ nhắc bạn làm lại sau 3 ngày.')
+        : `Chưa chính xác. Hệ thống sẽ nhắc bạn làm lại sau ${nextDays} ngày.`
     });
   };
 
   const filteredMistakes = mistakes.filter(m => {
     if (skillFilter !== 'all' && m.skill !== skillFilter) return false;
-    if (statusFilter !== 'all' && (m.status || 'retry') !== statusFilter) return false;
+    if (statusFilter !== 'all' && (m.status || 'new') !== statusFilter) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchTitle = m.testTitle?.toLowerCase().includes(q);
@@ -133,8 +136,9 @@ export const MistakesNotebookView: React.FC<MistakesNotebookViewProps> = ({ onNa
   });
 
   const today = getTodayDateString();
-  const isDue = (mistake: RecordedMistake) => (mistake.status || 'retry') !== 'mastered' && (!mistake.nextRetryDate || mistake.nextRetryDate <= today);
+  const isDue = (mistake: RecordedMistake) => isMistakeDue(mistake.status, mistake.nextRetryDate, today);
   const retryDueCount = mistakes.filter(isDue).length;
+  const newCount = mistakes.filter(m => (m.status || 'new') === 'new').length;
   const masteredCount = mistakes.filter(m => m.status === 'mastered').length;
 
   return (
@@ -149,10 +153,14 @@ export const MistakesNotebookView: React.FC<MistakesNotebookViewProps> = ({ onNa
         </p>
 
         {/* Status Counter */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-slate-100 text-sm">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-4 pt-4 border-t border-slate-100 text-sm">
           <div className="p-3 bg-slate-50 rounded border border-slate-200">
             <span className="text-xs text-slate-500 block">Tổng số câu sai</span>
             <strong className="text-xl font-bold text-slate-900 font-mono">{mistakes.length}</strong>
+          </div>
+          <div className="p-3 bg-slate-50 rounded border border-slate-200">
+            <span className="text-xs text-slate-600 font-semibold block">Mới ghi nhận</span>
+            <strong className="text-xl font-bold text-slate-700 font-mono">{newCount}</strong>
           </div>
           <div className="p-3 bg-slate-50 rounded border border-slate-200">
             <span className="text-xs text-rose-700 font-semibold block">Cần làm lại hôm nay</span>
@@ -175,6 +183,7 @@ export const MistakesNotebookView: React.FC<MistakesNotebookViewProps> = ({ onNa
         <div className="flex items-center gap-1 bg-slate-100 p-1 rounded w-full md:w-auto overflow-x-auto">
           {[
             { id: 'all', label: 'Tất cả' },
+            { id: 'new', label: 'Mới' },
             { id: 'retry', label: 'Cần làm lại' },
             { id: 'learning', label: 'Đang rèn' },
             { id: 'mastered', label: 'Đã nắm vững' }
@@ -231,7 +240,9 @@ export const MistakesNotebookView: React.FC<MistakesNotebookViewProps> = ({ onNa
           filteredMistakes.map(m => {
             const errInfo = m.errorType ? ERROR_TYPE_LABELS[m.errorType] : null;
             const isMastered = m.status === 'mastered';
-            const isRetry = (m.status || 'retry') === 'retry';
+            const status = m.status || 'new';
+            const isRetry = status === 'retry';
+            const isNew = status === 'new';
             const due = isDue(m);
 
             return (
@@ -264,9 +275,11 @@ export const MistakesNotebookView: React.FC<MistakesNotebookViewProps> = ({ onNa
                         ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                         : isRetry
                         ? 'bg-rose-50 text-rose-800 border-rose-200'
+                        : isNew
+                        ? 'bg-slate-50 text-slate-700 border-slate-200'
                         : 'bg-amber-50 text-amber-800 border-amber-200'
                     }`}>
-                      {isMastered ? 'Nắm vững ✓' : isRetry ? 'Cần làm lại' : 'Đang rèn'}
+                      {isMastered ? 'Nắm vững ✓' : isRetry ? 'Cần làm lại' : isNew ? 'Mới' : 'Đang rèn'}
                     </span>
 
                     <button
@@ -289,12 +302,11 @@ export const MistakesNotebookView: React.FC<MistakesNotebookViewProps> = ({ onNa
                     </span>
                   </div>
 
-                  <div className="p-3 bg-emerald-50/50 border border-emerald-200 rounded">
-                    <span className="text-xs font-semibold text-emerald-800 block">Đáp án chính xác:</span>
-                    <span className="font-mono font-bold text-emerald-900 mt-0.5 block">
-                      {m.correctAnswer}
-                    </span>
-                  </div>
+                  <details className="rounded border border-slate-200 p-3">
+                    <summary className="cursor-pointer text-xs font-semibold text-slate-700">Xem đáp án và bằng chứng</summary>
+                    <p className="mt-2 font-mono font-bold text-emerald-900">{m.correctAnswer}</p>
+                    {m.evidence && <p className="mt-2 text-slate-700">{m.evidence}</p>}
+                  </details>
                 </div>
 
                 {/* Evidence snippet */}
@@ -388,12 +400,13 @@ export const MistakesNotebookView: React.FC<MistakesNotebookViewProps> = ({ onNa
             <div className="p-3 bg-slate-50 rounded border border-slate-200 text-sm text-slate-800">
               <span className="text-xs font-bold text-slate-500 block mb-1">Bài thi:</span>
               <p className="font-semibold">{retryingMistake.testTitle}</p>
-              {retryingMistake.evidence && (
-                <p className="mt-2 text-xs italic text-slate-600">
-                  Gợi ý: "{retryingMistake.evidence}"
-                </p>
-              )}
             </div>
+
+            {retryingMistake.questionPrompt && (
+              <div className="rounded border border-slate-200 p-4 text-sm leading-6">
+                <p className="font-medium text-slate-900">{retryingMistake.questionPrompt}</p>
+              </div>
+            )}
 
             {retryResult ? (
               <div className={`p-4 rounded-lg border space-y-2 text-sm ${
@@ -403,6 +416,8 @@ export const MistakesNotebookView: React.FC<MistakesNotebookViewProps> = ({ onNa
                   {retryResult.isCorrect ? 'Chúc mừng bạn!' : 'Chưa đúng!'}
                 </strong>
                 <p>{retryResult.feedback}</p>
+                <p>Đáp án đúng: <strong>{retryingMistake.correctAnswer}</strong></p>
+                {(retryEvidence || retryingMistake.evidence) && <div className="max-h-64 overflow-y-auto whitespace-pre-line border-t border-current/15 pt-2"><strong>Ngữ cảnh từ nội dung gốc</strong><p className="mt-1">{retryEvidence || retryingMistake.evidence}</p></div>}
                 <div className="pt-2 text-right">
                   <button
                     type="button"
@@ -419,26 +434,35 @@ export const MistakesNotebookView: React.FC<MistakesNotebookViewProps> = ({ onNa
                   <label className="font-semibold text-slate-800 block mb-1">
                     Nhập câu trả lời làm lại của bạn:
                   </label>
-                  <input
+                  {retryingMistake.options?.length ? <div className="space-y-2">
+                    {retryingMistake.options.map(option => {
+                      const value = mistakeOptionValue(option);
+                      return <label key={option} className="flex cursor-pointer items-start gap-2 rounded border border-slate-200 p-2.5 hover:bg-slate-50">
+                      <input type="radio" name={`retry-${retryingMistake.id}`} value={value} checked={retryAnswerInput === value} onChange={() => setRetryAnswerInput(value)} />
+                      <span>{option}</span>
+                    </label>;
+                    })}
+                  </div> : <input
                     type="text"
-                    placeholder="Nhập đáp án (ví dụ: TRUE, FALSE, hoặc từ vựng)..."
+                    placeholder="Nhập đáp án của bạn"
                     value={retryAnswerInput}
                     onChange={e => setRetryAnswerInput(e.target.value)}
                     className="w-full p-2.5 bg-white border border-slate-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-slate-900"
                     required
                     autoFocus
-                  />
+                  />}
                 </div>
 
                 <div>
                   <label className="font-semibold text-slate-800 block mb-1">
-                    Lý do bạn làm sai ở lần trước là gì?
+                    Lý do bạn làm sai ở lần trước là gì? (không bắt buộc)
                   </label>
                   <select
                     value={selectedReason}
                     onChange={e => setSelectedReason(e.target.value)}
                     className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-xs text-slate-800"
                   >
+                    <option value="">Chưa xác định</option>
                     {COMMON_MISTAKE_REASONS.map((r, idx) => (
                       <option key={idx} value={r}>{r}</option>
                     ))}

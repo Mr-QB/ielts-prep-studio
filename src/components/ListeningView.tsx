@@ -7,6 +7,7 @@ import { AudioPlayer } from './AudioPlayer';
 import { recordAttempt, addWordToVocabDeck, lookupVocabularyApi } from '../utils/db';
 import { calculateListeningBand, formatTime } from '../utils/ieltsScoring';
 import { WordCapturePopover } from './WordCapturePopover';
+import { Cambridge12ListeningPilot } from './Cambridge12ListeningPilot';
 
 interface ListeningViewProps {
   examMode?: 'study' | 'simulation';
@@ -25,7 +26,7 @@ const MISTAKE_TAG_OPTIONS: { id: MistakeTagType; label: string }[] = [
 
 export const ListeningView: React.FC<ListeningViewProps> = () => {
   // 3 Primary Tabs
-  const [activeTab, setActiveTab] = useState<'by-skill' | 'by-part' | 'full-test'>('by-skill');
+  const [activeTab, setActiveTab] = useState<'by-skill' | 'by-part' | 'full-test' | 'cambridge'>('by-skill');
 
   // MODE 1: BY SKILL (STRATEGY & MICRO-LESSONS)
   const [selectedStrategyId, setSelectedStrategyId] = useState<string>(LISTENING_STRATEGY_LESSONS[0].id);
@@ -281,6 +282,17 @@ export const ListeningView: React.FC<ListeningViewProps> = () => {
               }`}
             >
               3. Thi thử chuẩn (40 câu)
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('cambridge')}
+              className={`px-3 py-1.5 rounded text-xs font-medium cursor-pointer transition-colors ${
+                activeTab === 'cambridge'
+                  ? 'bg-white text-slate-900 font-semibold shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Cambridge 12 GT
             </button>
           </div>
         </div>
@@ -971,6 +983,7 @@ export const ListeningView: React.FC<ListeningViewProps> = () => {
           )}
         </div>
       )}
+      {activeTab === 'cambridge' && <Cambridge12ListeningPilot testNumber={5} partNumber={1} />}
 
       {/* Floating Word Capture from Listening Transcripts */}
       <WordCapturePopover sourceLabel="Listening Practice" sourceType="listening" />

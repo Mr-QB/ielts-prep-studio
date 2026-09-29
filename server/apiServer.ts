@@ -30,6 +30,15 @@ import type {
   VocabReviewLog
 } from '../src/types';
 import { lookupVocabularyWord } from './vocabLookup';
+import { gradePrivateAnswers, selectBookAnswerKeyQuestions } from '../src/utils/bookPracticeGrade';
+import {
+  completeGoogleAuthorization,
+  createGoogleAuthorizationUrl,
+  disconnectGoogleCalendar,
+  hasGoogleCalendarConnection,
+  isGoogleCalendarConfigured,
+  syncGoogleStudyBlocks,
+} from './googleCalendar';
 
 // Load .env if present
 const envPath = path.resolve('.env');
@@ -63,6 +72,7 @@ const MIME_TYPES: Record<string, string> = {
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.webp': 'image/webp',
+  '.mp3': 'audio/mpeg',
   '.ico': 'image/x-icon',
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
@@ -139,6 +149,23 @@ async function handleApiRoutes(req: http.IncomingMessage, res: http.ServerRespon
   const pathname = url.pathname;
   const method = req.method || 'GET';
   const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+
+  if (pathname === '/api/calendar/oauth/callback' && method === 'GET') {
+    try {
+      const providerError = url.searchParams.get('error');
+      if (providerError) throw new Error('Google authorization was cancelled.');
+      const state = url.searchParams.get('state') || '';
+      const code = url.searchParams.get('code') || '';
+      if (!state || !code) throw new Error('Google authorization response is incomplete.');
+      await completeGoogleAuthorization(state, code);
+      res.writeHead(302, { Location: '/?calendar=connected', 'Cache-Control': 'no-store' });
+      res.end();
+    } catch {
+      res.writeHead(302, { Location: '/?calendar=error', 'Cache-Control': 'no-store' });
+      res.end();
+    }
+    return true;
+  }
 
   // Security: Check origin on mutating state
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
@@ -352,6 +379,181 @@ async function handleApiRoutes(req: http.IncomingMessage, res: http.ServerRespon
 
   const userId = authenticatedUser.id;
 
+  if (pathname === '/api/calendar/status' && method === 'GET') {
+    try {
+      const configured = isGoogleCalendarConfigured();
+      const connected = configured && await hasGoogleCalendarConnection(userId);
+      sendJson(res, 200, { success: true, configured, connected });
+    } catch (err: any) {
+      sendJson(res, 500, { success: false, error: err.message });
+    }
+    return true;
+  }
+
+  if (pathname === '/api/calendar/connect' && method === 'POST') {
+    try {
+      const authorizationUrl = createGoogleAuthorizationUrl(userId);
+      sendJson(res, 200, { success: true, authorizationUrl });
+    } catch (err: any) {
+      sendJson(res, 503, { success: false, error: err.message });
+    }
+    return true;
+  }
+
+  if (pathname === '/api/calendar/sync' && method === 'POST') {
+    try {
+      const body = await parseBody<{ events?: unknown; timeZone?: string }>(req);
+      const result = await syncGoogleStudyBlocks(userId, body.events, body.timeZone || '');
+      sendJson(res, 200, { success: true, ...result });
+    } catch (err: any) {
+      sendJson(res, 400, { success: false, error: err.message });
+    }
+    return true;
+  }
+
+  if (pathname === '/api/calendar/disconnect' && method === 'POST') {
+    try {
+      await disconnectGoogleCalendar(userId);
+      sendJson(res, 200, { success: true });
+    } catch (err: any) {
+      sendJson(res, 500, { success: false, error: err.message });
+    }
+    return true;
+  }
+
+  // Cambridge book content is private and is served only to authenticated users.
+  // The file map is deliberately fixed so request paths can never escape the pack.
+  const privateBookDir = path.resolve('data/private/cambridge12_gt');
+  const privateBookFiles: Record<string, string> = {
+    '/api/private-content/cambridge12-gt/manifest': 'manifest.json',
+    '/api/private-content/cambridge12-gt/test/5/reading/1': 'test_05/reading.json',
+    '/api/private-content/cambridge12-gt/test/5/reading/2': 'test_05/reading_2.json',
+    '/api/private-content/cambridge12-gt/test/5/reading/3': 'test_05/reading_3.json',
+    '/api/private-content/cambridge12-gt/test/5/reading/answer-key': 'test_05/reading_answers.json',
+    '/api/private-content/cambridge12-gt/test/6/reading/1': 'test_06/reading.json',
+    '/api/private-content/cambridge12-gt/test/6/reading/2': 'test_06/reading_2.json',
+    '/api/private-content/cambridge12-gt/test/6/reading/3': 'test_06/reading_3.json',
+    '/api/private-content/cambridge12-gt/test/6/reading/answer-key': 'test_06/reading_answers.json',
+    '/api/private-content/cambridge12-gt/test/7/reading/1': 'test_07/reading.json',
+    '/api/private-content/cambridge12-gt/test/7/reading/2': 'test_07/reading_2.json',
+    '/api/private-content/cambridge12-gt/test/7/reading/3': 'test_07/reading_3.json',
+    '/api/private-content/cambridge12-gt/test/7/reading/answer-key': 'test_07/reading_answers.json',
+    '/api/private-content/cambridge12-gt/test/8/reading/1': 'test_08/reading.json',
+    '/api/private-content/cambridge12-gt/test/8/reading/2': 'test_08/reading_2.json',
+    '/api/private-content/cambridge12-gt/test/8/reading/3': 'test_08/reading_3.json',
+    '/api/private-content/cambridge12-gt/test/8/reading/answer-key': 'test_08/reading_answers.json',
+    '/api/private-content/cambridge12-gt/test/5/listening': 'test_05/listening.json',
+    '/api/private-content/cambridge12-gt/test/5/listening/answer-key': 'test_05/listening_answers.json',
+    '/api/private-content/cambridge12-gt/test/5/listening/transcripts': 'test_05/transcripts.json',
+    '/api/private-content/cambridge12-gt/test/6/listening': 'test_06/listening.json',
+    '/api/private-content/cambridge12-gt/test/6/listening/answer-key': 'test_06/listening_answers.json',
+    '/api/private-content/cambridge12-gt/test/6/listening/transcripts': 'test_06/transcripts.json',
+    '/api/private-content/cambridge12-gt/test/7/listening': 'test_07/listening.json',
+    '/api/private-content/cambridge12-gt/test/7/listening/answer-key': 'test_07/listening_answers.json',
+    '/api/private-content/cambridge12-gt/test/7/listening/transcripts': 'test_07/transcripts.json',
+    '/api/private-content/cambridge12-gt/test/8/listening': 'test_08/listening.json',
+    '/api/private-content/cambridge12-gt/test/8/listening/answer-key': 'test_08/listening_answers.json',
+    '/api/private-content/cambridge12-gt/test/8/listening/transcripts': 'test_08/transcripts.json',
+    '/api/private-content/cambridge12-gt/assets/test-08-listening-map.png': 'assets/test-08-listening-map.png',
+    '/api/private-content/cambridge12-gt/assets/test-05-writing-task-1.png': 'assets/test-05-writing-task-1.png',
+    '/api/private-content/cambridge12-gt/assets/test-05-writing-task-2.png': 'assets/test-05-writing-task-2.png',
+    '/api/private-content/cambridge12-gt/assets/test-06-writing-task-1.png': 'assets/test-06-writing-task-1.png',
+    '/api/private-content/cambridge12-gt/assets/test-06-writing-task-2.png': 'assets/test-06-writing-task-2.png',
+    '/api/private-content/cambridge12-gt/assets/test-07-writing-task-1.png': 'assets/test-07-writing-task-1.png',
+    '/api/private-content/cambridge12-gt/assets/test-07-writing-task-2.png': 'assets/test-07-writing-task-2.png',
+    '/api/private-content/cambridge12-gt/assets/test-08-writing-task-1.png': 'assets/test-08-writing-task-1.png',
+    '/api/private-content/cambridge12-gt/assets/test-08-writing-task-2.png': 'assets/test-08-writing-task-2.png',
+    '/api/private-content/cambridge12-gt/test/5/writing': 'test_05/writing.json',
+    '/api/private-content/cambridge12-gt/test/6/writing': 'test_06/writing.json',
+    '/api/private-content/cambridge12-gt/test/7/writing': 'test_07/writing.json',
+    '/api/private-content/cambridge12-gt/test/8/writing': 'test_08/writing.json'
+  };
+  if (method === 'GET' && privateBookFiles[pathname]) {
+    try {
+      const filePath = path.join(privateBookDir, privateBookFiles[pathname]);
+      if (!fs.existsSync(filePath)) {
+        sendJson(res, 404, { error: 'Gói nội dung riêng chưa được cài đặt.' });
+      } else {
+        res.setHeader('Cache-Control', 'private, no-store');
+        if (filePath.endsWith('.png')) {
+          res.setHeader('Content-Type', 'image/png');
+          res.statusCode = 200;
+          res.end(fs.readFileSync(filePath));
+        } else {
+          sendJson(res, 200, JSON.parse(fs.readFileSync(filePath, 'utf8')));
+        }
+      }
+    } catch (err: any) {
+      sendJson(res, 500, { error: err.message });
+    }
+    return true;
+  }
+  const privateListeningAudioMatch = pathname.match(/^\/api\/private-content\/cambridge12-gt\/test\/(5|6|7|8)\/listening\/part\/(1|2|3|4)\/audio$/);
+  if (method === 'GET' && privateListeningAudioMatch) {
+    try {
+      const testNumber = Number(privateListeningAudioMatch[1]);
+      const partNumber = Number(privateListeningAudioMatch[2]);
+      const folder = `test_${String(testNumber).padStart(2, '0')}`;
+      const listeningPath = path.join(privateBookDir, folder, 'listening.json');
+      if (!fs.existsSync(listeningPath)) {
+        sendJson(res, 404, { error: 'Gói nghe Cambridge chưa được cài đặt.' });
+        return true;
+      }
+      const listening = JSON.parse(fs.readFileSync(listeningPath, 'utf8')) as { parts?: { partNumber: number; audio?: { status: string; fileName?: string } }[] };
+      const audio = listening.parts?.find(part => part.partNumber === partNumber)?.audio;
+      const fileName = audio?.fileName || '';
+      const audioDirectory = path.resolve(privateBookDir, folder, 'audio');
+      const audioPath = path.resolve(audioDirectory, fileName);
+      if (audio?.status !== 'available' || !fileName || path.dirname(audioPath) !== audioDirectory || !fs.existsSync(audioPath)) {
+        sendJson(res, 404, { error: 'Audio Cambridge cho Part này chưa được cài đặt.' });
+        return true;
+      }
+      res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'private, no-store' });
+      fs.createReadStream(audioPath).pipe(res);
+    } catch (err: any) {
+      sendJson(res, 500, { error: err.message });
+    }
+    return true;
+  }
+  const privateReadingGradeMatch = pathname.match(/^\/api\/private-content\/cambridge12-gt\/test\/(5|6|7|8)\/reading\/grade$/);
+  if (method === 'POST' && privateReadingGradeMatch) {
+    try {
+      const testNumber = Number(privateReadingGradeMatch[1]);
+      const answersPath = path.join(privateBookDir, `test_${String(testNumber).padStart(2, '0')}/reading_answers.json`);
+      if (!fs.existsSync(answersPath)) {
+        sendJson(res, 404, { error: 'Gói đáp án riêng chưa được cài đặt.' });
+        return true;
+      }
+      const { answers = {}, questionNumbers } = await parseBody<{ answers?: Record<string, string>; questionNumbers?: number[] }>(req);
+      const answerKey = selectBookAnswerKeyQuestions(JSON.parse(fs.readFileSync(answersPath, 'utf8')), questionNumbers);
+      const grade = gradePrivateAnswers(answerKey, answers);
+      res.setHeader('Cache-Control', 'private, no-store');
+      sendJson(res, 200, grade);
+    } catch (err: any) {
+      sendJson(res, 400, { error: err.message });
+    }
+    return true;
+  }
+  const privateListeningGradeMatch = pathname.match(/^\/api\/private-content\/cambridge12-gt\/test\/(5|6|7|8)\/listening\/grade$/);
+  if (method === 'POST' && privateListeningGradeMatch) {
+    try {
+      const testNumber = Number(privateListeningGradeMatch[1]);
+      const answersPath = path.join(privateBookDir, `test_${String(testNumber).padStart(2, '0')}/listening_answers.json`);
+      if (!fs.existsSync(answersPath)) {
+        sendJson(res, 404, { error: 'Gói đáp án riêng chưa được cài đặt.' });
+        return true;
+      }
+      const { answers = {}, questionNumbers } = await parseBody<{ answers?: Record<string, string>; questionNumbers?: number[] }>(req);
+      const answerKey = selectBookAnswerKeyQuestions(JSON.parse(fs.readFileSync(answersPath, 'utf8')), questionNumbers);
+      const grade = gradePrivateAnswers(answerKey, answers);
+      res.setHeader('Cache-Control', 'private, no-store');
+      sendJson(res, 200, grade);
+    } catch (err: any) {
+      sendJson(res, 400, { error: err.message });
+    }
+    return true;
+  }
+
   if ((pathname === '/api/bootstrap' || pathname === '/api/sync/pull') && method === 'GET') {
     try {
       const requestedCursor = pathname === '/api/bootstrap' ? 0 : Math.max(0, Number(url.searchParams.get('cursor') || 0));
@@ -382,7 +584,7 @@ async function handleApiRoutes(req: http.IncomingMessage, res: http.ServerRespon
     try {
       const body = await parseBody<{ changes?: any[] }>(req);
       const changes = Array.isArray(body.changes) ? body.changes.slice(0, 200) : [];
-      const allowedEntities = new Set(['decks', 'vocab_progress', 'vocab_review', 'attempt', 'mistake', 'grammar', 'protocol']);
+      const allowedEntities = new Set(['decks', 'vocab_progress', 'vocab_review', 'attempt', 'mistake', 'grammar', 'protocol', 'learning_position', 'cambridge_writing', 'cambridge_practice', 'planner_settings']);
       const acceptedIds: string[] = [];
       for (const change of changes) {
         if (!change || typeof change.id !== 'string' || typeof change.changeId !== 'string' ||
@@ -794,6 +996,7 @@ async function handleApiRoutes(req: http.IncomingMessage, res: http.ServerRespon
         );
         const attempts: TestAttempt[] = raw.map(r => ({
           id: r.id,
+          examFamily: r.exam_family === 'aptis' ? 'aptis' : 'ielts',
           skill: r.skill,
           sectionId: r.section_id,
           sectionTitle: r.section_title,
@@ -819,14 +1022,15 @@ async function handleApiRoutes(req: http.IncomingMessage, res: http.ServerRespon
         const attempt = await parseBody<TestAttempt>(req);
         await d1.execute(
           `INSERT INTO test_attempts (
-             id, user_id, skill, section_id, section_title, test_type, date, score,
+             id, user_id, exam_family, skill, section_id, section_title, test_type, date, score,
              total_questions, band_score, time_spent_seconds, question_type_stats,
              mistake_tags, detailed_answers
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(id) DO NOTHING;`,
           [
             attempt.id,
             userId,
+            attempt.examFamily === 'aptis' ? 'aptis' : 'ielts',
             attempt.skill,
             attempt.sectionId,
             attempt.sectionTitle,

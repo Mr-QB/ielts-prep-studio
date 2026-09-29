@@ -1,6 +1,6 @@
 import { WritingTask1Note, WritingTask2Note } from '../types';
 
-export const WRITING_TASK1_NOTES: WritingTask1Note[] = [
+export const WRITING_TASK1_NOTES = ([
   {
     id: 't1-line-graph',
     type: 'line-graph',
@@ -541,9 +541,9 @@ export const WRITING_TASK1_NOTES: WritingTask1Note[] = [
       '[OPTIONAL] Nhắm tới độ dài 160–180 từ'
     ]
   }
-];
+] satisfies Omit<WritingTask1Note, 'provenance'>[]).map(note => ({ ...note, provenance: 'ielts_prep_original' as const }));
 
-export const WRITING_TASK2_NOTES: WritingTask2Note[] = [
+export const WRITING_TASK2_NOTES = ([
   {
     id: 't2-opinion',
     type: 'opinion',
@@ -898,9 +898,10 @@ export const WRITING_TASK2_NOTES: WritingTask2Note[] = [
       '[OPTIONAL] Nhắm tới độ dài mục tiêu 260–290 từ'
     ]
   }
-];
+] satisfies Omit<WritingTask2Note, 'provenance'>[]).map(note => ({ ...note, provenance: 'ielts_prep_original' as const }));
 
 export interface WritingPhraseCategory {
+  provenance: 'ielts_prep_original';
   id: string;
   category: string;
   descriptionVi: string;
@@ -909,7 +910,7 @@ export interface WritingPhraseCategory {
   exampleSentence: string;
 }
 
-export const WRITING_PHRASE_BANK: WritingPhraseCategory[] = [
+export const WRITING_PHRASE_BANK = ([
   {
     id: 'wp-opinion',
     category: 'Nêu Ý Kiến (Give Opinion)',
@@ -1006,5 +1007,5 @@ export const WRITING_PHRASE_BANK: WritingPhraseCategory[] = [
     upgradePhrases: ['Taking all factors into consideration,...', 'All things considered,...'],
     exampleSentence: 'In conclusion, while technological devices bring undeniable convenience, moderate screen time is essential.'
   }
-];
+] satisfies Omit<WritingPhraseCategory, 'provenance'>[]).map(category => ({ ...category, provenance: 'ielts_prep_original' as const }));
 

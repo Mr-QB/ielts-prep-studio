@@ -5,6 +5,9 @@ export type ReviewSubTab = 'mistakes' | 'progress';
 
 export type AppTab =
   | 'today'
+  | 'plan'
+  | 'cambridge'
+  | 'aptis'
   | 'reading'
   | 'listening'
   | 'grammar'
@@ -31,6 +34,7 @@ export interface UserProfile {
 }
 
 export type ExamMode = 'simulation' | 'study';
+export type ExamFamily = 'ielts' | 'aptis';
 
 export type VerificationStatus =
   | 'verified'
@@ -73,6 +77,12 @@ export interface LearningSource {
   status: VerificationStatus;
   description?: string;
 }
+
+export type LearningContentProvenance =
+  | 'cambridge12_gt_private'
+  | 'ielts_prep_original'
+  | 'aptis_import_unverified'
+  | 'user_created';
 
 // ==========================================
 // 1. LISTENING TYPES
@@ -328,6 +338,7 @@ export interface GrammarStandardLesson {
 }
 
 export interface GrammarTopic {
+  provenance: LearningContentProvenance;
   id: string;
   code: string; // e.g. "G01", "G08", "G24"
   category: GrammarCategory;
@@ -444,6 +455,9 @@ export interface VocabCard {
   source?: string;
   sourceType?: 'reading' | 'listening' | 'manual' | 'starter';
   sourceId?: string;
+  sourcePackId?: string;
+  sourceTestNumber?: number;
+  sourceSectionNumber?: number;
   sourceContext?: string;
   lemma?: string;
   audio?: string;
@@ -502,6 +516,7 @@ export type WritingTask2Type =
   | 'two-part-question';
 
 export interface WritingTask1Note {
+  provenance: LearningContentProvenance;
   id: string;
   type: WritingTask1Type;
   title: string;
@@ -525,6 +540,7 @@ export interface WritingTask1Note {
 }
 
 export interface WritingTask2Note {
+  provenance: LearningContentProvenance;
   id: string;
   type: WritingTask2Type;
   title: string;
@@ -549,6 +565,7 @@ export interface WritingTask2Note {
 }
 
 export interface SpeakingNotePart {
+  provenance: LearningContentProvenance;
   part: 1 | 2 | 3;
   title: string;
   frameworkName: string;
@@ -566,6 +583,7 @@ export interface SpeakingNotePart {
 }
 
 export interface SpeakingGeneralTips {
+  provenance: LearningContentProvenance;
   fillers: { phrase: string; context: string }[];
   elongationTechniques: { strategy: string; prompt: string; example: string }[];
   handlingUnknownWords: { strategy: string; template: string }[];
@@ -595,12 +613,21 @@ export interface RecordedMistake {
   evidence?: string;
   timestamp: string;
   status?: MistakeRetryStatus;
+  masteredAt?: string;
   retryCount?: number;
   consecutiveCorrect?: number;
   nextRetryDate?: string;
   selectedReason?: string;
   questionPrompt?: string;
   options?: string[];
+  source?: string;
+  sourcePackId?: string;
+  module?: 'reading' | 'listening';
+  bookId?: string;
+  testNumber?: number;
+  sectionNumber?: number;
+  sourcePage?: number;
+  sourcePdfPage?: number;
 }
 
 export interface ReadingStrategyLesson {
@@ -679,6 +706,7 @@ export interface ParaphraseItem {
 }
 
 export interface SpeakingStoryItem {
+  provenance: LearningContentProvenance;
   id: string;
   title: string;
   category: 'person' | 'place' | 'project' | 'challenge' | 'achievement' | 'good-news' | 'object' | 'trip' | 'skill' | 'event' | 'decision' | 'activity';
@@ -710,10 +738,18 @@ export interface WeakAreaStat {
 
 export interface TestAttempt {
   id: string;
+  examFamily?: ExamFamily;
+  source?: string;
+  sourcePackId?: string;
+  module?: 'reading' | 'listening';
+  bookId?: string;
+  testNumber?: number;
+  sectionNumber?: number;
   skill: 'listening' | 'reading';
   sectionId: string;
   sectionTitle: string;
   date: string;
+  reviewedAt?: string;
   score: number;
   total: number;
   durationSeconds: number;
@@ -722,12 +758,27 @@ export interface TestAttempt {
   incorrectQuestionNumbers: number[];
   mistakeTags: {
     questionNumber: number;
+    sectionNumber?: number;
     type: string;
     userAnswer: string;
     correctAnswer: string;
     distractorNote?: string;
     paraphraseNote?: string;
     errorType?: MistakeTagType;
+    questionPrompt?: string;
+    options?: string[];
+    sourcePage?: number;
+    sourcePdfPage?: number;
+  }[];
+  questionResults?: {
+    questionNumber: number;
+    sectionNumber?: number;
+    questionType: string;
+    userAnswer: string;
+    correctAnswer: string;
+    isCorrect: boolean;
+    printedPage?: number;
+    sourcePdfPage?: number;
   }[];
   passageScores?: {
     passageIndex: number;
@@ -736,6 +787,41 @@ export interface TestAttempt {
     timeSpentSeconds?: number;
   }[];
   questionTypeStats?: Record<string, { correct: number; total: number }>;
+}
+
+export interface LearningPosition {
+  sourcePackId: string;
+  testNumber: number;
+  module: 'reading' | 'listening' | 'writing';
+  sectionNumber: number;
+  updatedAt: string;
+}
+
+export interface StudyPlanSettings {
+  id: 'current';
+  weeklyAvailability: { weekday: number; start: string; end: string }[];
+  intensity: 'minimum' | 'normal' | 'intensive';
+  planStartDate: string;
+  examDate?: string;
+  updatedAt: string;
+}
+
+export interface CambridgeWritingWork {
+  id: string;
+  testNumber: number;
+  taskNumber: 1 | 2;
+  draft: string;
+  reviewedAt?: string;
+  updatedAt: string;
+}
+
+export interface CambridgePracticeDraft {
+  id: string;
+  testNumber: number;
+  module: 'reading' | 'listening';
+  sectionNumber: number;
+  answers: Record<string, string>;
+  updatedAt: string;
 }
 
 // ==========================================

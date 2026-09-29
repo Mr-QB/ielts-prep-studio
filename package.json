@@ -10,7 +10,13 @@
     "preview": "vite preview",
     "lint": "tsc --noEmit",
     "test": "tsx --test tests/**/*.test.ts",
-    "validate:data": "tsx scripts/validateData.ts",
+    "validate:data": "tsx scripts/validateData.ts && tsx scripts/validateCambridge12.ts",
+    "cambridge:validate": "tsx scripts/validateCambridge12.ts",
+    "validate:cambridge12": "tsx scripts/validateCambridge12.ts",
+    "cambridge:inspect": "python scripts/cambridge12/inspect_pdf.py",
+    "cambridge:render": "python scripts/cambridge12/render_pdf_pages.py",
+    "cambridge:ocr": "node scripts/cambridge12/ocr_pages.mjs",
+    "aptis:package": "tsx scripts/packageAptisData.ts",
     "validate:data:online": "tsx scripts/validateData.ts --online",
     "d1:migrate": "tsx scripts/migrateD1.ts",
     "d1:seed": "tsx scripts/seedD1.ts",
@@ -30,7 +36,9 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.4.21",
+    "fake-indexeddb": "^6.2.5",
     "tailwindcss": "^4.3.3",
+    "tesseract.js": "^7.0.0",
     "typescript": "^7.0.2"
   }
 }

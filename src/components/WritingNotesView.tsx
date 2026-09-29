@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { WRITING_TASK1_NOTES, WRITING_TASK2_NOTES, WRITING_PHRASE_BANK } from '../data/writingData';
 import { WritingTask1Type, WritingTask2Type } from '../types';
+import type { PrivateWritingSection } from '../types/bookPractice';
+import { loadCambridgeWritingTest } from '../utils/bookPractice';
 
 export const WritingNotesView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'task1' | 'task2' | 'phrase-bank'>('task1');
+  const [activeTab, setActiveTab] = useState<'task1' | 'task2' | 'phrase-bank' | 'cambridge'>('task1');
   const [selectedTask1Type, setSelectedTask1Type] = useState<WritingTask1Type>('line-graph');
   const [selectedTask2Type, setSelectedTask2Type] = useState<WritingTask2Type>('opinion');
   const [activeSectionTab, setActiveSectionTab] = useState<'structure' | 'phrases' | 'mistakes' | 'checklist'>('structure');
@@ -74,6 +76,8 @@ export const WritingNotesView: React.FC = () => {
             </p>
           </div>
 
+          <p role="note" className="text-xs text-slate-500 mt-2">Nội dung hướng dẫn do IELTS Prep Studio biên soạn; không phải tài liệu IELTS chính thức.</p>
+
           {/* 3 Main Tabs Switcher */}
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs shrink-0 self-start sm:self-auto">
             <button
@@ -108,6 +112,13 @@ export const WritingNotesView: React.FC = () => {
               }`}
             >
               3. Ngân hàng cụm từ (12 nhóm)
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('cambridge')}
+              className={`px-3 py-1.5 rounded text-xs font-medium cursor-pointer transition-colors ${activeTab === 'cambridge' ? 'bg-white text-slate-900 font-semibold shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              Cambridge 12 GT
             </button>
           </div>
         </div>
@@ -155,6 +166,8 @@ export const WritingNotesView: React.FC = () => {
       {/* ========================================================================= */}
       {/* 1. TASK 1 VIEW                                                            */}
       {/* ========================================================================= */}
+      {activeTab === 'cambridge' && <CambridgeWritingPractice />}
+
       {activeTab === 'task1' && (
         <div className="space-y-6">
           {/* Active Task Header */}
@@ -539,5 +552,60 @@ My essay: [Dán bài viết]`}
         </div>
       </div>
     </div>
+  );
+};
+
+const CambridgeWritingPractice: React.FC = () => {
+  const [testNumber, setTestNumber] = useState(5);
+  const [writingTest, setWritingTest] = useState<PrivateWritingSection | null>(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    setWritingTest(null);
+    setError('');
+    loadCambridgeWritingTest(testNumber).then(data => {
+      if (active) setWritingTest(data);
+    }).catch(err => {
+      if (active) setError(err instanceof Error ? err.message : 'Could not load the Writing prompts.');
+    });
+    return () => { active = false; };
+  }, [testNumber]);
+
+  return (
+    <section className="space-y-5">
+      <header className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Cambridge IELTS 12 · General Training</p>
+          <h2 className="mt-1 text-xl font-semibold text-slate-900">Writing prompts</h2>
+          <p className="mt-1 text-sm text-slate-600">Source prompts from the book. Responses are not automatically scored.</p>
+        </div>
+        <label className="text-sm text-slate-700">
+          Test <select value={testNumber} onChange={event => setTestNumber(Number(event.target.value))} className="ml-2 rounded border border-slate-300 bg-white px-3 py-2">
+            {[5, 6, 7, 8].map(number => <option key={number} value={number}>{number}</option>)}
+          </select>
+        </label>
+      </header>
+      {error && <p role="alert" className="rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
+      {!writingTest && !error && <p className="text-sm text-slate-500">Loading prompts…</p>}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {writingTest?.tasks.map(task => (
+          <article key={task.taskNumber} className="space-y-3 rounded-lg border border-slate-200 bg-white p-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-semibold text-slate-900">Task {task.taskNumber}</h3>
+              <span className="text-xs text-slate-500">Printed p. {task.printedPage}</span>
+            </div>
+            <p className="whitespace-pre-line text-sm leading-7 text-slate-800">{task.prompt}</p>
+            {task.sampleAnswerAsset && (
+              <details className="rounded border border-slate-200 bg-slate-50 p-3">
+                <summary className="cursor-pointer text-sm font-medium text-slate-800">Sample answer{task.sampleAnswerBand ? ` · Band ${task.sampleAnswerBand.toFixed(1)}` : ''}</summary>
+                <img src={task.sampleAnswerAsset} alt={`Cambridge IELTS 12 GT Test ${testNumber} Task ${task.taskNumber} sample answer from printed page ${task.sampleAnswerPrintedPage}`} className="mt-3 h-auto w-full rounded border border-slate-200 bg-white" loading="lazy" />
+                {task.sampleAnswerPrintedPage && <p className="mt-2 text-xs text-slate-500">Scanned book page {task.sampleAnswerPrintedPage}; includes examiner comments.</p>}
+              </details>
+            )}
+          </article>
+        ))}
+      </div>
+    </section>
   );
 };

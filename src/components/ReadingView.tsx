@@ -6,6 +6,7 @@ import { ReadingQuestionType, ReadingQuestion, TestAttempt, ReadingQuestionGroup
 import { recordAttempt, addWordToVocabDeck, lookupVocabularyApi } from '../utils/db';
 import { calculateReadingBand, formatTime } from '../utils/ieltsScoring';
 import { WordCapturePopover } from './WordCapturePopover';
+import { Cambridge12ReadingPilot } from './Cambridge12ReadingPilot';
 
 interface ReadingViewProps {
   examMode?: 'study' | 'simulation';
@@ -30,7 +31,7 @@ const QUESTION_TYPE_LABELS: Record<ReadingQuestionType, { label: string; group: 
 
 export const ReadingView: React.FC<ReadingViewProps> = () => {
   // 4 Primary Modes
-  const [activeTab, setActiveTab] = useState<'by-type' | 'foundation' | 'by-passage' | 'full-test'>('by-type');
+  const [activeTab, setActiveTab] = useState<'by-type' | 'foundation' | 'by-passage' | 'full-test' | 'cambridge'>('by-type');
 
   // FOUNDATION SETS STATE
   const [selectedFoundationId, setSelectedFoundationId] = useState<string>(READING_FOUNDATION_SETS[0].id);
@@ -263,7 +264,7 @@ export const ReadingView: React.FC<ReadingViewProps> = () => {
           </div>
 
           {/* Primary 4 Tabs */}
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs shrink-0 self-start sm:self-auto">
+          <div className="flex flex-wrap items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs shrink-0 self-start sm:self-auto">
             <button
               type="button"
               onClick={() => setActiveTab('by-type')}
@@ -308,9 +309,14 @@ export const ReadingView: React.FC<ReadingViewProps> = () => {
             >
               4. Mock Test (40 câu)
             </button>
+            <button type="button" onClick={() => setActiveTab('cambridge')} className={`px-3 py-1.5 rounded text-xs font-medium cursor-pointer ${activeTab === 'cambridge' ? 'bg-white text-slate-900 font-semibold shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}>
+              Cambridge 12 GT
+            </button>
           </div>
         </div>
       </div>
+
+      {activeTab === 'cambridge' && <Cambridge12ReadingPilot testNumber={5} sectionNumber={1} />}
 
       {/* ========================================================================= */}
       {/* 1. HỌC THEO DẠNG BÀI (DEFAULT)                                            */}

@@ -139,6 +139,7 @@ async function migrate() {
     CREATE TABLE test_attempts (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
+      exam_family TEXT NOT NULL DEFAULT 'ielts',
       skill TEXT NOT NULL,
       section_id TEXT NOT NULL,
       section_title TEXT NOT NULL,

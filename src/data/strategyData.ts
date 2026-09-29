@@ -1,4 +1,5 @@
 export interface StrategySection {
+  provenance: 'ielts_prep_original';
   id: string;
   skill: 'reading' | 'listening' | 'exam';
   title: string;
@@ -9,7 +10,7 @@ export interface StrategySection {
   examples?: { wrongApproach: string; correctApproach: string; note: string };
 }
 
-export const STRATEGY_SECTIONS: StrategySection[] = [
+export const STRATEGY_SECTIONS = ([
   // READING
   {
     id: 'strat-r-skimming',
@@ -113,4 +114,4 @@ export const STRATEGY_SECTIONS: StrategySection[] = [
       'Giữ nhịp thở đều. Nếu lỡ mất 1 câu Listening, lập tức buông bỏ và tập trung 100% cho câu tiếp theo.'
     ]
   }
-];
+] satisfies Omit<StrategySection, 'provenance'>[]).map(section => ({ ...section, provenance: 'ielts_prep_original' as const }));

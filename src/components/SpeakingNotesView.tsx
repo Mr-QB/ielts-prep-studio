@@ -40,6 +40,8 @@ export const SpeakingNotesView: React.FC = () => {
           </div>
         </div>
 
+        <p role="note" className="text-xs text-slate-500 mt-2">Nội dung hướng dẫn và câu trả lời mẫu do ứng dụng biên soạn; không phải tài liệu IELTS chính thức.</p>
+
         {/* 5 Tab Switcher */}
         <div className="mt-4 flex items-center gap-1.5 overflow-x-auto pb-1">
           {[

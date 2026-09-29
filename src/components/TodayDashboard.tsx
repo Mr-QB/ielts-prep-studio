@@ -1,318 +1,99 @@
-import React, { useState, useEffect } from 'react';
-import { AppTab, TestAttempt, VocabDeck, GrammarProgressStatus, WeakAreaStat, DailyProtocolRecord, UserProfile } from '../types';
-import {
-  loadAttemptsFromStorage,
-  loadDecksFromStorage,
-  loadGrammarProgress,
-  getWeakAreaStats,
-  loadTodayProtocol,
-  saveTodayProtocol
-} from '../utils/db';
-import { INITIAL_VOCAB_DECKS } from '../data/vocabData';
+import React, { useEffect, useState } from 'react';
+import type { AppTab, CambridgeWritingWork, LearningPosition, RecordedMistake, TestAttempt, UserProfile, VocabDeck } from '../types';
+import { getLearnerVocabDecks, getTodayDateString, loadAttemptsFromStorage, loadCambridgeWritingWork, loadDecksFromStorage, loadLearningPosition, loadMistakes, saveLearningPosition } from '../utils/db';
+import { isMistakeDue } from '../utils/mistakeReview';
+import { loadCambridgeManifest } from '../utils/bookPractice';
+import type { PrivateBookManifest } from '../types/bookPractice';
+import { isCambridgeTaskAvailable } from '../utils/studyPlanner';
 
-interface TodayDashboardProps {
-  onNavigateTab: (tab: AppTab) => void;
-  user?: UserProfile;
+interface TodayDashboardProps { onNavigateTab: (tab: AppTab) => void; user?: UserProfile }
+
+const modules: LearningPosition['module'][] = ['reading', 'listening', 'writing'];
+function location(position: LearningPosition | null) {
+  if (!position) return 'Test 5 · Reading · Phần 1';
+  const module = position.module === 'reading' ? 'Reading' : position.module === 'listening' ? 'Listening' : 'Writing';
+  const unit = position.module === 'reading' ? 'Phần' : position.module === 'listening' ? 'Part' : 'Task';
+  return `Test ${position.testNumber} · ${module} · ${unit} ${position.sectionNumber}`;
 }
 
 export const TodayDashboard: React.FC<TodayDashboardProps> = ({ onNavigateTab, user }) => {
+  const [position, setPosition] = useState<LearningPosition | null>(null);
   const [attempts, setAttempts] = useState<TestAttempt[]>([]);
   const [decks, setDecks] = useState<VocabDeck[]>([]);
-  const [grammarProgress, setGrammarProgress] = useState<Record<string, GrammarProgressStatus>>({});
-  const [weakAreas, setWeakAreas] = useState<WeakAreaStat[]>([]);
-  const [protocol, setProtocol] = useState<DailyProtocolRecord | null>(null);
+  const [mistakes, setMistakes] = useState<RecordedMistake[]>([]);
+  const [writingWork, setWritingWork] = useState<Record<string, CambridgeWritingWork>>({});
+  const [manifest, setManifest] = useState<PrivateBookManifest | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
-    loadAttemptsFromStorage().then(setAttempts);
-    loadDecksFromStorage(INITIAL_VOCAB_DECKS).then(setDecks);
-    loadGrammarProgress().then(setGrammarProgress);
-    getWeakAreaStats().then(setWeakAreas);
-    loadTodayProtocol().then(setProtocol);
+    Promise.all([loadLearningPosition(), loadAttemptsFromStorage(), loadDecksFromStorage([]), loadMistakes(), loadCambridgeWritingWork(), loadCambridgeManifest().catch(() => null)])
+      .then(([savedPosition, savedAttempts, savedDecks, savedMistakes, savedWriting, book]) => {
+        setPosition(savedPosition); setAttempts(savedAttempts); setDecks(savedDecks); setMistakes(savedMistakes);
+        setWritingWork(savedWriting); setManifest(book);
+      })
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false));
   }, []);
 
-  // Calculate cards due today across all decks
-  const now = new Date();
-  const allCards = decks.flatMap(d => d.cards);
-  const dueCardsCount = allCards.filter(c => !c.dueDate || new Date(c.dueDate) <= now).length;
-
-  // Toggle daily task completed
-  const handleToggleTask = (taskId: string) => {
-    if (!protocol) return;
-    const updatedTasks = protocol.tasks.map(t => {
-      if (t.id === taskId) {
-        return { ...t, completed: !t.completed };
-      }
-      return t;
-    });
-
-    const updatedProtocol: DailyProtocolRecord = {
-      ...protocol,
-      tasks: updatedTasks
-    };
-
-    setProtocol(updatedProtocol);
-    saveTodayProtocol(updatedProtocol);
+  const dueWords = getLearnerVocabDecks(decks).flatMap(deck => deck.cards).filter(card => !card.dueDate || new Date(card.dueDate) <= new Date()).length;
+  const reviewMistakes = mistakes.filter(item => isMistakeDue(item.status, item.nextRetryDate, getTodayDateString())).length;
+  const latestAttempt = attempts.filter(item => item.sourcePackId === 'cambridge12-gt').sort((a, b) => b.date.localeCompare(a.date))[0];
+  const courseTasks = manifest?.tests.flatMap(testNumber => modules.flatMap(module => {
+    const imported = manifest.importedSections.filter(item => item.testNumber === testNumber && item.skill === module);
+    const count = module === 'writing' ? 2 : Math.max(0, ...imported.map(item => item.sectionNumber));
+    return Array.from({ length: count }, (_, index) => ({ testNumber, module, sectionNumber: index + 1 }));
+  })) ?? [];
+  const isComplete = (item: { testNumber: number; module: LearningPosition['module']; sectionNumber: number }) => {
+    if (item.module === 'writing') return Boolean(writingWork[`test-${item.testNumber}-task-${item.sectionNumber}`]?.reviewedAt);
+    const latest = attempts.filter(attempt => attempt.sourcePackId === 'cambridge12-gt' && attempt.testNumber === item.testNumber && attempt.module === item.module && attempt.sectionNumber === item.sectionNumber).sort((a, b) => b.date.localeCompare(a.date))[0];
+    return Boolean(latest && (!latest.incorrectQuestionNumbers.length || latest.reviewedAt));
+  };
+  const availableTasks = courseTasks.filter(item => isCambridgeTaskAvailable(item.module, manifest?.audioStatus ?? 'unavailable'));
+  const savedTask = position && availableTasks.find(item => item.testNumber === position.testNumber && item.module === position.module && item.sectionNumber === position.sectionNumber);
+  const nextTask = savedTask && !isComplete(savedTask) ? savedTask : availableTasks.find(item => !isComplete(item));
+  const activePosition: LearningPosition | null = nextTask ? { ...nextTask, sourcePackId: 'cambridge12-gt', updatedAt: position?.updatedAt ?? new Date().toISOString() } : null;
+  const courseComplete = availableTasks.length > 0 && availableTasks.every(isComplete);
+  const continueLearning = async () => {
+    if (!manifest) return;
+    if (courseComplete) { onNavigateTab('cambridge'); return; }
+    const target = activePosition ?? { sourcePackId: 'cambridge12-gt', testNumber: 5, module: 'reading' as const, sectionNumber: 1, updatedAt: new Date().toISOString() };
+    if (!position || target.testNumber !== position.testNumber || target.module !== position.module || target.sectionNumber !== position.sectionNumber) {
+      await saveLearningPosition({ ...target, updatedAt: new Date().toISOString() });
+      setPosition({ ...target, updatedAt: new Date().toISOString() });
+    }
+    onNavigateTab('cambridge');
   };
 
-  const totalPlannedMinutes = user ? user.dailyStudyMinutes : 180;
-  const completedMinutes = protocol ? protocol.tasks.filter(t => t.completed).reduce((acc, t) => acc + t.durationMin, 0) : 0;
-  const progressPercent = Math.min(100, Math.round((completedMinutes / totalPlannedMinutes) * 100));
-
-  // Do not infer a weak skill until there are enough observations.
-  const validWeakAreas = weakAreas.filter(w => w.totalQuestions >= 10 && w.accuracyRate < 75);
-  const hasDiagnosticData = weakAreas.some(w => w.totalQuestions >= 10);
-  const topWeak = validWeakAreas.length > 0
-    ? [...validWeakAreas].sort((a, b) => a.accuracyRate - b.accuracyRate)[0]
-    : null;
-
-  return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-16">
-      {/* 1. Above-the-fold Greeting & Day Header */}
-      <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              Chào {user ? user.displayName : 'bạn'}
-            </h1>
-            <p className="text-base text-slate-600 mt-0.5">
-              Ngày <span className="font-mono font-bold text-slate-900">{protocol ? protocol.dayNumber : 1}</span> / 180 • Mục tiêu: Band <span className="font-mono font-bold text-slate-900">{user ? user.targetBand.toFixed(1) : '6.5'}</span>
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-medium px-3 py-1.5 bg-slate-900 text-white rounded font-mono font-bold">
-              {completedMinutes} / {totalPlannedMinutes} phút
-            </span>
-          </div>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="mt-4 space-y-1.5">
-          <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-            <div
-              className="bg-slate-900 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${progressPercent}%` }}
-            ></div>
-          </div>
-        </div>
+  return <div className="mx-auto max-w-3xl space-y-5 pb-16">
+    <header className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-5">
+      <div>
+      <p className="text-sm text-slate-500">{new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}</p>
+      <h1 className="mt-1 font-serif text-3xl text-slate-950">Hôm nay{user?.displayName ? `, ${user.displayName}` : ''}</h1>
       </div>
+      <button type="button" onClick={() => onNavigateTab('plan')} className="rounded border border-slate-300 px-3 py-2 text-sm font-medium">Kế hoạch tuần</button>
+    </header>
 
-      {/* 2. Today's Two Main Focus Cards (Next Practice & Vocab Due) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Next Practice Card */}
-        <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs flex flex-col justify-between">
-          <div>
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-            {topWeak ? 'Nên luyện tiếp' : 'Gợi ý học tập'}
-            </span>
-            {topWeak ? (
-              <>
-                <h2 className="text-lg font-bold text-slate-900 mt-1">
-                  {topWeak.questionType}
-                </h2>
-                <p className="text-sm text-slate-600 mt-1">
-                  Đúng {topWeak.accuracyRate}% trong {topWeak.totalQuestions} câu gần đây. {topWeak.accuracyRate < 60 ? 'Ôn chiến thuật rồi làm bài Foundation ngắn.' : 'Luyện thêm một nhóm câu cùng dạng để củng cố.'}
-                </p>
-              </>
-            ) : (
-              <>
-                <h2 className="text-base font-bold text-slate-900 mt-1">
-                  {hasDiagnosticData ? 'Chưa có kỹ năng yếu rõ rệt' : 'Chưa đủ dữ liệu để chẩn đoán'}
-                </h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  {hasDiagnosticData ? 'Các kỹ năng đã đo hiện đạt từ 75% trở lên. Tiếp tục luyện đều và xem lại lỗi mới.' : 'Hệ thống chờ ít nhất 10 câu trả lời cho một dạng bài trước khi gợi ý đó là điểm yếu.'}
-                </p>
-              </>
-            )}
-          </div>
+    <section className="rounded border border-slate-200 bg-white p-6">
+      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Tiếp tục học</p>
+      <h2 className="mt-2 font-serif text-2xl">Cambridge IELTS 12 GT</h2>
+      <p className="mt-1 text-slate-600">{loading ? 'Đang tải vị trí học…' : loadError ? 'Không tải được vị trí học.' : !manifest ? 'Chưa cài gói Cambridge riêng trên máy chủ.' : courseComplete ? 'Đã hoàn thành các bước học khả dụng trong Tests 5–8.' : location(activePosition)}</p>
+      <button type="button" disabled={loading || loadError || !manifest} onClick={() => void continueLearning()} className="mt-5 rounded bg-slate-900 px-5 py-3 text-sm font-medium text-white disabled:cursor-wait disabled:opacity-50">{loading ? 'Đang tải…' : !manifest ? 'Cambridge chưa sẵn sàng' : courseComplete ? 'Xem tiến độ Cambridge' : activePosition && position ? 'Tiếp tục' : latestAttempt ? 'Tiếp tục lộ trình' : 'Bắt đầu Test 5'}</button>
+    </section>
 
-          <div className="pt-4 mt-2">
-            <button
-              type="button"
-              onClick={() => onNavigateTab(topWeak ? (topWeak.accuracyRate < 60 ? 'strategy' : topWeak.skill === 'reading' ? 'reading' : 'listening') : 'reading')}
-              className="w-full sm:w-auto px-4 py-2 bg-slate-900 text-white text-sm font-semibold rounded hover:bg-slate-800 cursor-pointer transition-colors"
-            >
-              {topWeak ? (topWeak.accuracyRate < 60 ? 'Học chiến thuật' : 'Luyện dạng này') : 'Bắt đầu Reading'}
-            </button>
-          </div>
-        </div>
-
-        {/* Vocab Due Card (Accurate count, never fake 10) */}
-        <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs flex flex-col justify-between">
-          <div>
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-              Từ vựng hôm nay
-            </span>
-            {dueCardsCount > 0 ? (
-              <>
-                <h2 className="text-lg font-bold text-slate-900 mt-1">
-                  <span className="font-mono text-2xl font-bold text-amber-700">{dueCardsCount}</span> từ vựng cần ôn
-                </h2>
-                <p className="text-sm text-slate-600 mt-1">
-                  Các từ học thuật Core đã đến hạn ôn tập chủ động để củng cố vào trí nhớ dài hạn.
-                </p>
-              </>
-            ) : (
-              <>
-                <h2 className="text-lg font-bold text-slate-900 mt-1">
-                  <span className="font-mono text-2xl font-bold text-emerald-700">0</span> từ đến hạn
-                </h2>
-                <p className="text-sm text-slate-600 mt-1">
-                  Tuyệt vời! Bạn không có từ vựng nào bị quá hạn hôm nay. Hãy học thêm từ mới để mở rộng vốn từ.
-                </p>
-              </>
-            )}
-          </div>
-
-          <div className="pt-4 mt-2">
-            <button
-              type="button"
-              onClick={() => onNavigateTab('vocab')}
-              className={`w-full sm:w-auto px-4 py-2 text-white text-sm font-semibold rounded cursor-pointer transition-colors ${
-                dueCardsCount > 0
-                  ? 'bg-amber-700 hover:bg-amber-800'
-                  : 'bg-emerald-700 hover:bg-emerald-800'
-              }`}
-            >
-              {dueCardsCount > 0 ? `Bắt đầu ôn (${dueCardsCount} từ)` : 'Học 5 từ mới'}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Today Checklist (~180 Mins) */}
-      <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs space-y-4">
-        <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">
-              Kế Hoạch Hôm Nay
-            </h2>
-            <p className="text-sm text-slate-500 mt-0.5">
-              Đánh dấu các mục sau khi hoàn thành. Bấm trực tiếp vào tên mục để vào bài học.
-            </p>
-          </div>
-          <span className="text-sm font-medium text-slate-700 font-mono">
-            ~{totalPlannedMinutes} phút
-          </span>
-        </div>
-
-        <div className="divide-y divide-slate-100">
-          {protocol && protocol.tasks.map(task => (
-            <div
-              key={task.id}
-              className={`py-3.5 flex items-center justify-between gap-4 transition-colors ${
-                task.completed ? 'opacity-60' : ''
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => handleToggleTask(task.id)}
-                  className={`w-5 h-5 rounded flex items-center justify-center border cursor-pointer transition-colors ${
-                    task.completed
-                      ? 'bg-slate-900 text-white border-slate-900'
-                      : 'border-slate-300 hover:border-slate-500 bg-white'
-                  }`}
-                  aria-label={task.completed ? 'Đánh dấu chưa xong' : 'Đánh dấu đã xong'}
-                >
-                  {task.completed ? '✓' : ''}
-                </button>
-
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => onNavigateTab(task.tabTarget)}
-                    className={`text-base font-semibold text-left cursor-pointer hover:underline ${
-                      task.completed ? 'line-through text-slate-500' : 'text-slate-900'
-                    }`}
-                  >
-                    {task.title}
-                  </button>
-                  <p className="text-sm text-slate-500">
-                    {task.subtitle}
-                  </p>
-                </div>
-              </div>
-
-              <div className="text-right shrink-0">
-                <span className="text-sm font-mono text-slate-600">
-                  {task.durationMin} phút
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 4. Smart Today Plan Breakdown (Rule-based recommendation) */}
-      <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs space-y-4">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900">
-            Chi Tiết Phân Bổ 50 Phút Luyện Kỹ Năng
-          </h2>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Lộ trình thông minh tự động chia nhỏ thời gian để bạn không bị quá tải.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-          {/* Reading 50 min breakdown */}
-          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-2.5">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-              <span className="text-sm font-bold text-slate-900">READING — 50 phút</span>
-              <button
-                type="button"
-                onClick={() => onNavigateTab('reading')}
-                className="text-xs font-semibold text-blue-700 hover:underline cursor-pointer"
-              >
-                Vào học →
-              </button>
-            </div>
-            <ul className="space-y-2 text-sm text-slate-700">
-              <li className="flex items-start gap-2">
-                <span className="font-mono text-xs font-bold text-slate-500 w-12 shrink-0">15 min</span>
-                <span>Học cách làm dạng bài <strong className="text-slate-900">{topWeak?.questionType || 'dạng bài trọng tâm'}</strong> (Xem bẫy & paraphrase)</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="font-mono text-xs font-bold text-slate-500 w-12 shrink-0">20 min</span>
-                <span>Luyện 10 câu bài tập Foundation có bấm giờ nhẹ nhàng</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="font-mono text-xs font-bold text-slate-500 w-12 shrink-0">15 min</span>
-                <span>Xem kỹ câu sai, đối chiếu bằng chứng trong bài và lưu vào sổ lỗi</span>
-              </li>
-            </ul>
-          </div>
-
-          {/* Listening 50 min breakdown */}
-          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-2.5">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-              <span className="text-sm font-bold text-slate-900">LISTENING — 50 phút</span>
-              <button
-                type="button"
-                onClick={() => onNavigateTab('listening')}
-                className="text-xs font-semibold text-purple-700 hover:underline cursor-pointer"
-              >
-                Vào học →
-              </button>
-            </div>
-            <ul className="space-y-2 text-sm text-slate-700">
-              <li className="flex items-start gap-2">
-                <span className="font-mono text-xs font-bold text-slate-500 w-12 shrink-0">10 min</span>
-                <span>Luyện phản xạ nhận diện <strong className="text-slate-900">Bẫy đổi ý (Distractor drill)</strong></span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="font-mono text-xs font-bold text-slate-500 w-12 shrink-0">25 min</span>
-                <span>Luyện nghe Section/Part 2 hoặc Part 3 chuẩn format</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="font-mono text-xs font-bold text-slate-500 w-12 shrink-0">15 min</span>
-                <span>Đọc lại Transcript, gạch chân từ nối và các cụm paraphrase</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
+    <div className="grid gap-4 sm:grid-cols-2">
+      <section className="rounded border border-slate-200 bg-white p-5">
+        <h2 className="font-semibold">Từ vựng</h2>
+        {loading ? <p className="mt-2 text-slate-500">Đang tải dữ liệu…</p> : loadError ? <p role="alert" className="mt-2 text-rose-700">Không tải được dữ liệu từ vựng.</p> : dueWords ? <p className="mt-2 text-slate-600">{dueWords} từ đã lưu đến hạn ôn.</p> : <p className="mt-2 text-slate-600">Không có từ nào đến hạn ôn.</p>}
+        <button type="button" onClick={() => onNavigateTab('vocab')} className="mt-4 text-sm font-medium underline underline-offset-4">{dueWords ? 'Ôn từ vựng' : 'Mở sổ từ vựng'}</button>
+      </section>
+      <section className="rounded border border-slate-200 bg-white p-5">
+        <h2 className="font-semibold">Ôn lỗi sai</h2>
+        {loading ? <p className="mt-2 text-slate-500">Đang tải dữ liệu…</p> : loadError ? <p role="alert" className="mt-2 text-rose-700">Không tải được nhật ký lỗi sai.</p> : reviewMistakes ? <p className="mt-2 text-slate-600">{reviewMistakes} câu đã đến hạn làm lại.</p> : <p className="mt-2 text-slate-600">Không có câu sai nào đến hạn ôn lại.</p>}
+        <button type="button" onClick={() => onNavigateTab('mistakes')} className="mt-4 text-sm font-medium underline underline-offset-4">Mở sổ lỗi sai</button>
+      </section>
     </div>
-  );
+
+    {loading ? <p className="text-sm text-slate-500">Đang tải tiến độ…</p> : loadError ? <p role="alert" className="text-sm text-rose-700">Không tải được tiến độ học.</p> : latestAttempt ? <p className="text-sm text-slate-500">Kết quả Cambridge gần nhất: {latestAttempt.score}/{latestAttempt.total} · {new Date(latestAttempt.date).toLocaleDateString('vi-VN')}</p> : <p className="text-sm text-slate-500">Chưa đủ dữ liệu học để đề xuất kỹ năng cần tập trung.</p>}
+  </div>;
 };

@@ -9,7 +9,7 @@ import {
   VocabLookupResult,
   VocabLookupSense
 } from '../types';
-import { INITIAL_VOCAB_DECKS, TOPIC_VOCABULARIES, PARAPHRASE_BANK, TopicVocabulary } from '../data/vocabData';
+import { TOPIC_VOCABULARIES, PARAPHRASE_BANK } from '../data/vocabData';
 import {
   calculateNextSRS,
   previewNextInterval,
@@ -26,6 +26,7 @@ import {
 } from '../utils/srsEngine';
 import {
   loadDecksFromStorage,
+  getLearnerVocabDecks,
   saveDecksToStorage,
   lookupVocabularyApi,
   checkDuplicateWordApi,
@@ -48,7 +49,7 @@ export const VocabSRSView: React.FC = () => {
   const [showNewLearning, setShowNewLearning] = useState(false);
 
   // Decks state
-  const [decks, setDecks] = useState<VocabDeck[]>(INITIAL_VOCAB_DECKS);
+  const [decks, setDecks] = useState<VocabDeck[]>([]);
   const [activeDeckId, setActiveDeckId] = useState<string>('all');
   const [voiceAccent, setVoiceAccent] = useState<'en-GB' | 'en-US'>('en-GB');
 
@@ -120,7 +121,7 @@ export const VocabSRSView: React.FC = () => {
 
   // Load decks on mount
   useEffect(() => {
-    loadDecksFromStorage(INITIAL_VOCAB_DECKS).then(loaded => {
+    loadDecksFromStorage([]).then(loaded => {
       if (loaded && loaded.length > 0) {
         setDecks(loaded);
       }
@@ -133,10 +134,11 @@ export const VocabSRSView: React.FC = () => {
   };
 
   // Aggregate cards across active deck or all decks
-  const allCards = decks.flatMap(d => d.cards);
+  const learnerDecks = getLearnerVocabDecks(decks);
+  const allCards = learnerDecks.flatMap(d => d.cards);
   const targetCards = activeDeckId === 'all'
     ? allCards
-    : (decks.find(d => d.id === activeDeckId)?.cards || []);
+    : (learnerDecks.find(d => d.id === activeDeckId)?.cards || []);
 
   const nowTime = new Date().getTime();
   const dueCards = targetCards.filter(c => {
@@ -414,6 +416,11 @@ export const VocabSRSView: React.FC = () => {
     updateDecks(nextDecks);
   };
 
+  const persistNewWordLearning = async (card: VocabCard, hadErrors: boolean) => {
+    const updatedCard = await reviewCardSRS(card.id, hadErrors ? 2 : 3, card);
+    syncCardToLocalDecks(updatedCard);
+  };
+
   // ==========================================
   // SIMPLIFIED ADD WORD LOGIC
   // ==========================================
@@ -477,7 +484,7 @@ export const VocabSRSView: React.FC = () => {
     if (saveResult.success) {
       setAddFeedbackMsg({ type: 'success', text: saveResult.message });
       // Reload decks
-      loadDecksFromStorage(INITIAL_VOCAB_DECKS).then(loaded => {
+      loadDecksFromStorage([]).then(loaded => {
         if (loaded) setDecks(loaded);
       });
       setTimeout(() => {
@@ -553,9 +560,10 @@ export const VocabSRSView: React.FC = () => {
         audioSource: result.audioSource
       };
     });
-    const nextDecks = decks.length
-      ? decks.map((deck, index) => index === 0 ? { ...deck, cards: [...cards, ...deck.cards] } : deck)
-      : [{ id: `personal-${Date.now()}`, name: importDeckName || 'Từ của tôi', description: '', createdAt: new Date().toISOString(), source: 'personal', cards }];
+    const targetIndex = decks.findIndex(deck => !['core-band-4-5', 'starter-academic-core', 'starter-upgrade-band-7'].includes(deck.id));
+    const nextDecks = targetIndex >= 0
+      ? decks.map((deck, index) => index === targetIndex ? { ...deck, cards: [...cards, ...deck.cards] } : deck)
+      : [...decks, { id: `personal-${Date.now()}`, name: importDeckName || 'Từ của tôi', description: '', createdAt: new Date().toISOString(), source: 'personal', cards }];
     updateDecks(nextDecks);
     setShowAddModal(false);
     setImportText('');
@@ -593,42 +601,6 @@ export const VocabSRSView: React.FC = () => {
             </p>
           </div>
 
-          {/* Sub-tabs */}
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs shrink-0 self-start sm:self-auto">
-            <button
-              type="button"
-              onClick={() => { setActiveTab('spaced-review'); setIsSessionActive(false); setShowNewLearning(false); }}
-              className={`px-3 py-1.5 rounded text-xs font-medium cursor-pointer transition-colors ${
-                activeTab === 'spaced-review'
-                  ? 'bg-white text-slate-900 font-semibold shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              1. Ôn tập chủ động
-            </button>
-            <button
-              type="button"
-              onClick={() => { setActiveTab('topic-vocab'); setIsSessionActive(false); setShowNewLearning(false); }}
-              className={`px-3 py-1.5 rounded text-xs font-medium cursor-pointer transition-colors ${
-                activeTab === 'topic-vocab'
-                  ? 'bg-white text-slate-900 font-semibold shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              2. Chủ đề IELTS
-            </button>
-            <button
-              type="button"
-              onClick={() => { setActiveTab('paraphrase-bank'); setIsSessionActive(false); setShowNewLearning(false); }}
-              className={`px-3 py-1.5 rounded text-xs font-medium cursor-pointer transition-colors ${
-                activeTab === 'paraphrase-bank'
-                  ? 'bg-slate-900 text-white font-semibold shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              3. Ngân hàng Paraphrase
-            </button>
-          </div>
           <button
             type="button"
             onClick={() => { setActiveTab('spaced-review'); setIsSessionActive(false); setSessionFinished(false); setShowNewLearning(true); }}
@@ -644,7 +616,7 @@ export const VocabSRSView: React.FC = () => {
       {/* ========================================================================= */}
       {activeTab === 'spaced-review' && (
         <div className="space-y-6">
-          {showNewLearning && <NewVocabularyLearning decks={decks} initialDeckId={activeDeckId} onExit={() => setShowNewLearning(false)} />}
+          {showNewLearning && <NewVocabularyLearning decks={decks} initialDeckId={activeDeckId} onExit={() => setShowNewLearning(false)} onWordLearned={persistNewWordLearning} />}
           {/* VOCABULARY OVERVIEW STATS ROW (When not reviewing) */}
           {!showNewLearning && !isSessionActive && !sessionFinished && (
             <div className="space-y-6">
@@ -769,7 +741,7 @@ export const VocabSRSView: React.FC = () => {
                     className="px-2.5 py-1.5 bg-white border border-slate-300 rounded text-xs font-semibold text-slate-900 focus:outline-hidden"
                   >
                     <option value="all">Toàn bộ từ vựng ({allCards.length} từ)</option>
-                    {decks.map(deck => (
+                    {learnerDecks.map(deck => (
                       <option key={deck.id} value={deck.id}>
                         {deck.name} ({deck.cards.length} từ)
                       </option>

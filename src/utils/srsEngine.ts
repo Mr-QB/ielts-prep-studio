@@ -384,9 +384,14 @@ export function classifyVocabError(
   // Calculate common prefix and distance
   const commonPrefix = getCommonPrefixLength(user, target);
   const dist = damerauLevenshteinDistance(user, target);
+  const toPlural = (word: string) => /[^aeiou]y$/.test(word)
+    ? `${word.slice(0, -1)}ies`
+    : /(s|x|z|ch|sh)$/.test(word) ? `${word}es` : `${word}s`;
+  const isPluralForm = toPlural(target) === user || toPlural(user) === target;
 
   // Morphology error: shared root (>= 4 chars) but differing grammatical suffix (e.g. significance vs significant)
   const isMorphologySuffix =
+    isPluralForm ||
     (user.endsWith('ce') && target.endsWith('t')) ||
     (user.endsWith('t') && target.endsWith('ce')) ||
     (user.endsWith('ance') && target.endsWith('ant')) ||

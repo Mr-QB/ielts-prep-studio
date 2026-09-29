@@ -27,7 +27,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <main className="grid min-h-screen place-items-center bg-slate-50 px-5 py-12">
+    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-5 py-12">
       <div className="w-full max-w-md">
         <div className="mb-8 flex items-center justify-center gap-3">
           <span className="workspace-brand-mark">I</span>

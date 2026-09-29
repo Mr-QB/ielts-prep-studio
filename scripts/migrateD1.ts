@@ -66,6 +66,29 @@ export async function migrateD1() {
     console.log(`✓ [${i + 1}/${statements.length}] executed: ${sql.slice(0, 40).replace(/\n/g, ' ')}...`);
   }
 
+  const attemptColumnsRes = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${databaseId}/query`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sql: 'PRAGMA table_info(test_attempts);' })
+    }
+  );
+  const attemptColumnsJson = await attemptColumnsRes.json() as any;
+  if (!attemptColumnsJson.success) throw new Error('Could not inspect test_attempts schema');
+  const attemptColumns = attemptColumnsJson.result[0].results.map((column: any) => column.name);
+  if (!attemptColumns.includes('exam_family')) {
+    const alterRes = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${databaseId}/query`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sql: "ALTER TABLE test_attempts ADD COLUMN exam_family TEXT NOT NULL DEFAULT 'ielts';" })
+      }
+    );
+    if (!(await alterRes.json() as any).success) throw new Error('Could not add exam_family to test_attempts');
+  }
+
   // Check tables
   const checkRes = await fetch(
     `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${databaseId}/query`,

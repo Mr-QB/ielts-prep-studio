@@ -1,5 +1,7 @@
+import { classifyVocabError } from '../../../../utils/srsEngine';
+
 export interface TypedAnswerResult {
-  status: 'CORRECT' | 'SPELLING_ERROR' | 'WRONG';
+  status: 'CORRECT' | 'SPELLING_ERROR' | 'MORPHOLOGY_ERROR' | 'INCOMPLETE_PHRASE' | 'WRONG';
   similarity: number;
   expected: string;
   received: string;
@@ -26,8 +28,26 @@ function editDistance(left: string, right: string): number {
 export function evaluateTypedAnswer(received: string, expected: string, acceptedAnswers: string[] = []): TypedAnswerResult {
   const receivedNormalized = normalizeAnswer(received);
   const accepted = [expected, ...acceptedAnswers].map(normalizeAnswer).filter(Boolean);
-  if (accepted.includes(receivedNormalized)) {
+  if (accepted.length && receivedNormalized && accepted.includes(receivedNormalized)) {
     return { status: 'CORRECT', similarity: 1, expected, received };
+  }
+  if (!accepted.length) return { status: 'WRONG', similarity: 0, expected, received };
+
+  const receivedWords = receivedNormalized.split(' ').filter(Boolean);
+  const incompletePhrase = accepted.some(answer => {
+    const expectedWords = answer.split(' ').filter(Boolean);
+    return expectedWords.length > 1 && receivedWords.length > 0 && receivedWords.length < expectedWords.length &&
+      receivedWords.every((word, index) => word === expectedWords[index]);
+  });
+  if (incompletePhrase) {
+    const expectedWords = accepted.find(answer => receivedWords.every((word, index) => word === answer.split(' ')[index]))?.split(' ').length ?? 0;
+    return { status: 'INCOMPLETE_PHRASE', similarity: receivedWords.length / expectedWords, expected, received };
+  }
+
+  if (accepted.some(answer => classifyVocabError(receivedNormalized, answer).errorType === 'MORPHOLOGY_ERROR')) {
+    const target = accepted.reduce((best, answer) => editDistance(receivedNormalized, answer) < editDistance(receivedNormalized, best) ? answer : best, accepted[0]);
+    const distance = editDistance(receivedNormalized, target);
+    return { status: 'MORPHOLOGY_ERROR', similarity: Math.max(0, 1 - distance / Math.max(receivedNormalized.length, target.length)), expected, received };
   }
 
   const bestDistance = Math.min(...accepted.map(answer => editDistance(receivedNormalized, answer)));

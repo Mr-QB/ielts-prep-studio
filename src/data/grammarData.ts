@@ -1,6 +1,6 @@
 import { GrammarTopic } from '../types';
 
-export const GRAMMAR_TOPICS: GrammarTopic[] = [
+export const GRAMMAR_TOPICS: GrammarTopic[] = ([
   // ==========================================
   // SECTION 1: FOUNDATION (G01 - G06)
   // Essential building blocks for Bands 4.0 -> 6.0
@@ -1125,4 +1125,4 @@ export const GRAMMAR_TOPICS: GrammarTopic[] = [
       }
     ]
   }
-];
+] satisfies Omit<GrammarTopic, 'provenance'>[]).map(topic => ({ ...topic, provenance: 'ielts_prep_original' as const }));

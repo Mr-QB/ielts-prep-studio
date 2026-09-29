@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { VocabCard, VocabDeck } from '../../../../types';
 import { playPronunciation } from '../../../../utils/srsEngine';
+import { clearVocabularyLearningSession, loadVocabularyLearningSession, saveVocabularyLearningSession } from '../../../../utils/db';
 import { getNextLearningTask } from '../services/newVocabularyTaskScheduler';
 import { evaluateTypedAnswer, type TypedAnswerResult } from '../services/typedAnswerEvaluator';
 import { countLearnedWords, createWordStates, getNewVocabularyCards, recordLearningTaskResult, refillActivePool } from '../services/learningSessionService';
@@ -10,6 +11,12 @@ const taskLabels = {
   FLASHCARD: 'Làm quen từ', MCQ_EN_VI: 'Nhận diện nghĩa', MCQ_VI_EN: 'Gợi nghĩa tiếng Việt',
   TYPE_VI_EN: 'Tự nhớ và gõ từ', DEFINITION: 'Hiểu định nghĩa', CONTEXT: 'Dùng từ trong ngữ cảnh',
 } as const;
+const emptyCounts = { correct: 0, wrong: 0, spelling: 0, morphology: 0, incomplete: 0, meaning: 0 };
+const typedAnswerLabels: Record<TypedAnswerResult['status'], string> = {
+  CORRECT: 'Chính xác.', SPELLING_ERROR: 'Gần đúng — sai chính tả.',
+  MORPHOLOGY_ERROR: 'Đúng gốc từ nhưng sai dạng từ.',
+  INCOMPLETE_PHRASE: 'Bạn mới nhập một phần cụm từ.', WRONG: 'Chưa chính xác.',
+};
 
 interface Session {
   cards: VocabCard[];
@@ -28,13 +35,20 @@ interface Feedback {
   typed?: TypedAnswerResult;
 }
 
+interface SavedSession {
+  session: Session;
+  counts: typeof emptyCounts;
+  sourceDeckId: string;
+}
+
 interface Props {
   decks: VocabDeck[];
   initialDeckId: string;
   onExit: () => void;
+  onWordLearned: (card: VocabCard, hadErrors: boolean) => Promise<void>;
 }
 
-export const NewVocabularyLearning: React.FC<Props> = ({ decks, initialDeckId, onExit }) => {
+export const NewVocabularyLearning: React.FC<Props> = ({ decks, initialDeckId, onExit, onWordLearned }) => {
   const [sourceDeckId, setSourceDeckId] = useState(initialDeckId);
   const [wordLimit, setWordLimit] = useState<5 | 10 | 20>(5);
   const [mode, setMode] = useState<VocabularySessionMode>('DEEP');
@@ -45,7 +59,8 @@ export const NewVocabularyLearning: React.FC<Props> = ({ decks, initialDeckId, o
   const [selectedAnswer, setSelectedAnswer] = useState('');
   const [typedAnswer, setTypedAnswer] = useState('');
   const [revealed, setRevealed] = useState(false);
-  const [counts, setCounts] = useState({ correct: 0, wrong: 0, spelling: 0, meaning: 0 });
+  const [counts, setCounts] = useState(emptyCounts);
+  const [restoring, setRestoring] = useState(true);
 
   const sourceCards = sourceDeckId === 'all' ? decks.flatMap(deck => deck.cards) : decks.find(deck => deck.id === sourceDeckId)?.cards || [];
   const newCards = useMemo(() => getNewVocabularyCards(sourceCards), [sourceCards]);
@@ -60,26 +75,37 @@ export const NewVocabularyLearning: React.FC<Props> = ({ decks, initialDeckId, o
   const learnedCount = session ? countLearnedWords(session.states) : 0;
   const missedCount = session ? session.cards.length - learnedCount : 0;
 
-  const startSession = (cards = newCards.slice(0, wordLimit)) => {
+  const startSession = async (cards = newCards.slice(0, wordLimit)) => {
     if (!cards.length) return;
     const poolSize = cards.length <= 5 ? 5 : 10;
-    setSession({ cards, states: createWordStates(cards), activeIds: cards.slice(0, poolSize).map(card => card.id), poolSize, mode, questionIndex: 0, finished: false });
-    setCounts({ correct: 0, wrong: 0, spelling: 0, meaning: 0 });
+    const nextSession = { cards, states: createWordStates(cards), activeIds: cards.slice(0, poolSize).map(card => card.id), poolSize, mode, questionIndex: 0, finished: false };
+    const nextCounts = emptyCounts;
+    setSession(nextSession);
+    setCounts(nextCounts);
     setFeedback(null);
     setSelectedAnswer('');
     setTypedAnswer('');
     setRevealed(false);
+    await persistSession(nextSession, nextCounts);
   };
 
-  const finishSession = () => setSession(current => current ? { ...current, finished: true } : current);
+  const finishSession = async () => {
+    if (!session) return;
+    const nextSession = { ...session, finished: true };
+    setSession(nextSession);
+    await persistSession(nextSession);
+  };
 
-  const advance = () => {
+  const advance = async () => {
+    if (!session || !feedback?.task) return;
+    const nextSession = { ...session, questionIndex: session.questionIndex + 1, previousCardId: feedback.task.card.id };
+    setSession(nextSession);
     setFeedback(null);
     setCanContinue(false);
     setSelectedAnswer('');
     setTypedAnswer('');
     setRevealed(false);
-    setSession(current => current && feedback?.task ? { ...current, questionIndex: current.questionIndex + 1, previousCardId: feedback.task.card.id } : current);
+    await persistSession(nextSession);
   };
 
   useEffect(() => {
@@ -93,22 +119,30 @@ export const NewVocabularyLearning: React.FC<Props> = ({ decks, initialDeckId, o
     return () => window.clearTimeout(timer);
   }, [feedback]);
 
-  const submitResult = (task: VocabularyLearningTask, correct: boolean, typed?: TypedAnswerResult) => {
+  const submitResult = async (task: VocabularyLearningTask, correct: boolean, typed?: TypedAnswerResult) => {
     if (!session || feedback) return;
     const priorState = session.states[task.card.id];
     const nextState = recordLearningTaskResult(task.card, priorState, task.taskType, correct, session.questionIndex, session.mode);
     const nextStates = { ...session.states, [task.card.id]: nextState };
     const nextActiveIds = refillActivePool(session.activeIds, session.cards, nextStates, session.poolSize);
     const complete = countLearnedWords(nextStates) === session.cards.length;
-    setSession({ ...session, states: nextStates, activeIds: nextActiveIds, finished: complete });
-    setCounts(previous => ({
-      correct: previous.correct + (correct ? 1 : 0),
-      wrong: previous.wrong + (correct ? 0 : 1),
-      spelling: previous.spelling + (typed?.status === 'SPELLING_ERROR' ? 1 : 0),
-      meaning: previous.meaning + (!correct && typed?.status !== 'SPELLING_ERROR' ? 1 : 0),
-    }));
+    const nextSession = { ...session, states: nextStates, activeIds: nextActiveIds, finished: complete };
+    const nextCounts = {
+      correct: counts.correct + (correct ? 1 : 0),
+      wrong: counts.wrong + (correct ? 0 : 1),
+      spelling: counts.spelling + (typed?.status === 'SPELLING_ERROR' ? 1 : 0),
+      morphology: counts.morphology + (typed?.status === 'MORPHOLOGY_ERROR' ? 1 : 0),
+      incomplete: counts.incomplete + (typed?.status === 'INCOMPLETE_PHRASE' ? 1 : 0),
+      meaning: counts.meaning + (!correct && (!typed || typed.status === 'WRONG') ? 1 : 0),
+    };
+    setSession(nextSession);
+    setCounts(nextCounts);
     setFeedback({ task, correct, typed });
     if (!correct) playPronunciation(task.card.word);
+    if (nextState.stage === 'LEARNED' && priorState.stage !== 'LEARNED') {
+      await onWordLearned(task.card, nextState.wrongCount > 0);
+    }
+    await persistSession(nextSession, nextCounts);
   };
 
   const checkTyped = () => {
@@ -127,6 +161,27 @@ export const NewVocabularyLearning: React.FC<Props> = ({ decks, initialDeckId, o
   const isChoiceTask = displayedTask && ['MCQ_EN_VI', 'MCQ_VI_EN', 'DEFINITION', 'CONTEXT'].includes(displayedTask.taskType);
   const cardsNeedingReview = session?.cards.filter(card => session.states[card.id].stage !== 'LEARNED') || [];
 
+  useEffect(() => {
+    let active = true;
+    loadVocabularyLearningSession<SavedSession>().then(saved => {
+      if (!active || !saved?.session?.cards?.length) return;
+      setSession(saved.session);
+      setCounts({ ...emptyCounts, ...saved.counts });
+      setSourceDeckId(saved.sourceDeckId);
+      setMode(saved.session.mode);
+      setWordLimit(saved.session.cards.length === 10 ? 10 : saved.session.cards.length === 20 ? 20 : 5);
+    }).finally(() => { if (active) setRestoring(false); });
+    return () => { active = false; };
+  }, []);
+
+  const persistSession = (nextSession: Session, nextCounts = counts) =>
+    saveVocabularyLearningSession<SavedSession>({ session: nextSession, counts: nextCounts, sourceDeckId });
+
+  const exitSummary = async () => {
+    await clearVocabularyLearningSession();
+    onExit();
+  };
+
   return (
     <section className="space-y-5" aria-label="Học từ mới">
       <header className="bg-white border border-slate-200 rounded-xl p-5 sm:p-6 shadow-xs">
@@ -136,7 +191,9 @@ export const NewVocabularyLearning: React.FC<Props> = ({ decks, initialDeckId, o
         </div>
       </header>
 
-      {!session && <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-6 shadow-xs space-y-6">
+      {restoring && <p className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600" role="status">Đang khôi phục phiên học…</p>}
+
+      {!restoring && !session && <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-6 shadow-xs space-y-6">
         <div className="grid sm:grid-cols-2 gap-5">
           <label className="text-sm font-semibold text-slate-800">Bộ từ
             <select value={sourceDeckId} onChange={event => setSourceDeckId(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-normal">
@@ -171,13 +228,13 @@ export const NewVocabularyLearning: React.FC<Props> = ({ decks, initialDeckId, o
 
         {!feedback && currentTask?.taskType === 'TYPE_VI_EN' && <form onSubmit={event => { event.preventDefault(); checkTyped(); }} className="space-y-3"><input key={currentTask.card.id} autoFocus value={typedAnswer} onChange={event => setTypedAnswer(event.target.value)} placeholder="Gõ từ tiếng Anh" className="w-full rounded-lg border border-slate-300 px-4 py-3 text-center text-lg" /><button type="submit" disabled={!typedAnswer.trim()} className="w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Kiểm tra</button></form>}
 
-        {feedback && <div role="status" className={`rounded-lg border p-4 space-y-3 ${feedback.correct ? 'border-emerald-200 bg-emerald-50 text-emerald-950' : 'border-amber-200 bg-amber-50 text-amber-950'}`}><p className="font-semibold">{feedback.correct ? 'Chính xác.' : feedback.typed?.status === 'SPELLING_ERROR' ? 'Gần đúng — sai chính tả.' : 'Chưa chính xác.'}</p>{feedback.typed && <p className="text-sm">Bạn gõ: <strong>{feedback.typed.received || '(để trống)'}</strong><br />Đáp án: <strong>{feedback.typed.expected}</strong></p>}{!feedback.correct && <p className="text-sm">{feedback.task.card.definitionVi}{feedback.task.card.definitionEn ? ` · ${feedback.task.card.definitionEn}` : ''}</p>}{feedback.correct && <p className="text-sm">{feedback.task.card.word} · {feedback.task.card.definitionVi}</p>}{!feedback.correct && <button type="button" onClick={() => playPronunciation(feedback.task.card.word)} className="text-sm underline">Nghe lại phát âm</button>}{!feedback.correct && <div><button type="button" disabled={!canContinue} onClick={advance} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-45">Tiếp tục</button></div>}</div>}
+        {feedback && <div role="status" className={`rounded-lg border p-4 space-y-3 ${feedback.correct ? 'border-emerald-200 bg-emerald-50 text-emerald-950' : 'border-amber-200 bg-amber-50 text-amber-950'}`}><p className="font-semibold">{feedback.correct ? typedAnswerLabels.CORRECT : typedAnswerLabels[feedback.typed?.status ?? 'WRONG']}</p>{feedback.typed && <p className="text-sm">Bạn gõ: <strong>{feedback.typed.received || '(để trống)'}</strong><br />Đáp án: <strong>{feedback.typed.expected}</strong></p>}{!feedback.correct && <p className="text-sm">{feedback.task.card.definitionVi}{feedback.task.card.definitionEn ? ` · ${feedback.task.card.definitionEn}` : ''}</p>}{feedback.correct && <p className="text-sm">{feedback.task.card.word} · {feedback.task.card.definitionVi}</p>}{!feedback.correct && <button type="button" onClick={() => playPronunciation(feedback.task.card.word)} className="text-sm underline">Nghe lại phát âm</button>}{!feedback.correct && <div><button type="button" disabled={!canContinue} onClick={advance} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-45">Tiếp tục</button></div>}</div>}
       </div>}
 
       {session?.finished && <div className="mx-auto max-w-xl bg-white border border-slate-200 rounded-xl p-6 sm:p-8 shadow-xs space-y-5">
         <div><p className="text-xs uppercase tracking-wider font-bold text-slate-500">TỔNG KẾT PHIÊN</p><h3 className="mt-1 text-2xl font-bold text-slate-900">{learnedCount === session.cards.length ? 'Đã hoàn thành' : 'Phiên đã kết thúc'}</h3><p className="mt-1 text-sm text-slate-600">{learnedCount} / {session.cards.length} từ đạt mức học trong phiên. Đây chưa phải trạng thái nắm vững dài hạn.</p></div>
-        <dl className="divide-y divide-slate-100 rounded-lg bg-slate-50 px-4"><div className="flex justify-between py-3 text-sm"><dt>Trả lời đúng</dt><dd className="font-mono font-semibold">{counts.correct}</dd></div><div className="flex justify-between py-3 text-sm"><dt>Lỗi chính tả</dt><dd className="font-mono font-semibold">{counts.spelling}</dd></div><div className="flex justify-between py-3 text-sm"><dt>Lỗi nghĩa / ghi nhớ</dt><dd className="font-mono font-semibold">{counts.meaning}</dd></div><div className="flex justify-between py-3 text-sm"><dt>Từ còn cần xem lại</dt><dd className="font-mono font-semibold">{missedCount}</dd></div></dl>
-        <div className="flex flex-wrap gap-3">{missedCount > 0 && <button type="button" onClick={() => startSession(cardsNeedingReview)} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Ôn lại {missedCount} từ còn vướng</button>}<button type="button" onClick={onExit} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Hoàn thành</button></div>
+        <dl className="divide-y divide-slate-100 rounded-lg bg-slate-50 px-4"><div className="flex justify-between py-3 text-sm"><dt>Trả lời đúng</dt><dd className="font-mono font-semibold">{counts.correct}</dd></div><div className="flex justify-between py-3 text-sm"><dt>Lỗi chính tả</dt><dd className="font-mono font-semibold">{counts.spelling}</dd></div><div className="flex justify-between py-3 text-sm"><dt>Sai dạng từ</dt><dd className="font-mono font-semibold">{counts.morphology}</dd></div><div className="flex justify-between py-3 text-sm"><dt>Thiếu cụm từ</dt><dd className="font-mono font-semibold">{counts.incomplete}</dd></div><div className="flex justify-between py-3 text-sm"><dt>Lỗi nghĩa / ghi nhớ</dt><dd className="font-mono font-semibold">{counts.meaning}</dd></div><div className="flex justify-between py-3 text-sm"><dt>Từ còn cần xem lại</dt><dd className="font-mono font-semibold">{missedCount}</dd></div></dl>
+        <div className="flex flex-wrap gap-3">{missedCount > 0 && <button type="button" onClick={() => startSession(cardsNeedingReview)} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Ôn lại {missedCount} từ còn vướng</button>}<button type="button" onClick={exitSummary} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Hoàn thành</button></div>
       </div>}
     </section>
   );

@@ -5,9 +5,12 @@ import { VocabLookupResult } from '../types';
 interface WordCapturePopoverProps {
   sourceLabel: string;
   sourceType: 'reading' | 'listening';
+  sourcePackId?: string;
+  testNumber?: number;
+  sectionNumber?: number;
 }
 
-export const WordCapturePopover: React.FC<WordCapturePopoverProps> = ({ sourceLabel, sourceType }) => {
+export const WordCapturePopover: React.FC<WordCapturePopoverProps> = ({ sourceLabel, sourceType, sourcePackId, testNumber, sectionNumber }) => {
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [contextSentence, setContextSentence] = useState<string>('');
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
@@ -99,17 +102,24 @@ export const WordCapturePopover: React.FC<WordCapturePopoverProps> = ({ sourceLa
       setCoords(null);
     };
 
+    const handleSelectionKeyUp = (event: KeyboardEvent) => {
+      if (event.shiftKey || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a')) handleMouseUp();
+    };
+
     document.addEventListener('mouseup', handleMouseUp);
     document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('keyup', handleSelectionKeyUp);
     return () => {
       document.removeEventListener('mouseup', handleMouseUp);
       document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('keyup', handleSelectionKeyUp);
     };
   }, []);
 
   const handleOpenCaptureModal = async () => {
     if (!selectedWord) return;
     setCoords(null);
+    window.getSelection()?.removeAllRanges();
     setShowConfirmModal(true);
     setIsLookingUp(true);
 
@@ -139,6 +149,9 @@ export const WordCapturePopover: React.FC<WordCapturePopoverProps> = ({ sourceLa
       example: contextSentence,
       sourceContext: contextSentence,
       source: sourceLabel,
+      sourcePackId,
+      sourceTestNumber: testNumber,
+      sourceSectionNumber: sectionNumber,
       sourceType: sourceType,
       priority: 10,
       audio: lookupResult?.audio,
